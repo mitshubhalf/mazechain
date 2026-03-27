@@ -5,10 +5,10 @@
 
 struct Block {
     int index;
+    std::vector<Transaction> transactions;
     std::string prevHash;
     std::string hash;
     int nonce;
-    std::vector<Transaction> transactions;
 
     Block(int idx, std::vector<Transaction> txs, std::string prev);
 
