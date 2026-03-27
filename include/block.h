@@ -1,7 +1,13 @@
 #pragma once
-#include <vector>
 #include <string>
-#include "transaction.h"
+#include <vector>
+
+struct Transaction {
+    std::string from;
+    std::string to;
+    double amount;
+    std::string signature;
+};
 
 struct Block {
     int index;
