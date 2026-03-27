@@ -1,0 +1,7 @@
+
+Conteúdo:
+
+```gitignore
+mazechain
+*.o
+chain.txt
