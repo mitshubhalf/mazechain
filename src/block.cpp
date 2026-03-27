@@ -1,8 +1,10 @@
 #include "../include/block.h"
-#include "../include/crypto.h"
+#include <openssl/sha.h>
+#include <sstream>
+#include <iomanip>
 
-Block::Block(int i, std::vector<Transaction> txs, std::string prev) {
-    index = i;
+Block::Block(int idx, std::vector<Transaction> txs, std::string prev) {
+    index = idx;
     transactions = txs;
     prevHash = prev;
     nonce = 0;
@@ -10,12 +12,20 @@ Block::Block(int i, std::vector<Transaction> txs, std::string prev) {
 }
 
 std::string Block::calculateHash() {
-    std::string data = std::to_string(index) + prevHash + std::to_string(nonce);
+    std::stringstream ss;
+    ss << index << prevHash << nonce;
 
-    for (auto &tx : transactions)
-        data += tx.toString();
+    std::string input = ss.str();
 
-    return sha256(data);
+    unsigned char hashBytes[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char*)input.c_str(), input.size(), hashBytes);
+
+    std::stringstream result;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        result << std::hex << std::setw(2) << std::setfill('0') << (int)hashBytes[i];
+    }
+
+    return result.str();
 }
 
 void Block::mineBlock(int difficulty) {
