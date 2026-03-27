@@ -1,24 +1,21 @@
 #pragma once
 #include <vector>
-#include <string>
 #include "block.h"
-#include "transaction.h"
 
 class Blockchain {
-private:
+public:
     std::vector<Block> chain;
     std::vector<Transaction> mempool;
     int difficulty;
     double totalSupply;
 
-public:
     Blockchain();
 
-    void mineBlock(std::string minerAddress);
+    void mineBlock(std::string address);
     double getBalance(std::string address);
 
-    bool addTransaction(Transaction tx);
-
     int getBlockReward(int height);
-    double getTotalSupply();
+
+    void saveChain();
+    void loadChain();
 };
