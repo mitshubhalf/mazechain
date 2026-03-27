@@ -3,17 +3,19 @@
 #include "block.h"
 
 class Blockchain {
-public:
+private:
     std::vector<Block> chain;
     std::vector<Transaction> mempool;
     int difficulty;
     double totalSupply;
 
+public:
     Blockchain();
 
-    void mineBlock(std::string address);
-    double getBalance(std::string address);
+    void mineBlock(std::string miner);
+    bool addTransaction(Transaction tx);
 
+    double getBalance(std::string address);
     int getBlockReward(int height);
 
     void saveChain();
