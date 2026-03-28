@@ -1,8 +1,9 @@
-#include <iostream>
 #include "../include/blockchain.h"
 #include "../include/wallet.h"
+#include <iostream>
 
 int main(int argc, char* argv[]) {
+
     Blockchain blockchain;
 
     if (argc < 2) {
@@ -17,21 +18,14 @@ int main(int argc, char* argv[]) {
 
     if (cmd == "wallet") {
         Wallet w = createWallet();
+
         std::cout << "Address: " << w.address << "\n";
         std::cout << "Private Key: " << w.privateKey << "\n";
     }
     else if (cmd == "mine") {
-        if (argc < 3) {
-            std::cout << "Falta endereço\n";
-            return 0;
-        }
         blockchain.mineBlock(argv[2]);
     }
     else if (cmd == "balance") {
-        if (argc < 3) {
-            std::cout << "Falta endereço\n";
-            return 0;
-        }
         std::cout << blockchain.getBalance(argv[2]) << "\n";
     }
 
