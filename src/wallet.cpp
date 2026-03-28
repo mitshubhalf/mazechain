@@ -1,17 +1,26 @@
 #include "../include/wallet.h"
 #include "../include/crypto.h"
 #include <sstream>
+#include <iomanip>
 
 Wallet createWallet() {
     Wallet w;
 
-    std::string privKey = generatePrivateKey();
-    std::string pubKey = getPublicKey(privKey);
+    // gera chave privada
+    w.privateKey = generatePrivateKey();
 
-    std::string address = sha256(pubKey).substr(0, 20);
+    // gera chave pública
+    std::string pubKey = getPublicKey(w.privateKey);
 
-    w.address = "MC-" + address;
-    w.privateKey = privKey;
+    // cria endereço simples (hash da pubkey)
+    std::stringstream ss;
+    ss << "MC-";
+
+    for (int i = 0; i < 10 && i < pubKey.size(); i++) {
+        ss << std::hex << (int)pubKey[i];
+    }
+
+    w.address = ss.str();
 
     return w;
 }
