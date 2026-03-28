@@ -1,6 +1,6 @@
+#include <iostream>
 #include "../include/blockchain.h"
 #include "../include/wallet.h"
-#include <iostream>
 
 int main(int argc, char* argv[]) {
     Blockchain blockchain;
@@ -8,8 +8,8 @@ int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cout << "Uso:\n";
         std::cout << "./mazechain wallet\n";
-        std::cout << "./mazechain mine <address>\n";
-        std::cout << "./mazechain balance <address>\n";
+        std::cout << "./mazechain mine ENDERECO\n";
+        std::cout << "./mazechain balance ENDERECO\n";
         return 0;
     }
 
@@ -17,13 +17,29 @@ int main(int argc, char* argv[]) {
 
     if (cmd == "wallet") {
         Wallet w = createWallet();
+
         std::cout << "Address: " << w.address << "\n";
+        std::cout << w.privateKey << "\n";
     }
+
     else if (cmd == "mine") {
-        blockchain.mineBlock(argv[2]);
+        if (argc < 3) {
+            std::cout << "Informe endereço\n";
+            return 0;
+        }
+
+        std::string addr = argv[2];
+        blockchain.mineBlock(addr);
     }
+
     else if (cmd == "balance") {
-        std::cout << blockchain.getBalance(argv[2]) << "\n";
+        if (argc < 3) {
+            std::cout << "Informe endereço\n";
+            return 0;
+        }
+
+        std::string addr = argv[2];
+        std::cout << blockchain.getBalance(addr) << "\n";
     }
 
     return 0;
