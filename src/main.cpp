@@ -1,4 +1,5 @@
 #include "../include/blockchain.h"
+#include "../include/wallet.h"
 #include <iostream>
 
 int main(int argc, char* argv[]) {
@@ -6,6 +7,7 @@ int main(int argc, char* argv[]) {
 
     if (argc < 2) {
         std::cout << "Uso:\n";
+        std::cout << "./mazechain wallet\n";
         std::cout << "./mazechain mine <address>\n";
         std::cout << "./mazechain balance <address>\n";
         return 0;
@@ -13,7 +15,11 @@ int main(int argc, char* argv[]) {
 
     std::string cmd = argv[1];
 
-    if (cmd == "mine") {
+    if (cmd == "wallet") {
+        Wallet w = createWallet();
+        std::cout << "Address: " << w.address << "\n";
+    }
+    else if (cmd == "mine") {
         blockchain.mineBlock(argv[2]);
     }
     else if (cmd == "balance") {
