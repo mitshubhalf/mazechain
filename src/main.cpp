@@ -8,39 +8,35 @@ int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cout << "Uso:\n";
         std::cout << "./mazechain wallet\n";
-        std::cout << "./mazechain mine ENDERECO\n";
-        std::cout << "./mazechain balance ENDERECO\n";
+        std::cout << "./mazechain mine <address>\n";
+        std::cout << "./mazechain balance <address>\n";
         return 0;
     }
 
-    std::string cmd = argv[1];
+    std::string command = argv[1];
 
-    if (cmd == "wallet") {
+    // 🔥 WALLET
+    if (command == "wallet") {
         Wallet w = createWallet();
 
         std::cout << "Address: " << w.address << "\n";
         std::cout << w.privateKey << "\n";
+
+        return 0;
     }
 
-    else if (cmd == "mine") {
-        if (argc < 3) {
-            std::cout << "Informe endereço\n";
-            return 0;
-        }
-
-        std::string addr = argv[2];
-        blockchain.mineBlock(addr);
+    // 🔥 MINERAR
+    if (command == "mine" && argc >= 3) {
+        blockchain.mineBlock(argv[2]);
+        return 0;
     }
 
-    else if (cmd == "balance") {
-        if (argc < 3) {
-            std::cout << "Informe endereço\n";
-            return 0;
-        }
-
-        std::string addr = argv[2];
-        std::cout << blockchain.getBalance(addr) << "\n";
+    // 🔥 SALDO
+    if (command == "balance" && argc >= 3) {
+        std::cout << blockchain.getBalance(argv[2]) << "\n";
+        return 0;
     }
 
+    std::cout << "Comando inválido\n";
     return 0;
 }
