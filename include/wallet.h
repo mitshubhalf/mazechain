@@ -3,7 +3,6 @@
 
 struct Wallet {
     std::string address;
-    std::string privateKey;
 };
 
 Wallet createWallet();
