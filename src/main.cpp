@@ -13,30 +13,27 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    std::string command = argv[1];
+    std::string cmd = argv[1];
 
-    // 🔥 WALLET
-    if (command == "wallet") {
+    if (cmd == "wallet") {
         Wallet w = createWallet();
-
         std::cout << "Address: " << w.address << "\n";
-        std::cout << w.privateKey << "\n";
-
-        return 0;
+        std::cout << "Private Key: " << w.privateKey << "\n";
     }
-
-    // 🔥 MINERAR
-    if (command == "mine" && argc >= 3) {
+    else if (cmd == "mine") {
+        if (argc < 3) {
+            std::cout << "Falta endereço\n";
+            return 0;
+        }
         blockchain.mineBlock(argv[2]);
-        return 0;
     }
-
-    // 🔥 SALDO
-    if (command == "balance" && argc >= 3) {
+    else if (cmd == "balance") {
+        if (argc < 3) {
+            std::cout << "Falta endereço\n";
+            return 0;
+        }
         std::cout << blockchain.getBalance(argv[2]) << "\n";
-        return 0;
     }
 
-    std::cout << "Comando inválido\n";
     return 0;
 }
