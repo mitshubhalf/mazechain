@@ -1,23 +1,22 @@
-#pragma once
+#ifndef BLOCK_H
+#define BLOCK_H
+
 #include <string>
 #include <vector>
 
-struct Transaction {
-    std::string from;
-    std::string to;
-    double amount;
-    std::string signature;
-};
-
-struct Block {
+class Block {
+public:
     int index;
-    std::vector<Transaction> transactions;
-    std::string prevHash;
+    std::string timestamp;
+    std::vector<std::string> transactions;
+    std::string previousHash;
     std::string hash;
     int nonce;
 
-    Block(int idx, std::vector<Transaction> txs, std::string prev);
+    Block(int idx, std::vector<std::string> txs, std::string prevHash);
 
     std::string calculateHash();
     void mineBlock(int difficulty);
 };
+
+#endif
