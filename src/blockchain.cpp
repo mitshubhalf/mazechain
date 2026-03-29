@@ -20,7 +20,7 @@ std::string Blockchain::sha256(const std::string& input){
 
 Blockchain::Blockchain(){
     load();
-    loadMempool(); // 🔥 NOVO
+    loadMempool();
 
     if(chain.empty()){
         Block g;
@@ -45,7 +45,7 @@ bool Blockchain::validateTransaction(const Transaction& tx){
         return false;
     }
 
-    if(!verifySignature(tx.toString(), tx.signature, tx.from)){
+    if(!verifySignature(tx.toString(), tx.signature, tx.publicKey)){
         std::cout << "Assinatura inválida\n";
         return false;
     }
@@ -57,7 +57,7 @@ void Blockchain::addTransaction(const Transaction& tx){
 
     if(validateTransaction(tx)){
         mempool.push_back(tx);
-        saveMempool(); // 🔥 IMPORTANTE
+        saveMempool();
         std::cout << "TX OK\n";
     } else {
         std::cout << "TX FAIL\n";
@@ -84,7 +84,7 @@ void Blockchain::mineBlock(const std::string& miner){
     chain.push_back(b);
 
     mempool.clear();
-    saveMempool(); // 🔥 limpa arquivo também
+    saveMempool();
 
     save();
 
@@ -136,24 +136,19 @@ int Blockchain::getBalance(const std::string& addr){
 }
 
 void Blockchain::save(){
-
     std::ofstream f("chain.txt");
-
-    for(auto &b : chain){
+    for(auto &b : chain)
         f << b.index << "|" << b.data << "|" << b.prevHash << "|" << b.hash << "\n";
-    }
 }
 
 void Blockchain::load(){
 
     std::ifstream f("chain.txt");
-
     if(!f) return;
 
     std::string l;
 
     while(getline(f, l)){
-
         Block b;
 
         size_t p1 = l.find("|");
@@ -169,17 +164,15 @@ void Blockchain::load(){
     }
 }
 
-// 🔥 NOVO
 void Blockchain::saveMempool(){
 
     std::ofstream f("mempool.txt");
 
     for(auto &tx : mempool){
-        f << tx.from << "|" << tx.to << "|" << tx.amount << "|" << tx.signature << "\n";
+        f << tx.from << "|" << tx.to << "|" << tx.amount << "|" << tx.signature << "|" << tx.publicKey << "\n";
     }
 }
 
-// 🔥 NOVO
 void Blockchain::loadMempool(){
 
     std::ifstream f("mempool.txt");
@@ -193,11 +186,13 @@ void Blockchain::loadMempool(){
         size_t p1 = line.find("|");
         size_t p2 = line.find("|", p1+1);
         size_t p3 = line.find("|", p2+1);
+        size_t p4 = line.find("|", p3+1);
 
         tx.from = line.substr(0, p1);
         tx.to = line.substr(p1+1, p2-p1-1);
         tx.amount = stoi(line.substr(p2+1, p3-p2-1));
-        tx.signature = line.substr(p3+1);
+        tx.signature = line.substr(p3+1, p4-p3-1);
+        tx.publicKey = line.substr(p4+1);
 
         mempool.push_back(tx);
     }
