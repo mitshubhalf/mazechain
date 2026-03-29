@@ -32,26 +32,18 @@ int main(int argc,char* argv[]){
     if(cmd=="balance"){
         Wallet w; w.loadFromFile("wallet.dat");
         Blockchain bc;
-        std::cout<<"Balance: "<<bc.getBalance(w.address)<<" MC\n";
+        std::cout<<bc.getBalance(w.address)<<"\n";
     }
 
     if(cmd=="send"){
-
-        if(argc < 4){
-            std::cout<<"Uso: send ADDRESS AMOUNT\n";
-            return 0;
-        }
-
-        Wallet w; 
-        w.loadFromFile("wallet.dat");
+        Wallet w; w.loadFromFile("wallet.dat");
 
         Transaction tx;
-        tx.from = w.address;
-        tx.to = argv[2];
-        tx.amount = std::stoi(argv[3]);
+        tx.from=w.address;
+        tx.to=argv[2];
+        tx.amount=stoi(argv[3]);
 
-        tx.publicKey = w.publicKey; // 🔥 ESSENCIAL
-        tx.signature = signData(tx.toString(), w.privateKey);
+        tx.signature=signData(tx.toString(),w.privateKey);
 
         Blockchain bc;
         bc.addTransaction(tx);
