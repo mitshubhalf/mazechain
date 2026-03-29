@@ -72,23 +72,13 @@ void Blockchain::mineBlock(const std::string& miner){
 
     std::stringstream ss;
 
-    // recompensa
     ss << "SYSTEM->" << miner << ":250\n";
 
-    // transações protegidas
     for(auto &tx : mempool){
-
-        if(tx.from.empty() || tx.to.empty() || tx.amount <= 0)
-            continue;
-
         ss << tx.from << "->" << tx.to << ":" << tx.amount << "\n";
     }
 
     b.data = ss.str();
-
-    if(b.data.empty())
-        b.data = "EMPTY";
-
     b.hash = sha256(b.data + b.prevHash);
 
     chain.push_back(b);
@@ -113,21 +103,33 @@ int Blockchain::getBalance(const std::string& addr){
 
             if(line.empty()) continue;
 
-            size_t p1 = line.find("->");
-            size_t p2 = line.find(":");
-
-            if(p1 == std::string::npos || p2 == std::string::npos)
-                continue;
-
             try{
-                std::string from = line.substr(0, p1);
-                std::string to = line.substr(p1 + 2, p2 - (p1 + 2));
-                int amount = std::stoi(line.substr(p2 + 1));
 
-                if(from == "SYSTEM"){
+                if(line.find("SYSTEM->") != std::string::npos){
+
+                    size_t p1 = line.find("->");
+                    size_t p2 = line.find(":");
+
+                    if(p1 == std::string::npos || p2 == std::string::npos) continue;
+
+                    std::string to = line.substr(p1 + 2, p2 - (p1 + 2));
+                    int amount = std::stoi(line.substr(p2 + 1));
+
                     if(to == addr)
                         balance += amount;
-                } else {
+                }
+
+                else if(line.find("->") != std::string::npos){
+
+                    size_t p1 = line.find("->");
+                    size_t p2 = line.find(":");
+
+                    if(p1 == std::string::npos || p2 == std::string::npos) continue;
+
+                    std::string from = line.substr(0, p1);
+                    std::string to = line.substr(p1 + 2, p2 - (p1 + 2));
+                    int amount = std::stoi(line.substr(p2 + 1));
+
                     if(to == addr)
                         balance += amount;
 
@@ -136,6 +138,7 @@ int Blockchain::getBalance(const std::string& addr){
                 }
 
             } catch(...) {
+                // evita crash
                 continue;
             }
         }
@@ -161,15 +164,15 @@ void Blockchain::load(){
 
         if(l.empty()) continue;
 
-        size_t p1 = l.find("|");
-        size_t p2 = l.find("|", p1+1);
-        size_t p3 = l.find("|", p2+1);
-
-        if(p1 == std::string::npos || p2 == std::string::npos || p3 == std::string::npos)
-            continue;
-
         try{
             Block b;
+
+            size_t p1 = l.find("|");
+            size_t p2 = l.find("|", p1+1);
+            size_t p3 = l.find("|", p2+1);
+
+            if(p1==std::string::npos || p2==std::string::npos || p3==std::string::npos)
+                continue;
 
             b.index = stoi(l.substr(0, p1));
             b.data = l.substr(p1+1, p2-p1-1);
@@ -204,16 +207,16 @@ void Blockchain::loadMempool(){
 
         if(line.empty()) continue;
 
-        size_t p1 = line.find("|");
-        size_t p2 = line.find("|", p1+1);
-        size_t p3 = line.find("|", p2+1);
-        size_t p4 = line.find("|", p3+1);
-
-        if(p1==std::string::npos || p2==std::string::npos || p3==std::string::npos || p4==std::string::npos)
-            continue;
-
         try{
             Transaction tx;
+
+            size_t p1 = line.find("|");
+            size_t p2 = line.find("|", p1+1);
+            size_t p3 = line.find("|", p2+1);
+            size_t p4 = line.find("|", p3+1);
+
+            if(p1==std::string::npos || p2==std::string::npos || p3==std::string::npos || p4==std::string::npos)
+                continue;
 
             tx.from = line.substr(0, p1);
             tx.to = line.substr(p1+1, p2-p1-1);
