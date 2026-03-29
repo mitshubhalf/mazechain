@@ -72,20 +72,29 @@ void Blockchain::mineBlock(const std::string& miner){
 
     std::stringstream ss;
 
+    // recompensa
     ss << "SYSTEM->" << miner << ":250\n";
 
+    // transações protegidas
     for(auto &tx : mempool){
+
+        if(tx.from.empty() || tx.to.empty() || tx.amount <= 0)
+            continue;
+
         ss << tx.from << "->" << tx.to << ":" << tx.amount << "\n";
     }
 
     b.data = ss.str();
+
+    if(b.data.empty())
+        b.data = "EMPTY";
+
     b.hash = sha256(b.data + b.prevHash);
 
     chain.push_back(b);
 
     mempool.clear();
     saveMempool();
-
     save();
 
     std::cout << "Bloco " << b.index << " minerado\n";
@@ -110,7 +119,7 @@ int Blockchain::getBalance(const std::string& addr){
             if(p1 == std::string::npos || p2 == std::string::npos)
                 continue;
 
-            try {
+            try{
                 std::string from = line.substr(0, p1);
                 std::string to = line.substr(p1 + 2, p2 - (p1 + 2));
                 int amount = std::stoi(line.substr(p2 + 1));
@@ -127,7 +136,6 @@ int Blockchain::getBalance(const std::string& addr){
                 }
 
             } catch(...) {
-                // ignora linha quebrada
                 continue;
             }
         }
@@ -160,7 +168,7 @@ void Blockchain::load(){
         if(p1 == std::string::npos || p2 == std::string::npos || p3 == std::string::npos)
             continue;
 
-        try {
+        try{
             Block b;
 
             b.index = stoi(l.substr(0, p1));
@@ -204,7 +212,7 @@ void Blockchain::loadMempool(){
         if(p1==std::string::npos || p2==std::string::npos || p3==std::string::npos || p4==std::string::npos)
             continue;
 
-        try {
+        try{
             Transaction tx;
 
             tx.from = line.substr(0, p1);
