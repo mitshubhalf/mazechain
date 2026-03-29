@@ -1,159 +1,18 @@
-#include "blockchain.h"
-#include <openssl/sha.h>
-#include <sstream>
-#include <iomanip>
-#include <fstream>
-#include <iostream>
+#include "../include/blockchain.h"
 
-bool verifySignature(const std::string&, const std::string&, const std::string&);
+Blockchain::Blockchain() {
+    difficulty = 4;
 
-std::string Blockchain::sha256(const std::string& input){
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256((unsigned char*)input.c_str(), input.size(), hash);
-
-    std::stringstream ss;
-    for(int i=0;i<SHA256_DIGEST_LENGTH;i++)
-        ss<<std::hex<<std::setw(2)<<std::setfill('0')<<(int)hash[i];
-
-    return ss.str();
+    // Genesis block
+    chain.push_back(Block(0, {"Genesis Block"}, "0"));
 }
 
-Blockchain::Blockchain(){
-    load();
-
-    if(chain.empty()){
-        Block g;
-        g.index=0;
-        g.data="GENESIS";
-        g.prevHash="0";
-        g.hash=sha256("genesis");
-
-        chain.push_back(g);
-        save();
-    }
+Block Blockchain::getLatestBlock() {
+    return chain.back();
 }
 
-bool Blockchain::validateTransaction(const Transaction& tx){
-
-    if(tx.from=="SYSTEM") return true;
-
-    if(getBalance(tx.from)<tx.amount) return false;
-
-    if(!verifySignature(tx.toString(),tx.signature,tx.from))
-        return false;
-
-    return true;
-}
-
-void Blockchain::addTransaction(const Transaction& tx){
-
-    if(validateTransaction(tx)){
-        mempool.push_back(tx);
-        std::cout<<"TX OK\n";
-    }else{
-        std::cout<<"TX FAIL\n";
-    }
-}
-
-void Blockchain::mineBlock(const std::string& miner){
-
-    Block b;
-    b.index=chain.size();
-    b.prevHash=chain.back().hash;
-
-    std::stringstream ss;
-
-    ss<<"SYSTEM->"<<miner<<":250\n";
-
-    for(auto &tx:mempool)
-        ss<<tx.from<<"->"<<tx.to<<":"<<tx.amount<<"\n";
-
-    b.data=ss.str();
-    b.hash=sha256(b.data+b.prevHash);
-
-    chain.push_back(b);
-
-    mempool.clear();
-
-    save();
-
-    std::cout<<"Bloco "<<b.index<<" minerado\n";
-}
-
-int Blockchain::getBalance(const std::string& addr){
-
-    int balance=0;
-
-    for(auto &b:chain){
-
-        std::stringstream ss(b.data);
-        std::string line;
-
-        while(std::getline(ss,line)){
-
-            if(line.find("->")==std::string::npos) continue;
-            if(line.find(":")==std::string::npos) continue;
-
-            size_t p1=line.find("->");
-            size_t p2=line.find(":");
-
-            std::string from=line.substr(0,p1);
-            std::string to=line.substr(p1+2,p2-(p1+2));
-            int amount=std::stoi(line.substr(p2+1));
-
-            if(from=="SYSTEM"){
-                if(to==addr) balance+=amount;
-            }else{
-                if(to==addr) balance+=amount;
-                if(from==addr) balance-=amount;
-            }
-        }
-    }
-
-    return balance;
-}
-
-void Blockchain::save(){
-    std::ofstream f("chain.txt");
-    for(auto &b:chain)
-        f<<b.index<<"|"<<b.data<<"|"<<b.prevHash<<"|"<<b.hash<<"\n";
-}
-
-void Blockchain::load(){
-
-    std::ifstream f("chain.txt");
-    if(!f) return;
-
-    std::string l;
-
-    while(getline(f,l)){
-
-        if(l.empty()) continue;
-
-        size_t p1=l.find("|");
-        size_t p2=l.find("|",p1+1);
-        size_t p3=l.find("|",p2+1);
-
-        if(p1==std::string::npos||p2==std::string::npos||p3==std::string::npos)
-            continue;
-
-        Block b;
-
-        b.index=stoi(l.substr(0,p1));
-        b.data=l.substr(p1+1,p2-p1-1);
-        b.prevHash=l.substr(p2+1,p3-p2-1);
-        b.hash=l.substr(p3+1);
-
-        chain.push_back(b);
-    }
-}
-
-bool Blockchain::isValid(){
-
-    for(size_t i=1;i<chain.size();i++){
-        if(chain[i].prevHash!=chain[i-1].hash)
-            return false;
-    }
-
-    return true;
+void Blockchain::addBlock(Block newBlock) {
+    newBlock.previousHash = getLatestBlock().hash;
+    newBlock.mineBlock(difficulty);
+    chain.push_back(newBlock);
 }
