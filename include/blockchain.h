@@ -29,10 +29,6 @@ public:
     void load();
     bool isValid();
 
-    // 🔥 NOVO (mempool persistente)
-    void saveMempool();
-    void loadMempool();
-
 private:
     std::string sha256(const std::string& input);
 };
