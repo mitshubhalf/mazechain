@@ -5,7 +5,6 @@
 #include <fstream>
 #include <iostream>
 
-// IMPORTANTE: precisa do seu crypto.cpp funcionando
 bool verifySignature(const std::string&, const std::string&, const std::string&);
 
 std::string Blockchain::sha256(const std::string& input){
@@ -21,7 +20,7 @@ std::string Blockchain::sha256(const std::string& input){
 
 Blockchain::Blockchain(){
     load();
-    loadMempool();
+    loadMempool(); // 🔥 NOVO
 
     if(chain.empty()){
         Block g;
@@ -58,14 +57,7 @@ void Blockchain::addTransaction(const Transaction& tx){
 
     if(validateTransaction(tx)){
         mempool.push_back(tx);
-
-        // 🔥 SALVA MEMPOOL
-        std::ofstream f("mempool.txt", std::ios::app);
-        f << tx.from << "|"
-          << tx.to << "|"
-          << tx.amount << "|"
-          << tx.signature << "\n";
-
+        saveMempool(); // 🔥 IMPORTANTE
         std::cout << "TX OK\n";
     } else {
         std::cout << "TX FAIL\n";
@@ -80,13 +72,8 @@ void Blockchain::mineBlock(const std::string& miner){
 
     std::stringstream ss;
 
-    // recompensa
     ss << "SYSTEM->" << miner << ":250\n";
 
-    // 🔥 CARREGA MEMPOOL DO ARQUIVO
-    loadMempool();
-
-    // transações
     for(auto &tx : mempool){
         ss << tx.from << "->" << tx.to << ":" << tx.amount << "\n";
     }
@@ -97,17 +84,13 @@ void Blockchain::mineBlock(const std::string& miner){
     chain.push_back(b);
 
     mempool.clear();
-
-    // 🔥 LIMPA MEMPOOL
-    std::ofstream("mempool.txt", std::ios::trunc);
+    saveMempool(); // 🔥 limpa arquivo também
 
     save();
 
     std::cout << "Bloco " << b.index << " minerado\n";
 }
 
-
-// 🔥 FUNÇÃO CORRIGIDA DE SALDO
 int Blockchain::getBalance(const std::string& addr){
 
     int balance = 0;
@@ -119,7 +102,6 @@ int Blockchain::getBalance(const std::string& addr){
 
         while(std::getline(ss, line)){
 
-            // recompensa
             if(line.find("SYSTEM->") != std::string::npos){
 
                 size_t p1 = line.find("->") + 2;
@@ -132,7 +114,6 @@ int Blockchain::getBalance(const std::string& addr){
                     balance += amount;
             }
 
-            // transações
             else if(line.find("->") != std::string::npos){
 
                 size_t p1 = line.find("->");
@@ -189,6 +170,16 @@ void Blockchain::load(){
 }
 
 // 🔥 NOVO
+void Blockchain::saveMempool(){
+
+    std::ofstream f("mempool.txt");
+
+    for(auto &tx : mempool){
+        f << tx.from << "|" << tx.to << "|" << tx.amount << "|" << tx.signature << "\n";
+    }
+}
+
+// 🔥 NOVO
 void Blockchain::loadMempool(){
 
     std::ifstream f("mempool.txt");
@@ -197,17 +188,16 @@ void Blockchain::loadMempool(){
     std::string line;
 
     while(std::getline(f, line)){
-        std::stringstream ss(line);
         Transaction tx;
 
-        std::getline(ss, tx.from, '|');
-        std::getline(ss, tx.to, '|');
+        size_t p1 = line.find("|");
+        size_t p2 = line.find("|", p1+1);
+        size_t p3 = line.find("|", p2+1);
 
-        std::string amount;
-        std::getline(ss, amount, '|');
-        tx.amount = std::stoi(amount);
-
-        std::getline(ss, tx.signature, '|');
+        tx.from = line.substr(0, p1);
+        tx.to = line.substr(p1+1, p2-p1-1);
+        tx.amount = stoi(line.substr(p2+1, p3-p2-1));
+        tx.signature = line.substr(p3+1);
 
         mempool.push_back(tx);
     }
