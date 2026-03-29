@@ -1,52 +1,20 @@
+#include "../include/blockchain.h"
 #include <iostream>
-#include "wallet.h"
-#include "blockchain.h"
-#include "transaction.h"
 
-std::string signData(const std::string&, const std::string&);
+int main() {
+    Blockchain mazechain;
 
-int main(int argc,char* argv[]){
+    std::cout << "⛏️ Minerando bloco 1...\n";
+    mazechain.addBlock(Block(1, {"Tx1: A -> B (10 MC)"}, mazechain.getLatestBlock().hash));
 
-    if(argc<2){
-        std::cout<<"createwallet | mine | balance | send\n";
-        return 0;
-    }
+    std::cout << "⛏️ Minerando bloco 2...\n";
+    mazechain.addBlock(Block(2, {"Tx2: B -> C (5 MC)"}, mazechain.getLatestBlock().hash));
 
-    std::string cmd=argv[1];
-
-    if(cmd=="createwallet"){
-        Wallet w;
-        w.generateMnemonic();
-        w.generateFromMnemonic();
-        w.saveToFile("wallet.dat");
-
-        std::cout<<"Address: "<<w.address<<"\n";
-    }
-
-    if(cmd=="mine"){
-        Wallet w; w.loadFromFile("wallet.dat");
-        Blockchain bc;
-        bc.mineBlock(w.address);
-    }
-
-    if(cmd=="balance"){
-        Wallet w; w.loadFromFile("wallet.dat");
-        Blockchain bc;
-        std::cout<<bc.getBalance(w.address)<<"\n";
-    }
-
-    if(cmd=="send"){
-        Wallet w; w.loadFromFile("wallet.dat");
-
-        Transaction tx;
-        tx.from=w.address;
-        tx.to=argv[2];
-        tx.amount=stoi(argv[3]);
-
-        tx.signature=signData(tx.toString(),w.privateKey);
-
-        Blockchain bc;
-        bc.addTransaction(tx);
+    for (auto &block : mazechain.chain) {
+        std::cout << "\n====================\n";
+        std::cout << "Index: " << block.index << "\n";
+        std::cout << "Hash: " << block.hash << "\n";
+        std::cout << "Prev: " << block.previousHash << "\n";
     }
 
     return 0;
