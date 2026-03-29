@@ -1,50 +1,54 @@
 #include <iostream>
 #include "wallet.h"
 #include "blockchain.h"
+#include "transaction.h"
 
-int main(int argc, char* argv[]) {
+// precisa do crypto.cpp
+std::string signData(const std::string&, const std::string&);
 
-    if(argc < 2) {
-        std::cout << "./mazechain createwallet\n";
-        std::cout << "./mazechain mine\n";
-        std::cout << "./mazechain balance\n";
-        std::cout << "./mazechain validate\n";
-        return 0;
-    }
+int main(int argc,char* argv[]){
 
-    std::string cmd = argv[1];
+ if(argc<2){
+  std::cout<<"createwallet | mine | balance | send\n";
+  return 0;
+ }
 
-    if(cmd == "createwallet") {
-        Wallet w;
-        w.generateMnemonic();
-        w.generateFromMnemonic();
-        w.saveToFile("wallet.dat");
+ std::string cmd=argv[1];
 
-        std::cout << "Wallet criada\n";
-        std::cout << "Seed: " << w.mnemonic << "\n";
-        std::cout << "Address: " << w.address << "\n";
-    }
+ if(cmd=="createwallet"){
+  Wallet w;
+  w.generateMnemonic();
+  w.generateFromMnemonic();
+  w.saveToFile("wallet.dat");
 
-    if(cmd == "mine") {
-        Wallet w;
-        w.loadFromFile("wallet.dat");
+  std::cout<<"Address: "<<w.address<<"\n";
+ }
 
-        Blockchain bc;
-        bc.mineBlock(w.address);
-    }
+ if(cmd=="mine"){
+  Wallet w; w.loadFromFile("wallet.dat");
+  Blockchain bc;
+  bc.mineBlock(w.address);
+ }
 
-    if(cmd == "balance") {
-        Wallet w;
-        w.loadFromFile("wallet.dat");
+ if(cmd=="balance"){
+  Wallet w; w.loadFromFile("wallet.dat");
+  Blockchain bc;
+  std::cout<<bc.getBalance(w.address)<<"\n";
+ }
 
-        Blockchain bc;
-        std::cout << "Balance: " << bc.getBalance(w.address) << " MC\n";
-    }
+ if(cmd=="send"){
+  Wallet w; w.loadFromFile("wallet.dat");
 
-    if(cmd == "validate") {
-        Blockchain bc;
-        std::cout << (bc.isValid() ? "Chain válida\n" : "Chain inválida\n");
-    }
+  Transaction tx;
+  tx.from=w.address;
+  tx.to=argv[2];
+  tx.amount=stoi(argv[3]);
 
-    return 0;
+  tx.signature=signData(tx.toString(),w.privateKey);
+
+  Blockchain bc;
+  bc.addTransaction(tx);
+ }
+
+ return 0;
 }
