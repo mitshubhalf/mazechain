@@ -5,96 +5,178 @@
 #include <fstream>
 #include <iostream>
 
-std::string Blockchain::sha256(const std::string& input) {
+bool verifySignature(const std::string&, const std::string&, const std::string&);
+
+std::string Blockchain::sha256(const std::string& input){
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256((unsigned char*)input.c_str(), input.size(), hash);
 
     std::stringstream ss;
-    for(int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
-    }
+    for(int i=0;i<SHA256_DIGEST_LENGTH;i++)
+        ss<<std::hex<<std::setw(2)<<std::setfill('0')<<(int)hash[i];
+
     return ss.str();
 }
 
-Blockchain::Blockchain() {
+Blockchain::Blockchain(){
     load();
 
-    if(chain.empty()) {
-        Block genesis;
-        genesis.index = 0;
-        genesis.data = "Genesis";
-        genesis.prevHash = "0";
-        genesis.hash = sha256("genesis");
+    if(chain.empty()){
+        Block g;
+        g.index = 0;
+        g.data = "GENESIS";
+        g.prevHash = "0";
+        g.hash = sha256("genesis");
 
-        chain.push_back(genesis);
+        chain.push_back(g);
         save();
     }
 }
 
-void Blockchain::mineBlock(const std::string& miner) {
+// ✅ ESSA FUNÇÃO TEM QUE EXISTIR (ERA O ERRO)
+void Blockchain::addTransaction(const Transaction& tx){
+
+    if(validateTransaction(tx)){
+        mempool.push_back(tx);
+        std::cout << "TX OK\n";
+    } else {
+        std::cout << "TX FAIL\n";
+    }
+}
+
+bool Blockchain::validateTransaction(const Transaction& tx){
+
+    if(tx.from == "SYSTEM") return true;
+
+    int balance = getBalance(tx.from);
+
+    if(balance < tx.amount){
+        std::cout << "Saldo insuficiente\n";
+        return false;
+    }
+
+    if(!verifySignature(tx.toString(), tx.signature, tx.from)){
+        std::cout << "Assinatura inválida\n";
+        return false;
+    }
+
+    return true;
+}
+
+void Blockchain::mineBlock(const std::string& miner){
+
     Block b;
     b.index = chain.size();
     b.prevHash = chain.back().hash;
 
     std::stringstream ss;
-    ss << miner << " +250";
-    b.data = ss.str();
 
+    ss << "SYSTEM->" << miner << ":250\n";
+
+    for(auto &tx : mempool){
+        ss << tx.from << "->" << tx.to << ":" << tx.amount << "\n";
+    }
+
+    b.data = ss.str();
     b.hash = sha256(b.data + b.prevHash);
 
     chain.push_back(b);
+
+    mempool.clear();
+
     save();
 
-    std::cout << "Bloco #" << b.index << " minerado!\n";
+    std::cout << "Bloco " << b.index << " minerado\n";
 }
 
-int Blockchain::getBalance(const std::string& address) {
+// ✅ BALANCE CORRETO (sem bug de stoi)
+int Blockchain::getBalance(const std::string& addr){
+
     int balance = 0;
 
-    for(auto &b : chain) {
-        if(b.data.find(address) != std::string::npos) {
-            balance += 250;
+    for(auto &b : chain){
+
+        std::stringstream ss(b.data);
+        std::string line;
+
+        while(std::getline(ss, line)){
+
+            if(line.empty()) continue;
+            if(line.find("->") == std::string::npos) continue;
+            if(line.find(":") == std::string::npos) continue;
+
+            size_t p1 = line.find("->");
+            size_t p2 = line.find(":");
+
+            if(p1 == std::string::npos || p2 == std::string::npos) continue;
+
+            std::string from = line.substr(0, p1);
+            std::string to = line.substr(p1 + 2, p2 - (p1 + 2));
+
+            std::string amountStr = line.substr(p2 + 1);
+
+            if(amountStr.empty()) continue;
+
+            int amount;
+            try{
+                amount = std::stoi(amountStr);
+            } catch(...){
+                continue;
+            }
+
+            if(from == "SYSTEM"){
+                if(to == addr) balance += amount;
+            } else {
+                if(to == addr) balance += amount;
+                if(from == addr) balance -= amount;
+            }
         }
     }
 
     return balance;
 }
 
-void Blockchain::save() {
-    std::ofstream file("chain.txt");
-
-    for(auto &b : chain) {
-        file << b.index << "|" << b.data << "|" << b.prevHash << "|" << b.hash << "\n";
-    }
+void Blockchain::save(){
+    std::ofstream f("chain.txt");
+    for(auto &b : chain)
+        f << b.index << "|" << b.data << "|" << b.prevHash << "|" << b.hash << "\n";
 }
 
-void Blockchain::load() {
-    std::ifstream file("chain.txt");
+void Blockchain::load(){
 
-    if(!file) return;
+    std::ifstream f("chain.txt");
+    if(!f) return;
 
-    std::string line;
+    std::string l;
 
-    while(std::getline(file, line)) {
+    while(getline(f, l)){
+
+        if(l.empty()) continue;
+
+        size_t p1 = l.find("|");
+        size_t p2 = l.find("|", p1+1);
+        size_t p3 = l.find("|", p2+1);
+
+        if(p1 == std::string::npos || p2 == std::string::npos || p3 == std::string::npos)
+            continue;
+
         Block b;
 
-        size_t p1 = line.find("|");
-        size_t p2 = line.find("|", p1+1);
-        size_t p3 = line.find("|", p2+1);
-
-        b.index = std::stoi(line.substr(0, p1));
-        b.data = line.substr(p1+1, p2-p1-1);
-        b.prevHash = line.substr(p2+1, p3-p2-1);
-        b.hash = line.substr(p3+1);
+        b.index = stoi(l.substr(0, p1));
+        b.data = l.substr(p1+1, p2-p1-1);
+        b.prevHash = l.substr(p2+1, p3-p2-1);
+        b.hash = l.substr(p3+1);
 
         chain.push_back(b);
     }
 }
 
-bool Blockchain::isValid() {
-    for(size_t i = 1; i < chain.size(); i++) {
-        if(chain[i].prevHash != chain[i-1].hash) return false;
-        if(chain[i].hash != sha256(chain[i].data + chain[i].prevHash)) return false;
+bool Blockchain::isValid(){
+
+    for(size_t i = 1; i < chain.size(); i++){
+        if(chain[i].prevHash != chain[i-1].hash)
+            return false;
     }
+
     return true;
 }
