@@ -21,6 +21,7 @@ std::string Blockchain::sha256(const std::string& input){
 
 Blockchain::Blockchain(){
     load();
+    loadMempool();
 
     if(chain.empty()){
         Block g;
@@ -57,6 +58,14 @@ void Blockchain::addTransaction(const Transaction& tx){
 
     if(validateTransaction(tx)){
         mempool.push_back(tx);
+
+        // 🔥 SALVA MEMPOOL
+        std::ofstream f("mempool.txt", std::ios::app);
+        f << tx.from << "|"
+          << tx.to << "|"
+          << tx.amount << "|"
+          << tx.signature << "\n";
+
         std::cout << "TX OK\n";
     } else {
         std::cout << "TX FAIL\n";
@@ -74,6 +83,9 @@ void Blockchain::mineBlock(const std::string& miner){
     // recompensa
     ss << "SYSTEM->" << miner << ":250\n";
 
+    // 🔥 CARREGA MEMPOOL DO ARQUIVO
+    loadMempool();
+
     // transações
     for(auto &tx : mempool){
         ss << tx.from << "->" << tx.to << ":" << tx.amount << "\n";
@@ -86,13 +98,16 @@ void Blockchain::mineBlock(const std::string& miner){
 
     mempool.clear();
 
+    // 🔥 LIMPA MEMPOOL
+    std::ofstream("mempool.txt", std::ios::trunc);
+
     save();
 
     std::cout << "Bloco " << b.index << " minerado\n";
 }
 
 
-// 🔥 FUNÇÃO CORRIGIDA (ESSA É A PARTE MAIS IMPORTANTE)
+// 🔥 FUNÇÃO CORRIGIDA DE SALDO
 int Blockchain::getBalance(const std::string& addr){
 
     int balance = 0;
@@ -170,6 +185,31 @@ void Blockchain::load(){
         b.hash = l.substr(p3+1);
 
         chain.push_back(b);
+    }
+}
+
+// 🔥 NOVO
+void Blockchain::loadMempool(){
+
+    std::ifstream f("mempool.txt");
+    if(!f) return;
+
+    std::string line;
+
+    while(std::getline(f, line)){
+        std::stringstream ss(line);
+        Transaction tx;
+
+        std::getline(ss, tx.from, '|');
+        std::getline(ss, tx.to, '|');
+
+        std::string amount;
+        std::getline(ss, amount, '|');
+        tx.amount = std::stoi(amount);
+
+        std::getline(ss, tx.signature, '|');
+
+        mempool.push_back(tx);
     }
 }
 
