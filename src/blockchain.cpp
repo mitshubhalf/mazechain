@@ -1,129 +1,100 @@
-#include "../include/blockchain.h"
-#include <iostream>
-#include <fstream>
+#include "blockchain.h"
+#include <openssl/sha.h>
 #include <sstream>
+#include <iomanip>
+#include <fstream>
+#include <iostream>
+
+std::string Blockchain::sha256(const std::string& input) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char*)input.c_str(), input.size(), hash);
+
+    std::stringstream ss;
+    for(int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    }
+    return ss.str();
+}
 
 Blockchain::Blockchain() {
-    difficulty = 2;
-    totalSupply = 0;
-    loadChain();
-}
+    load();
 
-int Blockchain::getBlockReward(int height) {
-    int reward = 250;
-    int interval = 1000;
+    if(chain.empty()) {
+        Block genesis;
+        genesis.index = 0;
+        genesis.data = "Genesis";
+        genesis.prevHash = "0";
+        genesis.hash = sha256("genesis");
 
-    while (height >= interval && reward > 1) {
-        reward /= 2;
-        interval *= 2;
+        chain.push_back(genesis);
+        save();
     }
-
-    return reward;
 }
 
-void Blockchain::mineBlock(std::string minerAddress) {
-    int height = chain.size();
-    int reward = getBlockReward(height);
+void Blockchain::mineBlock(const std::string& miner) {
+    Block b;
+    b.index = chain.size();
+    b.prevHash = chain.back().hash;
 
-    Transaction rewardTx = {"SYSTEM", minerAddress, (double)reward, ""};
+    std::stringstream ss;
+    ss << miner << " +250";
+    b.data = ss.str();
 
-    std::vector<Transaction> txs;
-    txs.push_back(rewardTx);
+    b.hash = sha256(b.data + b.prevHash);
 
-    Block newBlock(height, txs, chain.back().hash);
+    chain.push_back(b);
+    save();
 
-    std::cout << "Minerando...\n";
-    newBlock.mineBlock(difficulty);
-
-    chain.push_back(newBlock);
-    totalSupply += reward;
-
-    saveChain();
-
-    std::cout << "Bloco minerado: " << height << "\n";
+    std::cout << "Bloco #" << b.index << " minerado!\n";
 }
 
-double Blockchain::getBalance(std::string address) {
-    double balance = 0;
+int Blockchain::getBalance(const std::string& address) {
+    int balance = 0;
 
-    for (auto &block : chain) {
-        for (auto &tx : block.transactions) {
-            if (tx.to == address)
-                balance += tx.amount;
-            if (tx.from == address)
-                balance -= tx.amount;
+    for(auto &b : chain) {
+        if(b.data.find(address) != std::string::npos) {
+            balance += 250;
         }
     }
 
     return balance;
 }
 
-void Blockchain::saveChain() {
+void Blockchain::save() {
     std::ofstream file("chain.txt");
 
-    for (auto &block : chain) {
-        file << block.index << "|"
-             << block.prevHash << "|"
-             << block.hash << "|"
-             << block.transactions.size();
-
-        for (auto &tx : block.transactions) {
-            file << "|" << tx.from << "," << tx.to << "," << tx.amount;
-        }
-
-        file << "\n";
+    for(auto &b : chain) {
+        file << b.index << "|" << b.data << "|" << b.prevHash << "|" << b.hash << "\n";
     }
-
-    file.close();
 }
 
-void Blockchain::loadChain() {
+void Blockchain::load() {
     std::ifstream file("chain.txt");
 
-    if (!file.is_open()) {
-        std::cout << "Criando genesis block...\n";
-        chain.clear();
-        chain.push_back(Block(0, {}, "0"));
-        saveChain();
-        return;
-    }
-
-    chain.clear();
+    if(!file) return;
 
     std::string line;
-    while (getline(file, line)) {
-        std::stringstream ss(line);
-        std::string part;
 
-        std::vector<std::string> parts;
+    while(std::getline(file, line)) {
+        Block b;
 
-        while (getline(ss, part, '|')) {
-            parts.push_back(part);
-        }
+        size_t p1 = line.find("|");
+        size_t p2 = line.find("|", p1+1);
+        size_t p3 = line.find("|", p2+1);
 
-        int index = std::stoi(parts[0]);
-        std::string prev = parts[1];
-        std::string hash = parts[2];
-        int txCount = std::stoi(parts[3]);
+        b.index = std::stoi(line.substr(0, p1));
+        b.data = line.substr(p1+1, p2-p1-1);
+        b.prevHash = line.substr(p2+1, p3-p2-1);
+        b.hash = line.substr(p3+1);
 
-        std::vector<Transaction> txs;
-
-        for (int i = 0; i < txCount; i++) {
-            std::stringstream txStream(parts[4 + i]);
-            std::string from, to, amount;
-
-            getline(txStream, from, ',');
-            getline(txStream, to, ',');
-            getline(txStream, amount, ',');
-
-            txs.push_back({from, to, std::stod(amount), ""});
-        }
-
-        Block block(index, txs, prev);
-        block.hash = hash;
-
-        chain.push_back(block);
+        chain.push_back(b);
     }
+}
 
-    file.close();
+bool Blockchain::isValid() {
+    for(size_t i = 1; i < chain.size(); i++) {
+        if(chain[i].prevHash != chain[i-1].hash) return false;
+        if(chain[i].hash != sha256(chain[i].data + chain[i].prevHash)) return false;
+    }
+    return true;
 }
