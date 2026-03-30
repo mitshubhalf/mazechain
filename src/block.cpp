@@ -1,6 +1,7 @@
 #include "../include/block.h"
 #include "../include/crypto.h"
 #include <ctime>
+#include <sstream>
 
 Block::Block(int idx, std::vector<std::string> txs, std::string prevHash) {
     index = idx;
@@ -9,19 +10,20 @@ Block::Block(int idx, std::vector<std::string> txs, std::string prevHash) {
     nonce = 0;
 
     time_t now = time(0);
-    timestamp = ctime(&now);
+    timestamp = std::ctime(&now);
 
     hash = calculateHash();
 }
 
 std::string Block::calculateHash() {
-    std::string data = std::to_string(index) + timestamp + previousHash + std::to_string(nonce);
+    std::stringstream ss;
+    ss << index << timestamp << previousHash << nonce;
 
     for (auto &tx : transactions) {
-        data += tx;
+        ss << tx;
     }
 
-    return sha256(data);
+    return sha256(ss.str());
 }
 
 void Block::mineBlock(int difficulty) {
