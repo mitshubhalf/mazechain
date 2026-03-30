@@ -11,7 +11,9 @@ public:
 
     Blockchain();
 
+    Block createGenesisBlock();
     Block getLatestBlock();
+
     void addBlock(Block newBlock);
 };
 
