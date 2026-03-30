@@ -1,8 +1,17 @@
 #include "../include/blockchain.h"
+#include "../include/storage.h"
 #include <iostream>
 
 int main(int argc, char* argv[]) {
     Blockchain mazechain;
+
+    // 🔥 Carregar blockchain do arquivo
+    loadChain(mazechain);
+
+    // Se não existir nada salvo, cria genesis
+    if (mazechain.chain.empty()) {
+        mazechain.chain.push_back(mazechain.createGenesisBlock());
+    }
 
     if (argc < 2) {
         std::cout << "Uso:\n";
@@ -13,20 +22,28 @@ int main(int argc, char* argv[]) {
 
     std::string cmd = argv[1];
 
+    // ⛏️ MINERAR BLOCO
     if (cmd == "mine") {
-        mazechain.addBlock(Block(
+        Block newBlock(
             mazechain.chain.size(),
             {"Mining reward"},
             mazechain.getLatestBlock().hash
-        ));
+        );
+
+        mazechain.addBlock(newBlock);
+
+        // 💾 SALVAR
+        saveChain(mazechain);
     }
 
+    // 📜 MOSTRAR BLOCKCHAIN
     else if (cmd == "chain") {
         for (auto &block : mazechain.chain) {
             std::cout << "\n-------------------------\n";
             std::cout << "Index: " << block.index << "\n";
+            std::cout << "Timestamp: " << block.timestamp;
             std::cout << "Hash: " << block.hash << "\n";
-            std::cout << "Prev: " << block.previousHash << "\n";
+            std::cout << "Prev Hash: " << block.previousHash << "\n";
             std::cout << "Nonce: " << block.nonce << "\n";
         }
     }
