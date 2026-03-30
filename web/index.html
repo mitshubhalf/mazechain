@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>MazeChain Dashboard</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at top,#0a0a0a,#000);
+      color:#fff;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      padding:20px 50px;
+      border-bottom:1px solid #1a1a1a;
+    }
+
+    .logo{
+      font-size:32px;
+      font-weight:900;
+      color:#facc15;
+      letter-spacing:2px;
+    }
+
+    nav{
+      margin-left:60px;
+      display:flex;
+      gap:25px;
+    }
+
+    nav span{
+      color:#777;
+      font-size:14px;
+      cursor:pointer;
+    }
+
+    nav .active{
+      color:#facc15;
+      border-bottom:2px solid #facc15;
+      padding-bottom:5px;
+    }
+
+    .hero{
+      padding:60px 50px 30px;
+    }
+
+    .hero h1{
+      font-size:64px;
+      font-weight:900;
+    }
+
+    .hero p{
+      color:#888;
+      margin-top:10px;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns: repeat(4,1fr);
+      gap:20px;
+      padding:0 50px;
+    }
+
+    .stat-card{
+      background:linear-gradient(145deg,#0f172a,#020617);
+      border:1px solid #1e293b;
+      padding:25px;
+      border-radius:15px;
+    }
+
+    .stat-title{
+      color:#888;
+      font-size:12px;
+      margin-bottom:10px;
+    }
+
+    .stat-value{
+      font-size:32px;
+      font-weight:700;
+    }
+
+    .section{
+      padding:50px;
+    }
+
+    .section h2{
+      font-size:32px;
+      margin-bottom:20px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:14px;
+    }
+
+    th, td{
+      padding:12px;
+      text-align:left;
+      border-bottom:1px solid #1a1a1a;
+    }
+
+    th{
+      color:#888;
+      font-size:12px;
+    }
+
+    .hash{
+      color:#aaa;
+      font-size:12px;
+    }
+
+    button{
+      background:#facc15;
+      color:black;
+      border:none;
+      padding:10px 15px;
+      border-radius:8px;
+      font-weight:bold;
+      cursor:pointer;
+      margin-top:10px;
+    }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">MAZECHAIN</div>
+  <nav>
+    <span class="active">Dashboard</span>
+    <span>Explorer</span>
+    <span>Wallets</span>
+    <span>Mempool</span>
+    <span>Mining</span>
+    <span>Nodes</span>
+    <span>Send</span>
+  </nav>
+</header>
+
+<div class="hero">
+  <h1>Network Dashboard</h1>
+  <p>Real-time blockchain statistics and network status</p>
+</div>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-title">BLOCK HEIGHT</div>
+    <div class="stat-value" id="height">0</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-title">DIFFICULTY</div>
+    <div class="stat-value">1</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-title">ACTIVE NODES</div>
+    <div class="stat-value">1</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-title">MEMPOOL SIZE</div>
+    <div class="stat-value" id="mempool">0</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Recent Blocks</h2>
+
+  <button onclick="mineBlock()">Mine Block</button>
+  <button onclick="loadChain()">Refresh</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>BLOCK</th>
+        <th>HASH</th>
+        <th>PREV HASH</th>
+        <th>NONCE</th>
+        <th>TX</th>
+        <th>TIMESTAMP</th>
+      </tr>
+    </thead>
+    <tbody id="blocks"></tbody>
+  </table>
+</div>
+
+<script>
+const API = "http://localhost:8000";
+
+async function mineBlock(){
+  await fetch(API+"/mine",{method:"POST"});
+  loadChain();
+}
+
+async function loadChain(){
+  const res = await fetch(API+"/chain");
+  const data = await res.json();
+
+  document.getElementById("height").innerText = data.length;
+
+  const table = document.getElementById("blocks");
+  table.innerHTML = "";
+
+  data.slice().reverse().forEach(b=>{
+    table.innerHTML += `
+      <tr>
+        <td>#${b.index}</td>
+        <td class="hash">${b.hash.substring(0,20)}...</td>
+        <td class="hash">${b.previousHash.substring(0,10)}...</td>
+        <td>${b.nonce}</td>
+        <td>${b.transactions.length}</td>
+        <td>${b.timestamp}</td>
+      </tr>
+    `;
+  });
+}
+</script>
+
+</body>
+</html>
