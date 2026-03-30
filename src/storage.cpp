@@ -1,6 +1,7 @@
-#include "../include/blockchain.h"
+#include "../include/storage.h"
 #include <fstream>
 #include <sstream>
+#include <iostream>
 
 void saveChain(const Blockchain &bc) {
     std::ofstream file("chain.txt");
@@ -23,21 +24,29 @@ void loadChain(Blockchain &bc) {
 
     std::string line;
     while (getline(file, line)) {
+
+        if (line.empty()) continue; // 🔥 evita erro
+
         std::stringstream ss(line);
 
         std::string index, timestamp, hash, prev, nonce;
 
-        getline(ss, index, '|');
-        getline(ss, timestamp, '|');
-        getline(ss, hash, '|');
-        getline(ss, prev, '|');
-        getline(ss, nonce, '|');
+        if (!getline(ss, index, '|')) continue;
+        if (!getline(ss, timestamp, '|')) continue;
+        if (!getline(ss, hash, '|')) continue;
+        if (!getline(ss, prev, '|')) continue;
+        if (!getline(ss, nonce, '|')) continue;
 
-        Block b(std::stoi(index), {}, prev);
-        b.timestamp = timestamp;
-        b.hash = hash;
-        b.nonce = std::stoi(nonce);
+        try {
+            Block b(std::stoi(index), {}, prev);
+            b.timestamp = timestamp;
+            b.hash = hash;
+            b.nonce = std::stoi(nonce);
 
-        bc.chain.push_back(b);
+            bc.chain.push_back(b);
+        } catch (...) {
+            std::cout << "⚠️ Linha ignorada (erro de parsing)\n";
+            continue;
+        }
     }
 }
