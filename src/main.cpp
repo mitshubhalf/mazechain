@@ -1,21 +1,38 @@
 #include "../include/blockchain.h"
 #include <iostream>
 
-int main() {
+int main(int argc, char* argv[]) {
     Blockchain mazechain;
 
-    mazechain.addBlock(Block(1, {"A -> B: 10 MC"}, mazechain.getLatestBlock().hash));
-    mazechain.addBlock(Block(2, {"B -> C: 5 MC"}, mazechain.getLatestBlock().hash));
+    if (argc < 2) {
+        std::cout << "Uso:\n";
+        std::cout << "./mazechain mine\n";
+        std::cout << "./mazechain chain\n";
+        return 0;
+    }
 
-    std::cout << "\n=== MAZECHAIN ===\n";
+    std::string cmd = argv[1];
 
-    for (auto &block : mazechain.chain) {
-        std::cout << "\n-------------------------\n";
-        std::cout << "Index: " << block.index << "\n";
-        std::cout << "Timestamp: " << block.timestamp;
-        std::cout << "Hash: " << block.hash << "\n";
-        std::cout << "Prev Hash: " << block.previousHash << "\n";
-        std::cout << "Nonce: " << block.nonce << "\n";
+    if (cmd == "mine") {
+        mazechain.addBlock(Block(
+            mazechain.chain.size(),
+            {"Mining reward"},
+            mazechain.getLatestBlock().hash
+        ));
+    }
+
+    else if (cmd == "chain") {
+        for (auto &block : mazechain.chain) {
+            std::cout << "\n-------------------------\n";
+            std::cout << "Index: " << block.index << "\n";
+            std::cout << "Hash: " << block.hash << "\n";
+            std::cout << "Prev: " << block.previousHash << "\n";
+            std::cout << "Nonce: " << block.nonce << "\n";
+        }
+    }
+
+    else {
+        std::cout << "Comando desconhecido\n";
     }
 
     return 0;
