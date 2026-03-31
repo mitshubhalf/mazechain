@@ -2,21 +2,17 @@
 #define TRANSACTION_H
 
 #include <string>
-#include <sstream>
 
-struct Transaction {
+class Transaction {
+public:
     std::string from;
     std::string to;
-    int amount;
+    double amount;
 
-    std::string signature;
-    std::string publicKey; // 🔥 NOVO
+    Transaction();
+    Transaction(std::string from, std::string to, double amount);
 
-    std::string toString() const {
-        std::stringstream ss;
-        ss << from << to << amount;
-        return ss.str();
-    }
+    std::string toString() const;
 };
 
 #endif
