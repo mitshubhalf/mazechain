@@ -10,16 +10,16 @@ Block::Block(int idx, std::vector<std::string> txs, std::string prevHash) {
     nonce = 0;
 
     time_t now = time(0);
-    timestamp = std::ctime(&now);
+    timestamp = std::to_string(now);
 
     hash = calculateHash();
 }
 
-std::string Block::calculateHash() {
+std::string Block::calculateHash() const {
     std::stringstream ss;
     ss << index << timestamp << previousHash << nonce;
 
-    for (auto &tx : transactions) {
+    for (const auto &tx : transactions) {
         ss << tx;
     }
 
@@ -29,8 +29,13 @@ std::string Block::calculateHash() {
 void Block::mineBlock(int difficulty) {
     std::string target(difficulty, '0');
 
-    while (hash.substr(0, difficulty) != target) {
+    while (hash.compare(0, difficulty, target) != 0) {
         nonce++;
         hash = calculateHash();
+
+        // opcional: log de progresso
+        // if (nonce % 100000 == 0) {
+        //     std::cout << "Nonce: " << nonce << "\r";
+        // }
     }
 }
