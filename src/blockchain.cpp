@@ -7,10 +7,12 @@ Blockchain::Blockchain() {
 }
 
 Block Blockchain::createGenesisBlock() {
-    return Block(0, {"Genesis Block"}, "0");
+    Block genesis(0, {"Genesis Block"}, "0");
+    genesis.mineBlock(difficulty);
+    return genesis;
 }
 
-Block Blockchain::getLatestBlock() {
+const Block& Blockchain::getLatestBlock() const {
     return chain.back();
 }
 
@@ -20,7 +22,7 @@ void Blockchain::addBlock(Block newBlock) {
     std::cout << "⛏️ Mining block " << newBlock.index << "...\n";
     newBlock.mineBlock(difficulty);
 
-    chain.push_back(newBlock);
+    chain.push_back(std::move(newBlock));
 
-    std::cout << "✅ Block mined: " << newBlock.hash << "\n";
+    std::cout << "✅ Block mined: " << chain.back().hash << "\n";
 }
