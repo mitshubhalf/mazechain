@@ -5,7 +5,7 @@
 #include <vector>
 
 class Block {
-public:
+private:
     int index;
     std::string timestamp;
     std::vector<std::string> transactions;
@@ -13,10 +13,22 @@ public:
     std::string hash;
     int nonce;
 
-    Block(int idx, std::vector<std::string> txs, std::string prevHash);
+public:
+    Block(int idx, const std::vector<std::string>& txs, const std::string& prevHash);
 
-    std::string calculateHash();
+    std::string calculateHash() const;
     void mineBlock(int difficulty);
+
+    // Getters
+    int getIndex() const;
+    const std::string& getTimestamp() const;
+    const std::vector<std::string>& getTransactions() const;
+    const std::string& getPreviousHash() const;
+    const std::string& getHash() const;
+    int getNonce() const;
+
+    // Setter controlado (necessário)
+    void setPreviousHash(const std::string& prevHash);
 };
 
 #endif
