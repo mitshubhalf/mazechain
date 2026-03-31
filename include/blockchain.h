@@ -5,26 +5,19 @@
 #include <vector>
 
 class Blockchain {
-private:
+public:
     std::vector<Block> chain;
     int difficulty;
 
-public:
     Blockchain();
 
-    Block createGenesisBlock() const;
-
+    Block createGenesisBlock();
     const Block& getLatestBlock() const;
 
     void addBlock(Block newBlock);
 
-    bool isChainValid() const;
-
     bool isEmpty() const;
-
-    const std::vector<Block>& getChain() const;
-
-    int getDifficulty() const;
+    bool isChainValid() const;
 };
 
 #endif
