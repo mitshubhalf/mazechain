@@ -1,52 +1,58 @@
-#include "wallet.h"
-#include <openssl/sha.h>
-#include <sstream>
-#include <iomanip>
+#include "../include/wallet.h"
+#include "../include/crypto.h"
+
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <cstdlib>
+#include <ctime>
 
-std::vector<std::string> wordlist = {
- "apple","banana","cat","dog","eagle","forest","gold","house",
- "ice","jungle","king","lemon","moon","night","ocean","power",
- "queen","river","sun","tree","unity","victory","world","zebra"
-};
-
-Wallet::Wallet() {}
-
-std::string Wallet::sha256(const std::string& input) {
- unsigned char hash[SHA256_DIGEST_LENGTH];
- SHA256((unsigned char*)input.c_str(), input.size(), hash);
-
- std::stringstream ss;
- for(int i=0;i<SHA256_DIGEST_LENGTH;i++)
-  ss<<std::hex<<std::setw(2)<<std::setfill('0')<<(int)hash[i];
-
- return ss.str();
+Wallet::Wallet() {
+    std::srand(std::time(nullptr));
+    generateMnemonic();
+    generateFromMnemonic();
 }
 
+static std::vector<std::string> wordList = {
+    "apple","banana","cat","dog","earth","fire","gold","house",
+    "ice","jungle","king","lemon","moon","night","ocean","peace",
+    "queen","river","sun","tree","unity","victory","wind","xenon",
+    "yellow","zebra"
+};
+
 void Wallet::generateMnemonic() {
- for(int i=0;i<12;i++){
-  mnemonic+=wordlist[rand()%wordlist.size()];
-  if(i<11) mnemonic+=" ";
- }
+    mnemonic.clear();
+
+    for (int i = 0; i < 12; i++) {
+        mnemonic += wordList[rand() % wordList.size()];
+        if (i < 11) mnemonic += " ";
+    }
 }
 
 void Wallet::generateFromMnemonic() {
- privateKey=sha256(mnemonic);
- publicKey=sha256(privateKey);
- address=sha256(publicKey).substr(0,40);
+    privateKey = sha256(mnemonic);
+    publicKey = sha256(privateKey);
+    address = sha256(publicKey).substr(0, 40);
 }
 
-void Wallet::saveToFile(const std::string& filename){
- std::ofstream f(filename);
- f<<mnemonic<<"\n"<<privateKey<<"\n"<<publicKey<<"\n"<<address;
+void Wallet::saveToFile(const std::string& filename) {
+    std::ofstream f(filename);
+
+    if (!f.is_open()) return;
+
+    f << mnemonic << "\n";
+    f << privateKey << "\n";
+    f << publicKey << "\n";
+    f << address << "\n";
 }
 
-void Wallet::loadFromFile(const std::string& filename){
- std::ifstream f(filename);
- getline(f,mnemonic);
- getline(f,privateKey);
- getline(f,publicKey);
- getline(f,address);
+void Wallet::loadFromFile(const std::string& filename) {
+    std::ifstream f(filename);
+
+    if (!f.is_open()) return;
+
+    std::getline(f, mnemonic);
+    std::getline(f, privateKey);
+    std::getline(f, publicKey);
+    std::getline(f, address);
 }
