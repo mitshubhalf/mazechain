@@ -1,5 +1,4 @@
 #include "../include/blockchain.h"
-#include <iostream>
 
 Blockchain::Blockchain() {
     difficulty = 3;
@@ -7,9 +6,7 @@ Blockchain::Blockchain() {
 }
 
 Block Blockchain::createGenesisBlock() {
-    Block genesis(0, {"Genesis Block"}, "0");
-    genesis.mineBlock(difficulty);
-    return genesis;
+    return Block(0, {"Genesis Block"}, "0");
 }
 
 const Block& Blockchain::getLatestBlock() const {
@@ -18,11 +15,24 @@ const Block& Blockchain::getLatestBlock() const {
 
 void Blockchain::addBlock(Block newBlock) {
     newBlock.previousHash = getLatestBlock().hash;
-
-    std::cout << "⛏️ Mining block " << newBlock.index << "...\n";
     newBlock.mineBlock(difficulty);
+    chain.push_back(newBlock);
+}
 
-    chain.push_back(std::move(newBlock));
+bool Blockchain::isEmpty() const {
+    return chain.empty();
+}
 
-    std::cout << "✅ Block mined: " << chain.back().hash << "\n";
+bool Blockchain::isChainValid() const {
+    for (size_t i = 1; i < chain.size(); i++) {
+        const Block& current = chain[i];
+        const Block& previous = chain[i - 1];
+
+        if (current.hash != current.calculateHash())
+            return false;
+
+        if (current.previousHash != previous.hash)
+            return false;
+    }
+    return true;
 }
