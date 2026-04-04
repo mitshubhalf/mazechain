@@ -5,11 +5,7 @@
 
 namespace Storage {
 
-// =======================
-// SALVAR BLOCKCHAIN
-// =======================
 void saveChain(const Blockchain &bc, const std::string& filename) {
-
     std::ofstream file(filename);
 
     if (!file.is_open()) {
@@ -26,15 +22,9 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
              << block.previousHash << "|"
              << block.nonce << "\n";
     }
-
-    file.close();
 }
 
-// =======================
-// CARREGAR BLOCKCHAIN
-// =======================
 void loadChain(Blockchain &bc, const std::string& filename) {
-
     std::ifstream file(filename);
 
     if (!file.is_open()) return;
@@ -69,7 +59,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            std::cout << "⚠️ Erro ao carregar linha\n";
+            std::cout << "Erro ao carregar bloco\n";
         }
     }
 }
