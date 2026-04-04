@@ -5,7 +5,36 @@
 
 namespace Storage {
 
+// =======================
+// SALVAR BLOCKCHAIN
+// =======================
+void saveChain(const Blockchain &bc, const std::string& filename) {
+
+    std::ofstream file(filename);
+
+    if (!file.is_open()) {
+        std::cout << "Erro ao salvar blockchain\n";
+        return;
+    }
+
+    const auto& chain = bc.getChain();
+
+    for (const auto& block : chain) {
+        file << block.index << "|"
+             << block.timestamp << "|"
+             << block.hash << "|"
+             << block.previousHash << "|"
+             << block.nonce << "\n";
+    }
+
+    file.close();
+}
+
+// =======================
+// CARREGAR BLOCKCHAIN
+// =======================
 void loadChain(Blockchain &bc, const std::string& filename) {
+
     std::ifstream file(filename);
 
     if (!file.is_open()) return;
@@ -22,14 +51,11 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
         std::string indexStr, timestamp, hash, prevHash, nonceStr;
 
-        // lê até '|'
-        std::getline(ss, indexStr, '|');
-        std::getline(ss, timestamp, '|');
-        std::getline(ss, hash, '|');
-        std::getline(ss, prevHash, '|');
-
-        // ⚠️ último campo SEM delimitador
-        std::getline(ss, nonceStr);
+        if (!std::getline(ss, indexStr, '|')) continue;
+        if (!std::getline(ss, timestamp, '|')) continue;
+        if (!std::getline(ss, hash, '|')) continue;
+        if (!std::getline(ss, prevHash, '|')) continue;
+        if (!std::getline(ss, nonceStr, '|')) continue;
 
         try {
             int index = std::stoi(indexStr);
@@ -43,7 +69,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            std::cout << "⚠️ Linha inválida ignorada: " << line << "\n";
+            std::cout << "⚠️ Erro ao carregar linha\n";
         }
     }
 }
