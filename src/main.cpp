@@ -5,12 +5,12 @@
 int main(int argc, char* argv[]) {
     Blockchain mazechain;
 
-    // 🔥 Carrega do arquivo
-    loadChain(mazechain);
+    // 🔥 carregar do arquivo
+    Storage::loadChain(mazechain);
 
-    // 🔥 Se não existir, cria genesis
-    if (mazechain.chain.empty()) {
-        mazechain.chain.push_back(mazechain.createGenesisBlock());
+    // 🔥 criar genesis se vazio
+    if (mazechain.getChain().empty()) {
+        mazechain.addLoadedBlock(mazechain.createGenesisBlock());
     }
 
     if (argc < 2) {
@@ -22,22 +22,22 @@ int main(int argc, char* argv[]) {
 
     std::string cmd = argv[1];
 
-    // ⛏️ MINERAR
     if (cmd == "mine") {
         Block newBlock(
-            mazechain.chain.size(),
+            mazechain.getChain().size(),
             {"Mining reward"},
             mazechain.getLatestBlock().hash
         );
 
         mazechain.addBlock(newBlock);
 
-        saveChain(mazechain);
+        Storage::saveChain(mazechain);
     }
 
-    // 📜 VER CHAIN
     else if (cmd == "chain") {
-        for (auto &block : mazechain.chain) {
+        const auto& chain = mazechain.getChain();
+
+        for (auto &block : chain) {
             std::cout << "\n-------------------------\n";
             std::cout << "Index: " << block.index << "\n";
             std::cout << "Timestamp: " << block.timestamp << "\n";
