@@ -3,16 +3,10 @@
 
 #include <string>
 
-class Transaction {
-public:
+struct Transaction {
     std::string from;
     std::string to;
-    double amount;
-
-    Transaction();
-    Transaction(std::string from, std::string to, double amount);
-
-    std::string toString() const;
+    int amount;
 };
 
 #endif
