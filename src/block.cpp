@@ -11,7 +11,7 @@ Block::Block(int idx, std::vector<std::string> txs, std::string prevHash) {
 
     time_t now = time(0);
     timestamp = std::ctime(&now);
-    timestamp.pop_back(); // 🔥 REMOVE \n (CRÍTICO)
+    timestamp.pop_back(); // remove \n
 
     hash = calculateHash();
 }
@@ -24,7 +24,7 @@ std::string Block::calculateHash() {
         ss << tx;
     }
 
-    return sha256(ss.str());
+    return Crypto::sha256(ss.str());
 }
 
 void Block::mineBlock(int difficulty) {
