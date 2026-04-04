@@ -1,27 +1,27 @@
 #include "../include/block.h"
 #include "../include/crypto.h"
-#include <ctime>
 #include <sstream>
+#include <ctime>
 
-Block::Block(int idx, std::vector<std::string> txs, std::string prevHash) {
+Block::Block(int idx, std::vector<Transaction> txs, std::string prevHash) {
     index = idx;
     transactions = txs;
     previousHash = prevHash;
     nonce = 0;
 
     time_t now = time(0);
-    timestamp = std::ctime(&now);
-    timestamp.pop_back(); // remove \n
+    timestamp = ctime(&now);
 
     hash = calculateHash();
 }
 
-std::string Block::calculateHash() {
+std::string Block::calculateHash() const {
     std::stringstream ss;
+
     ss << index << timestamp << previousHash << nonce;
 
-    for (auto &tx : transactions) {
-        ss << tx;
+    for (const auto& tx : transactions) {
+        ss << tx.from << tx.to << tx.amount;
     }
 
     return Crypto::sha256(ss.str());
