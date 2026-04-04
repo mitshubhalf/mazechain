@@ -1,38 +1,26 @@
 #include "../include/blockchain.h"
+#include <iostream>
 
 Blockchain::Blockchain() {
     difficulty = 3;
-    chain.push_back(createGenesisBlock());
+    // ❌ NÃO cria genesis aqui
 }
 
 Block Blockchain::createGenesisBlock() {
     return Block(0, {"Genesis Block"}, "0");
 }
 
-const Block& Blockchain::getLatestBlock() const {
+Block Blockchain::getLatestBlock() {
     return chain.back();
 }
 
 void Blockchain::addBlock(Block newBlock) {
     newBlock.previousHash = getLatestBlock().hash;
+
+    std::cout << "⛏️ Mining block " << newBlock.index << "...\n";
     newBlock.mineBlock(difficulty);
+
     chain.push_back(newBlock);
-}
 
-bool Blockchain::isEmpty() const {
-    return chain.empty();
-}
-
-bool Blockchain::isChainValid() const {
-    for (size_t i = 1; i < chain.size(); i++) {
-        const Block& current = chain[i];
-        const Block& previous = chain[i - 1];
-
-        if (current.hash != current.calculateHash())
-            return false;
-
-        if (current.previousHash != previous.hash)
-            return false;
-    }
-    return true;
+    std::cout << "✅ Block mined: " << newBlock.hash << "\n";
 }
