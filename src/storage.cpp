@@ -22,11 +22,14 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
         std::string indexStr, timestamp, hash, prevHash, nonceStr;
 
-        if (!std::getline(ss, indexStr, '|')) continue;
-        if (!std::getline(ss, timestamp, '|')) continue;
-        if (!std::getline(ss, hash, '|')) continue;
-        if (!std::getline(ss, prevHash, '|')) continue;
-        if (!std::getline(ss, nonceStr, '|')) continue;
+        // lê até '|'
+        std::getline(ss, indexStr, '|');
+        std::getline(ss, timestamp, '|');
+        std::getline(ss, hash, '|');
+        std::getline(ss, prevHash, '|');
+
+        // ⚠️ último campo SEM delimitador
+        std::getline(ss, nonceStr);
 
         try {
             int index = std::stoi(indexStr);
@@ -40,7 +43,9 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            std::cout << "⚠️ Erro ao carregar linha\n";
+            std::cout << "⚠️ Linha inválida ignorada: " << line << "\n";
         }
     }
+}
+
 }
