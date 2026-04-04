@@ -3,50 +3,52 @@
 #include <iostream>
 
 int main(int argc, char* argv[]) {
-    Blockchain mazechain;
 
+    Blockchain mazechain;
     Storage::loadChain(mazechain);
 
-    if (mazechain.getChain().empty()) {
-        mazechain.addLoadedBlock(mazechain.createGenesisBlock());
-    }
-
     if (argc < 2) {
-        std::cout << "Uso:\n";
-        std::cout << "./mazechain mine\n";
-        std::cout << "./mazechain chain\n";
+        std::cout << "Comandos:\n";
+        std::cout << " mine\n send FROM TO AMOUNT\n balance ADDRESS\n chain\n";
         return 0;
     }
 
-    std::string cmd = argv[1];
+    std::string command = argv[1];
 
-    if (cmd == "mine") {
-        Block newBlock(
-            mazechain.getChain().size(),
-            {"Mining reward"},
-            mazechain.getLatestBlock().hash
-        );
+    if (command == "mine") {
+        mazechain.minePendingTransactions("miner1");
+        Storage::saveChain(mazechain);
+    }
 
-        mazechain.addBlock(newBlock);
+    else if (command == "send") {
+
+        if (argc < 5) {
+            std::cout << "Uso: send FROM TO AMOUNT\n";
+            return 0;
+        }
+
+        Transaction tx;
+        tx.from = argv[2];
+        tx.to = argv[3];
+        tx.amount = std::stoi(argv[4]);
+
+        if (mazechain.addTransaction(tx))
+            std::cout << "✅ Transação adicionada\n";
 
         Storage::saveChain(mazechain);
     }
 
-    else if (cmd == "chain") {
-        const auto& chain = mazechain.getChain();
+    else if (command == "balance") {
 
-        for (auto &block : chain) {
-            std::cout << "\n-------------------------\n";
-            std::cout << "Index: " << block.index << "\n";
-            std::cout << "Timestamp: " << block.timestamp << "\n";
-            std::cout << "Hash: " << block.hash << "\n";
-            std::cout << "Prev Hash: " << block.previousHash << "\n";
-            std::cout << "Nonce: " << block.nonce << "\n";
-        }
+        std::string addr = argv[2];
+
+        std::cout << "Saldo: "
+                  << mazechain.getBalance(addr)
+                  << " MC\n";
     }
 
-    else {
-        std::cout << "Comando desconhecido\n";
+    else if (command == "chain") {
+        mazechain.printChain();
     }
 
     return 0;
