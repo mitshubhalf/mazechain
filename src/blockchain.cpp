@@ -24,8 +24,6 @@ void Blockchain::addBlock(Block newBlock) {
     std::cout << "✅ Block mined: " << newBlock.hash << "\n";
 }
 
-// 🔥 IMPLEMENTAÇÕES NOVAS
-
 const std::vector<Block>& Blockchain::getChain() const {
     return chain;
 }
