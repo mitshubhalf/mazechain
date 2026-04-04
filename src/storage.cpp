@@ -5,11 +5,15 @@
 
 namespace Storage {
 
+// =====================
+// SALVAR
+// =====================
 void saveChain(const Blockchain &bc, const std::string& filename) {
+
     std::ofstream file(filename);
 
     if (!file.is_open()) {
-        std::cout << "Erro ao salvar blockchain\n";
+        std::cout << "Erro ao salvar\n";
         return;
     }
 
@@ -24,7 +28,11 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
     }
 }
 
+// =====================
+// CARREGAR
+// =====================
 void loadChain(Blockchain &bc, const std::string& filename) {
+
     std::ifstream file(filename);
 
     if (!file.is_open()) return;
@@ -35,17 +43,15 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
     while (std::getline(file, line)) {
 
-        if (line.empty()) continue;
-
         std::stringstream ss(line);
 
         std::string indexStr, timestamp, hash, prevHash, nonceStr;
 
-        if (!std::getline(ss, indexStr, '|')) continue;
-        if (!std::getline(ss, timestamp, '|')) continue;
-        if (!std::getline(ss, hash, '|')) continue;
-        if (!std::getline(ss, prevHash, '|')) continue;
-        if (!std::getline(ss, nonceStr, '|')) continue;
+        std::getline(ss, indexStr, '|');
+        std::getline(ss, timestamp, '|');
+        std::getline(ss, hash, '|');
+        std::getline(ss, prevHash, '|');
+        std::getline(ss, nonceStr, '|');
 
         try {
             int index = std::stoi(indexStr);
@@ -59,7 +65,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            std::cout << "Erro ao carregar bloco\n";
+            std::cout << "Erro ao carregar\n";
         }
     }
 }
