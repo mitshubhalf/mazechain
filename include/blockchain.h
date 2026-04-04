@@ -18,7 +18,6 @@ public:
 
     void addBlock(Block newBlock);
 
-    // 🔥 NOVOS MÉTODOS
     const std::vector<Block>& getChain() const;
     void clearChain();
     void addLoadedBlock(const Block& block);
