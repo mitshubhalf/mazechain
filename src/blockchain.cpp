@@ -3,7 +3,6 @@
 
 Blockchain::Blockchain() {
     difficulty = 3;
-    // ❌ NÃO cria genesis aqui
 }
 
 Block Blockchain::createGenesisBlock() {
@@ -23,4 +22,18 @@ void Blockchain::addBlock(Block newBlock) {
     chain.push_back(newBlock);
 
     std::cout << "✅ Block mined: " << newBlock.hash << "\n";
+}
+
+// 🔥 IMPLEMENTAÇÕES NOVAS
+
+const std::vector<Block>& Blockchain::getChain() const {
+    return chain;
+}
+
+void Blockchain::clearChain() {
+    chain.clear();
+}
+
+void Blockchain::addLoadedBlock(const Block& block) {
+    chain.push_back(block);
 }
