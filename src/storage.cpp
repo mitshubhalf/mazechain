@@ -4,9 +4,9 @@
 #include <iostream>
 
 void saveChain(const Blockchain &bc) {
-    std::ofstream file("chain.txt", std::ios::trunc);
+    std::ofstream file("chain.txt");
 
-    for (const auto &block : bc.chain) {
+    for (auto &block : bc.chain) {
         file << block.index << "|"
              << block.timestamp << "|"
              << block.hash << "|"
@@ -23,9 +23,8 @@ void loadChain(Blockchain &bc) {
     bc.chain.clear();
 
     std::string line;
-    Block* prevBlock = nullptr;
-
     while (getline(file, line)) {
+
         if (line.empty()) continue;
 
         std::stringstream ss(line);
@@ -41,28 +40,12 @@ void loadChain(Blockchain &bc) {
         try {
             Block b(std::stoi(index), {}, prev);
             b.timestamp = timestamp;
+            b.hash = hash;
             b.nonce = std::stoi(nonce);
 
-            // 🔐 Recalcular hash
-            std::string recalculatedHash = b.calculateHash();
-
-            if (recalculatedHash != hash) {
-                std::cout << "⚠️ Hash inválido! Bloco ignorado.\n";
-                continue;
-            }
-
-            // 🔗 Verificar encadeamento
-            if (prevBlock && b.previousHash != prevBlock->hash) {
-                std::cout << "⚠️ Cadeia quebrada! Bloco ignorado.\n";
-                continue;
-            }
-
-            b.hash = hash;
             bc.chain.push_back(b);
-            prevBlock = &bc.chain.back();
-
         } catch (...) {
-            std::cout << "⚠️ Linha ignorada (erro de parsing)\n";
+            std::cout << "⚠️ Linha ignorada\n";
         }
     }
 }
