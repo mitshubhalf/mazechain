@@ -1,19 +1,18 @@
-#include "../include/storage.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
 namespace Storage {
 
-// =====================
-// SALVAR
-// =====================
+// =======================
+// SALVAR BLOCKCHAIN
+// =======================
 void saveChain(const Blockchain &bc, const std::string& filename) {
 
     std::ofstream file(filename);
 
     if (!file.is_open()) {
-        std::cout << "Erro ao salvar\n";
+        std::cout << "Erro ao salvar blockchain\n";
         return;
     }
 
