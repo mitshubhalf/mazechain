@@ -5,19 +5,23 @@
 #include <vector>
 
 class Blockchain {
-public:
+private:
     std::vector<Block> chain;
+
+public:
     int difficulty;
 
     Blockchain();
 
     Block createGenesisBlock();
-    const Block& getLatestBlock() const;
+    Block getLatestBlock();
 
     void addBlock(Block newBlock);
 
-    bool isEmpty() const;
-    bool isChainValid() const;
+    // 🔥 NOVOS MÉTODOS
+    const std::vector<Block>& getChain() const;
+    void clearChain();
+    void addLoadedBlock(const Block& block);
 };
 
 #endif
