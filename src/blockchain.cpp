@@ -10,7 +10,7 @@ Block Blockchain::getLatestBlock() const {
 
 void Blockchain::minePendingTransactions(std::string minerAddress) {
 
-    // recompensa do minerador
+    // recompensa
     pendingTransactions.push_back(Transaction("SYSTEM", minerAddress, 50));
 
     Block newBlock(chain.size(), pendingTransactions, getLatestBlock().hash);
