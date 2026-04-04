@@ -3,10 +3,12 @@
 #include <sstream>
 #include <iostream>
 
-void saveChain(const Blockchain &bc) {
-    std::ofstream file("chain.txt");
+namespace Storage {
 
-    for (auto &block : bc.chain) {
+void saveChain(const Blockchain &bc, const std::string& filename) {
+    std::ofstream file(filename);
+
+    for (auto &block : bc.getChain()) {
         file << block.index << "|"
              << block.timestamp << "|"
              << block.hash << "|"
@@ -15,12 +17,12 @@ void saveChain(const Blockchain &bc) {
     }
 }
 
-void loadChain(Blockchain &bc) {
-    std::ifstream file("chain.txt");
+void loadChain(Blockchain &bc, const std::string& filename) {
+    std::ifstream file(filename);
 
     if (!file.is_open()) return;
 
-    bc.chain.clear();
+    bc.clearChain(); // 🔥 importante
 
     std::string line;
     while (getline(file, line)) {
@@ -43,9 +45,11 @@ void loadChain(Blockchain &bc) {
             b.hash = hash;
             b.nonce = std::stoi(nonce);
 
-            bc.chain.push_back(b);
+            bc.addLoadedBlock(b); // 🔥 NÃO minerar de novo
         } catch (...) {
             std::cout << "⚠️ Linha ignorada\n";
         }
     }
+}
+
 }
