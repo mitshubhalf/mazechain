@@ -5,18 +5,6 @@
 
 namespace Storage {
 
-void saveChain(const Blockchain &bc, const std::string& filename) {
-    std::ofstream file(filename);
-
-    for (auto &block : bc.getChain()) {
-        file << block.index << "|"
-             << block.timestamp << "|"
-             << block.hash << "|"
-             << block.previousHash << "|"
-             << block.nonce << "\n";
-    }
-}
-
 void loadChain(Blockchain &bc, const std::string& filename) {
     std::ifstream file(filename);
 
@@ -25,31 +13,34 @@ void loadChain(Blockchain &bc, const std::string& filename) {
     bc.clearChain();
 
     std::string line;
-    while (getline(file, line)) {
+
+    while (std::getline(file, line)) {
 
         if (line.empty()) continue;
 
         std::stringstream ss(line);
 
-        std::string index, timestamp, hash, prev, nonce;
+        std::string indexStr, timestamp, hash, prevHash, nonceStr;
 
-        if (!getline(ss, index, '|')) continue;
-        if (!getline(ss, timestamp, '|')) continue;
-        if (!getline(ss, hash, '|')) continue;
-        if (!getline(ss, prev, '|')) continue;
-        if (!getline(ss, nonce, '|')) continue;
+        if (!std::getline(ss, indexStr, '|')) continue;
+        if (!std::getline(ss, timestamp, '|')) continue;
+        if (!std::getline(ss, hash, '|')) continue;
+        if (!std::getline(ss, prevHash, '|')) continue;
+        if (!std::getline(ss, nonceStr, '|')) continue;
 
         try {
-            Block b(std::stoi(index), {}, prev);
+            int index = std::stoi(indexStr);
+            int nonce = std::stoi(nonceStr);
+
+            Block b(index, {}, prevHash);
             b.timestamp = timestamp;
             b.hash = hash;
-            b.nonce = std::stoi(nonce);
+            b.nonce = nonce;
 
             bc.addLoadedBlock(b);
+
         } catch (...) {
-            std::cout << "⚠️ Linha ignorada\n";
+            std::cout << "⚠️ Erro ao carregar linha\n";
         }
     }
-}
-
 }
