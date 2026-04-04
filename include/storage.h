@@ -2,6 +2,7 @@
 #define STORAGE_H
 
 #include "blockchain.h"
+#include <string>
 
 namespace Storage {
 
