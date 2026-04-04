@@ -9,17 +9,22 @@ int main(int argc, char* argv[]) {
 
     if (argc < 2) {
         std::cout << "Comandos:\n";
-        std::cout << " mine\n send FROM TO AMOUNT\n balance ADDRESS\n chain\n";
+        std::cout << " mine\n";
+        std::cout << " send FROM TO AMOUNT\n";
+        std::cout << " balance ADDRESS\n";
+        std::cout << " chain\n";
         return 0;
     }
 
     std::string command = argv[1];
 
+    // ⛏️ MINERAR
     if (command == "mine") {
         mazechain.minePendingTransactions("miner1");
         Storage::saveChain(mazechain);
     }
 
+    // 💸 ENVIAR
     else if (command == "send") {
 
         if (argc < 5) {
@@ -34,11 +39,15 @@ int main(int argc, char* argv[]) {
 
         if (mazechain.addTransaction(tx))
             std::cout << "✅ Transação adicionada\n";
-
-        Storage::saveChain(mazechain);
     }
 
+    // 💰 SALDO
     else if (command == "balance") {
+
+        if (argc < 3) {
+            std::cout << "Uso: balance ADDRESS\n";
+            return 0;
+        }
 
         std::string addr = argv[2];
 
@@ -47,8 +56,13 @@ int main(int argc, char* argv[]) {
                   << " MC\n";
     }
 
+    // 🔗 VER CHAIN
     else if (command == "chain") {
         mazechain.printChain();
+    }
+
+    else {
+        std::cout << "Comando desconhecido\n";
     }
 
     return 0;
