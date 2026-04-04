@@ -6,10 +6,10 @@
 struct Transaction {
     std::string from;
     std::string to;
-    int amount;
+    double amount;
 
     Transaction();
-    Transaction(std::string from, std::string to, int amount);
+    Transaction(std::string from, std::string to, double amount);
 
     std::string toString() const;
 };
