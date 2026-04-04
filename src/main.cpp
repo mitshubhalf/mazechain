@@ -5,10 +5,8 @@
 int main(int argc, char* argv[]) {
     Blockchain mazechain;
 
-    // 🔥 carregar do arquivo
     Storage::loadChain(mazechain);
 
-    // 🔥 criar genesis se vazio
     if (mazechain.getChain().empty()) {
         mazechain.addLoadedBlock(mazechain.createGenesisBlock());
     }
