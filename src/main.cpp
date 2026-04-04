@@ -1,64 +1,95 @@
+#include <iostream>
 #include "../include/blockchain.h"
 #include "../include/storage.h"
-#include <iostream>
+#include "../include/transaction.h"
 
 int main(int argc, char* argv[]) {
 
     Blockchain mazechain;
+
+    // carregar blockchain salva
     Storage::loadChain(mazechain);
 
     if (argc < 2) {
-        std::cout << "Comandos:\n";
-        std::cout << " mine\n";
-        std::cout << " send FROM TO AMOUNT\n";
-        std::cout << " balance ADDRESS\n";
-        std::cout << " chain\n";
+        std::cout << "Uso:\n";
+        std::cout << "./mazechain mine\n";
+        std::cout << "./mazechain chain\n";
+        std::cout << "./mazechain balance <address>\n";
+        std::cout << "./mazechain send <from> <to> <amount>\n";
         return 0;
     }
 
     std::string command = argv[1];
 
-    // ⛏️ MINERAR
+    // ========================
+    // MINERAR BLOCO
+    // ========================
     if (command == "mine") {
+
+        std::cout << "⛏️ Mining block " 
+                  << mazechain.getChain().size() << "...\n";
+
         mazechain.minePendingTransactions("miner1");
+
         Storage::saveChain(mazechain);
+
+        std::cout << "✅ Block mined!\n";
     }
 
-    // 💸 ENVIAR
-    else if (command == "send") {
+    // ========================
+    // MOSTRAR CHAIN
+    // ========================
+    else if (command == "chain") {
 
-        if (argc < 5) {
-            std::cout << "Uso: send FROM TO AMOUNT\n";
-            return 0;
+        const auto& chain = mazechain.getChain();
+
+        for (const auto& block : chain) {
+            std::cout << "\n-------------------------\n";
+            std::cout << "Index: " << block.index << "\n";
+            std::cout << "Timestamp: " << block.timestamp << "\n";
+            std::cout << "Hash: " << block.hash << "\n";
+            std::cout << "Prev Hash: " << block.previousHash << "\n";
+            std::cout << "Nonce: " << block.nonce << "\n";
         }
-
-        Transaction tx;
-        tx.from = argv[2];
-        tx.to = argv[3];
-        tx.amount = std::stoi(argv[4]);
-
-        if (mazechain.addTransaction(tx))
-            std::cout << "✅ Transação adicionada\n";
     }
 
-    // 💰 SALDO
+    // ========================
+    // VER SALDO
+    // ========================
     else if (command == "balance") {
 
         if (argc < 3) {
-            std::cout << "Uso: balance ADDRESS\n";
+            std::cout << "Uso: ./mazechain balance <address>\n";
             return 0;
         }
 
-        std::string addr = argv[2];
+        std::string address = argv[2];
 
-        std::cout << "Saldo: "
-                  << mazechain.getBalance(addr)
-                  << " MC\n";
+        int balance = mazechain.getBalance(address);
+
+        std::cout << "💰 Saldo de " << address << ": "
+                  << balance << " MC\n";
     }
 
-    // 🔗 VER CHAIN
-    else if (command == "chain") {
-        mazechain.printChain();
+    // ========================
+    // ENVIAR TRANSAÇÃO
+    // ========================
+    else if (command == "send") {
+
+        if (argc < 5) {
+            std::cout << "Uso: ./mazechain send <from> <to> <amount>\n";
+            return 0;
+        }
+
+        std::string from = argv[2];
+        std::string to = argv[3];
+        int amount = std::stoi(argv[4]);
+
+        Transaction tx(from, to, amount);
+
+        mazechain.addTransaction(tx);
+
+        std::cout << "📤 Transação adicionada!\n";
     }
 
     else {
