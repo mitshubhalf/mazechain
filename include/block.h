@@ -15,7 +15,7 @@ public:
 
     Block(int idx, std::vector<std::string> txs, std::string prevHash);
 
-    std::string calculateHash() const;
+    std::string calculateHash();
     void mineBlock(int difficulty);
 };
 
