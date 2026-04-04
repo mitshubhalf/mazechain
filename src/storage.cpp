@@ -22,7 +22,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
     if (!file.is_open()) return;
 
-    bc.clearChain(); // 🔥 importante
+    bc.clearChain();
 
     std::string line;
     while (getline(file, line)) {
@@ -45,7 +45,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             b.hash = hash;
             b.nonce = std::stoi(nonce);
 
-            bc.addLoadedBlock(b); // 🔥 NÃO minerar de novo
+            bc.addLoadedBlock(b);
         } catch (...) {
             std::cout << "⚠️ Linha ignorada\n";
         }
