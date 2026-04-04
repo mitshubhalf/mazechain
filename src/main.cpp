@@ -8,7 +8,6 @@ int main(int argc, char* argv[]) {
 
     Blockchain mazechain;
 
-    // 🔹 Carrega blockchain do arquivo
     Storage::loadChain(mazechain);
 
     if (argc < 2) {
@@ -22,9 +21,7 @@ int main(int argc, char* argv[]) {
 
     std::string command = argv[1];
 
-    // =========================
     // ⛏️ MINERAR
-    // =========================
     if (command == "mine") {
 
         int index = mazechain.getChain().size();
@@ -37,15 +34,12 @@ int main(int argc, char* argv[]) {
 
         mazechain.addBlock(newBlock);
 
-        // salva
         Storage::saveChain(mazechain);
 
-        std::cout << "✅  Block mined: " << newBlock.hash << "\n";
+        std::cout << "✅ Block mined: " << newBlock.hash << "\n";
     }
 
-    // =========================
-    // 📜 MOSTRAR CHAIN
-    // =========================
+    // 📜 CHAIN
     else if (command == "chain") {
 
         const auto& chain = mazechain.getChain();
@@ -58,16 +52,13 @@ int main(int argc, char* argv[]) {
             std::cout << "Prev Hash: " << block.previousHash << "\n";
             std::cout << "Nonce: " << block.nonce << "\n";
 
-            // mostrar transações
             for (const auto& tx : block.transactions) {
                 std::cout << "   TX: " << tx.toString() << "\n";
             }
         }
     }
 
-    // =========================
-    // 💸 ENVIAR
-    // =========================
+    // 💸 SEND
     else if (command == "send") {
 
         if (argc < 5) {
@@ -83,15 +74,12 @@ int main(int argc, char* argv[]) {
 
         mazechain.addTransaction(tx);
 
-        // salva mesmo sem minerar (fica no último bloco)
         Storage::saveChain(mazechain);
 
         std::cout << "✅ Transação enviada\n";
     }
 
-    // =========================
-    // 💰 SALDO
-    // =========================
+    // 💰 BALANCE
     else if (command == "balance") {
 
         if (argc < 3) {
@@ -105,9 +93,6 @@ int main(int argc, char* argv[]) {
         std::cout << "💰 Saldo: " << balance << "\n";
     }
 
-    // =========================
-    // ❌ ERRO
-    // =========================
     else {
         std::cout << "Comando desconhecido\n";
     }
