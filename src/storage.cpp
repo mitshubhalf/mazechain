@@ -1,19 +1,20 @@
 #include "../include/storage.h"
 #include "../include/blockchain.h"
-#include "../include/block.h"
-
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
 namespace Storage {
 
+// ==========================
+// SALVAR BLOCKCHAIN
+// ==========================
 void saveChain(const Blockchain &bc, const std::string& filename) {
 
     std::ofstream file(filename);
 
     if (!file.is_open()) {
-        std::cout << "Erro ao salvar blockchain\n";
+        std::cout << "Erro ao salvar chain\n";
         return;
     }
 
@@ -24,10 +25,15 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
              << block.timestamp << "|"
              << block.hash << "|"
              << block.previousHash << "|"
-             << block.nonce << "\n";
+             << block.nonce
+             << "\n";
     }
 }
 
+
+// ==========================
+// CARREGAR BLOCKCHAIN
+// ==========================
 void loadChain(Blockchain &bc, const std::string& filename) {
 
     std::ifstream file(filename);
@@ -64,7 +70,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            std::cout << "⚠️ Linha inválida ignorada\n";
+            std::cout << "⚠️ Linha inválida ignorada: " << line << "\n";
         }
     }
 }
