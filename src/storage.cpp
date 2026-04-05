@@ -8,21 +8,19 @@
 
 namespace Storage {
 
-// ==========================
 // SAVE
-// ==========================
 void saveChain(const Blockchain &bc, const std::string& filename) {
 
     std::ofstream file(filename);
 
     if (!file.is_open()) {
-        std::cout << "Erro ao salvar chain\n";
+        std::cout << "Erro ao salvar\n";
         return;
     }
 
-    const auto& chain = bc.getChain();
+    const std::vector<Block>& chain = bc.getChain();
 
-    for (const auto& block : chain) {
+    for (const Block& block : chain) {
         file << block.index << "|"
              << block.timestamp << "|"
              << block.hash << "|"
@@ -32,9 +30,7 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
     }
 }
 
-// ==========================
 // LOAD
-// ==========================
 void loadChain(Blockchain &bc, const std::string& filename) {
 
     std::ifstream file(filename);
@@ -71,7 +67,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            std::cout << "⚠️ Linha inválida: " << line << "\n";
+            std::cout << "Erro linha\n";
         }
     }
 }
