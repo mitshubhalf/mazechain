@@ -2,12 +2,14 @@
 #define BLOCKCHAIN_H
 
 #include <vector>
+#include <string>
 #include "block.h"
 #include "transaction.h"
 
 class Blockchain {
 private:
     std::vector<Block> chain;
+    std::vector<Transaction> pendingTransactions;
 
 public:
     Blockchain();
@@ -18,10 +20,13 @@ public:
     void clearChain();
     void addLoadedBlock(const Block& block);
 
-    std::vector<Block>& getChain();
+    // 🔥 CORREÇÃO AQUI
+    const std::vector<Block>& getChain() const;
 
     void addTransaction(const Transaction& tx);
     double getBalance(const std::string& address);
+
+    void minePendingTransactions(const std::string& minerAddress);
 };
 
 #endif
