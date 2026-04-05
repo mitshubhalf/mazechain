@@ -1,12 +1,13 @@
+#include "../include/storage.h"
+#include "../include/blockchain.h"
+#include "../include/block.h"
+
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
 namespace Storage {
 
-// =======================
-// SALVAR BLOCKCHAIN
-// =======================
 void saveChain(const Blockchain &bc, const std::string& filename) {
 
     std::ofstream file(filename);
@@ -27,9 +28,6 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
     }
 }
 
-// =====================
-// CARREGAR
-// =====================
 void loadChain(Blockchain &bc, const std::string& filename) {
 
     std::ifstream file(filename);
@@ -42,6 +40,8 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
     while (std::getline(file, line)) {
 
+        if (line.empty()) continue;
+
         std::stringstream ss(line);
 
         std::string indexStr, timestamp, hash, prevHash, nonceStr;
@@ -50,7 +50,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
         std::getline(ss, timestamp, '|');
         std::getline(ss, hash, '|');
         std::getline(ss, prevHash, '|');
-        std::getline(ss, nonceStr, '|');
+        std::getline(ss, nonceStr);
 
         try {
             int index = std::stoi(indexStr);
@@ -64,7 +64,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            std::cout << "Erro ao carregar\n";
+            std::cout << "⚠️ Linha inválida ignorada\n";
         }
     }
 }
