@@ -2,15 +2,12 @@
 #define BLOCKCHAIN_H
 
 #include <vector>
-#include <string>
 #include "block.h"
 #include "transaction.h"
 
 class Blockchain {
 private:
     std::vector<Block> chain;
-
-    // 🔥 FALTAVA ISSO (ERRO PRINCIPAL)
     std::vector<Transaction> pendingTransactions;
 
 public:
@@ -22,12 +19,12 @@ public:
     void clearChain();
     void addLoadedBlock(const Block& block);
 
-    const std::vector<Block>& getChain() const;
+    std::vector<Block>& getChain();
 
     void addTransaction(const Transaction& tx);
-    double getBalance(const std::string& address);
-
     void minePendingTransactions(const std::string& minerAddress);
+
+    double getBalance(const std::string& address);
 };
 
 #endif
