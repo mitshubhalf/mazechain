@@ -21,25 +21,23 @@ int main(int argc, char* argv[]) {
 
     std::string command = argv[1];
 
-    // ⛏️ MINERAR
+    // ==========================
+    // ⛏️ MINERAR (CORRIGIDO)
+    // ==========================
     if (command == "mine") {
 
-        int index = mazechain.getChain().size();
-        std::string prevHash = mazechain.getLatestBlock().hash;
+        std::cout << "⛏️ Mining...\n";
 
-        Block newBlock(index, {}, prevHash);
-
-        std::cout << "⛏️ Mining block " << index << "...\n";
-        newBlock.mineBlock(4);
-
-        mazechain.addBlock(newBlock);
+        mazechain.minePendingTransactions("miner1");
 
         Storage::saveChain(mazechain);
 
-        std::cout << "✅ Block mined: " << newBlock.hash << "\n";
+        std::cout << "✅ Block mined!\n";
     }
 
+    // ==========================
     // 📜 CHAIN
+    // ==========================
     else if (command == "chain") {
 
         const auto& chain = mazechain.getChain();
@@ -58,7 +56,9 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // ==========================
     // 💸 SEND
+    // ==========================
     else if (command == "send") {
 
         if (argc < 5) {
@@ -76,10 +76,12 @@ int main(int argc, char* argv[]) {
 
         Storage::saveChain(mazechain);
 
-        std::cout << "✅ Transação enviada\n";
+        std::cout << "✅ Transação adicionada\n";
     }
 
+    // ==========================
     // 💰 BALANCE
+    // ==========================
     else if (command == "balance") {
 
         if (argc < 3) {
