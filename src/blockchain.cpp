@@ -1,62 +1,46 @@
 #include "../include/blockchain.h"
 
-// ==========================
 // CONSTRUTOR
-// ==========================
 Blockchain::Blockchain() {
     chain.push_back(Block(0, {}, "0"));
 }
 
-// ==========================
-// GET ÚLTIMO BLOCO
-// ==========================
+// ÚLTIMO BLOCO
 Block Blockchain::getLatestBlock() const {
     return chain.back();
 }
 
-// ==========================
-// ADICIONAR BLOCO
-// ==========================
+// ADD BLOCO
 void Blockchain::addBlock(Block newBlock) {
     newBlock.previousHash = getLatestBlock().hash;
     newBlock.mineBlock(4);
     chain.push_back(newBlock);
 }
 
-// ==========================
-// GET CHAIN (CORRIGIDO)
-// ==========================
-const std::vector<Block>& Blockchain::getChain() const {
+// GET CHAIN
+std::vector<Block>& Blockchain::getChain() {
     return chain;
 }
 
-// ==========================
-// LIMPAR CHAIN
-// ==========================
+// LIMPAR
 void Blockchain::clearChain() {
     chain.clear();
 }
 
-// ==========================
 // ADD BLOCO CARREGADO
-// ==========================
 void Blockchain::addLoadedBlock(const Block& block) {
     chain.push_back(block);
 }
 
-// ==========================
-// ADICIONAR TRANSAÇÃO
-// ==========================
+// ADD TRANSAÇÃO
 void Blockchain::addTransaction(const Transaction& tx) {
     pendingTransactions.push_back(tx);
 }
 
-// ==========================
-// MINERAR COM TRANSAÇÕES
-// ==========================
+// MINERAR
 void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 
-    // recompensa do minerador
+    // recompensa
     Transaction reward("SYSTEM", minerAddress, 50);
     pendingTransactions.push_back(reward);
 
@@ -66,13 +50,10 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 
     chain.push_back(newBlock);
 
-    // limpa mempool
     pendingTransactions.clear();
 }
 
-// ==========================
-// CALCULAR SALDO
-// ==========================
+// SALDO
 double Blockchain::getBalance(const std::string& address) {
 
     double balance = 0;
