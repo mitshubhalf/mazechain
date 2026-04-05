@@ -1,5 +1,7 @@
 #include "../include/storage.h"
 #include "../include/blockchain.h"
+#include "../include/block.h"
+
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -7,7 +9,7 @@
 namespace Storage {
 
 // ==========================
-// SALVAR BLOCKCHAIN
+// SAVE
 // ==========================
 void saveChain(const Blockchain &bc, const std::string& filename) {
 
@@ -30,9 +32,8 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
     }
 }
 
-
 // ==========================
-// CARREGAR BLOCKCHAIN
+// LOAD
 // ==========================
 void loadChain(Blockchain &bc, const std::string& filename) {
 
@@ -70,7 +71,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            std::cout << "⚠️ Linha inválida ignorada: " << line << "\n";
+            std::cout << "⚠️ Linha inválida: " << line << "\n";
         }
     }
 }
