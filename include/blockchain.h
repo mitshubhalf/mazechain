@@ -9,6 +9,8 @@
 class Blockchain {
 private:
     std::vector<Block> chain;
+
+    // 🔥 FALTAVA ISSO (ERRO PRINCIPAL)
     std::vector<Transaction> pendingTransactions;
 
 public:
@@ -20,7 +22,6 @@ public:
     void clearChain();
     void addLoadedBlock(const Block& block);
 
-    // 🔥 CORREÇÃO AQUI
     const std::vector<Block>& getChain() const;
 
     void addTransaction(const Transaction& tx);
