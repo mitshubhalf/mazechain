@@ -1,14 +1,15 @@
 #include <iostream>
 #include <string>
 #include "../include/blockchain.h"
-#include "../include/storage.h"
 #include "../include/transaction.h"
+// #include "../include/storage.h"  ❌ DESATIVADO
 
 int main(int argc, char* argv[]) {
 
     Blockchain mazechain;
 
-    Storage::loadChain(mazechain);
+    // ❌ DESATIVADO (causando crash)
+    // Storage::loadChain(mazechain);
 
     if (argc < 2) {
         std::cout << "Comandos disponíveis:\n";
@@ -22,7 +23,7 @@ int main(int argc, char* argv[]) {
     std::string command = argv[1];
 
     // ==========================
-    // ⛏️ MINERAR (CORRIGIDO)
+    // ⛏️ MINERAR
     // ==========================
     if (command == "mine") {
 
@@ -30,7 +31,8 @@ int main(int argc, char* argv[]) {
 
         mazechain.minePendingTransactions("miner1");
 
-        Storage::saveChain(mazechain);
+        // ❌ DESATIVADO
+        // Storage::saveChain(mazechain);
 
         std::cout << "✅ Block mined!\n";
     }
@@ -74,7 +76,8 @@ int main(int argc, char* argv[]) {
 
         mazechain.addTransaction(tx);
 
-        Storage::saveChain(mazechain);
+        // ❌ DESATIVADO
+        // Storage::saveChain(mazechain);
 
         std::cout << "✅ Transação adicionada\n";
     }
