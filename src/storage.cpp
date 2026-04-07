@@ -36,7 +36,10 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
     std::ifstream file(filename);
 
-    if (!file.is_open()) return;
+    if (!file.is_open()) {
+        std::cout << "Nenhum arquivo encontrado, iniciando nova chain\n";
+        return;
+    }
 
     bc.clearChain();
 
@@ -50,15 +53,19 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
         std::string indexStr, timestamp, hash, prevHash, nonceStr;
 
-        std::getline(ss, indexStr, '|');
-        std::getline(ss, timestamp, '|');
-        std::getline(ss, hash, '|');
-        std::getline(ss, prevHash, '|');
-        std::getline(ss, nonceStr);
+        if (!std::getline(ss, indexStr, '|')) continue;
+        if (!std::getline(ss, timestamp, '|')) continue;
+        if (!std::getline(ss, hash, '|')) continue;
+        if (!std::getline(ss, prevHash, '|')) continue;
+        if (!std::getline(ss, nonceStr)) continue;
 
         try {
             int index = std::stoi(indexStr);
             int nonce = std::stoi(nonceStr);
+
+            // 🔥 VALIDAÇÃO IMPORTANTE
+            if (index < 0 || nonce < 0) continue;
+            if (hash.empty() || prevHash.empty()) continue;
 
             Block b(index, {}, prevHash);
             b.timestamp = timestamp;
@@ -68,9 +75,14 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            std::cout << "Erro linha\n";
+            // ignora linha inválida sem quebrar
+            continue;
         }
     }
-}
 
+    // 🔥 se não carregou nada, recria genesis
+    if (bc.getChain().empty()) {
+        std::cout << "Chain inválida, recriando genesis\n";
+        bc = Blockchain();
+    }
 }
