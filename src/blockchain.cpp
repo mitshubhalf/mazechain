@@ -17,8 +17,13 @@ void Blockchain::addBlock(Block newBlock) {
     chain.push_back(newBlock);
 }
 
-// GET CHAIN
+// GET CHAIN (normal)
 std::vector<Block>& Blockchain::getChain() {
+    return chain;
+}
+
+// ✅ GET CHAIN CONST (CORREÇÃO)
+const std::vector<Block>& Blockchain::getChain() const {
     return chain;
 }
 
