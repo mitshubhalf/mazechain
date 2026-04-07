@@ -18,6 +18,7 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
         return;
     }
 
+    // ✅ CORREÇÃO AQUI
     const std::vector<Block>& chain = bc.getChain();
 
     for (const Block& block : chain) {
