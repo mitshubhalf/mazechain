@@ -19,7 +19,8 @@ public:
     void clearChain();
     void addLoadedBlock(const Block& block);
 
-    std::vector<Block>& getChain();
+    std::vector<Block>& getChain();                 // normal
+    const std::vector<Block>& getChain() const;     // ✅ CORREÇÃO
 
     void addTransaction(const Transaction& tx);
     void minePendingTransactions(const std::string& minerAddress);
