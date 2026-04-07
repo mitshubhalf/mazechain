@@ -1,6 +1,6 @@
 #include <iostream>
 #include <string>
-#include "include/blockchain.h"
+#include "blockchain.h"
 #include "include/transaction.h"
 
 int main(int argc, char* argv[]) {
