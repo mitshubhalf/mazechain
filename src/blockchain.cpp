@@ -1,4 +1,5 @@
 #include "../include/blockchain.h"
+#include <iostream>
 
 // CONSTRUTOR
 Blockchain::Blockchain() {
@@ -36,9 +37,31 @@ void Blockchain::addLoadedBlock(const Block& block) {
     chain.push_back(block);
 }
 
-// ADD TRANSAÇÃO
+// 🔥 ADD TRANSAÇÃO (CORRIGIDO)
 void Blockchain::addTransaction(const Transaction& tx) {
+
+    // recompensa de mineração sempre permitida
+    if (tx.from.empty()) {
+        pendingTransactions.push_back(tx);
+        return;
+    }
+
+    double balance = getBalance(tx.from);
+
+    // 🔥 desconta transações pendentes (anti double spend)
+    for (const auto& pending : pendingTransactions) {
+        if (pending.from == tx.from) {
+            balance -= pending.amount;
+        }
+    }
+
+    if (balance < tx.amount) {
+        std::cout << "❌ Saldo insuficiente!\n";
+        return;
+    }
+
     pendingTransactions.push_back(tx);
+    std::cout << "✅ Transação adicionada à pending pool\n";
 }
 
 // ⛏️ MINERAR
@@ -57,7 +80,7 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
     pendingTransactions.clear();
 }
 
-// 💰 SALDO
+// 💰 SALDO (somente blocos confirmados)
 double Blockchain::getBalance(const std::string& address) const {
 
     double balance = 0;
