@@ -18,7 +18,6 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
         return;
     }
 
-    // ✅ CORREÇÃO AQUI
     const std::vector<Block>& chain = bc.getChain();
 
     for (const Block& block : chain) {
@@ -63,7 +62,6 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             int index = std::stoi(indexStr);
             int nonce = std::stoi(nonceStr);
 
-            // 🔥 VALIDAÇÃO IMPORTANTE
             if (index < 0 || nonce < 0) continue;
             if (hash.empty() || prevHash.empty()) continue;
 
@@ -75,14 +73,15 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             bc.addLoadedBlock(b);
 
         } catch (...) {
-            // ignora linha inválida sem quebrar
             continue;
         }
     }
 
-    // 🔥 se não carregou nada, recria genesis
     if (bc.getChain().empty()) {
         std::cout << "Chain inválida, recriando genesis\n";
         bc = Blockchain();
     }
 }
+
+// 🔥 FALTAVA ISSO AQUI
+} // namespace Storage
