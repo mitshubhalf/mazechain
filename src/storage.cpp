@@ -8,7 +8,7 @@
 
 namespace Storage {
 
-// SAVE
+// 💾 SAVE
 void saveChain(const Blockchain &bc, const std::string& filename) {
 
     std::ofstream file(filename);
@@ -28,9 +28,11 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
              << block.nonce
              << "\n";
     }
+
+    file.close(); // 🔥 GARANTE SALVAMENTO
 }
 
-// LOAD
+// 📂 LOAD
 void loadChain(Blockchain &bc, const std::string& filename) {
 
     std::ifstream file(filename);
@@ -43,6 +45,7 @@ void loadChain(Blockchain &bc, const std::string& filename) {
     bc.clearChain();
 
     std::string line;
+    bool loaded = false;
 
     while (std::getline(file, line)) {
 
@@ -71,17 +74,21 @@ void loadChain(Blockchain &bc, const std::string& filename) {
             b.nonce = nonce;
 
             bc.addLoadedBlock(b);
+            loaded = true;
 
         } catch (...) {
             continue;
         }
     }
 
-    if (bc.getChain().empty()) {
+    file.close();
+
+    // 🔥 GARANTE QUE SEMPRE TEM PELO MENOS GENESIS
+    if (!loaded || bc.getChain().empty()) {
         std::cout << "Chain inválida, recriando genesis\n";
-        bc = Blockchain();
+        bc.clearChain();
+        bc.addLoadedBlock(Block(0, {}, "0"));
     }
 }
 
-// 🔥 FALTAVA ISSO AQUI
 } // namespace Storage
