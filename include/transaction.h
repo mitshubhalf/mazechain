@@ -4,12 +4,14 @@
 #include <string>
 
 struct Transaction {
-    std::string from;
-    std::string to;
-    double amount;
+    std::string from = "";
+    std::string to = "";
+    double amount = 0.0;
 
-    Transaction();
-    Transaction(std::string from, std::string to, double amount);
+    Transaction() = default;
+
+    Transaction(std::string from, std::string to, double amount)
+        : from(from), to(to), amount(amount) {}
 
     std::string toString() const;
 };
