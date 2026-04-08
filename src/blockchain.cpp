@@ -1,105 +1,86 @@
 #include "../include/blockchain.h"
 #include <iostream>
 
+// =====================
+// UTXO STRUCT
+// =====================
+struct UTXO {
+    std::string txId;
+    int index;
+    std::string address;
+    double amount;
+};
+
+// UTXO POOL
+std::vector<UTXO> utxoPool;
+
+// =====================
 // CONSTRUTOR
+// =====================
 Blockchain::Blockchain() {
     chain.push_back(Block(0, {}, "0"));
 }
 
-// ÚLTIMO BLOCO
+// =====================
+// GET LAST BLOCK
+// =====================
 Block Blockchain::getLatestBlock() const {
     return chain.back();
 }
 
-// ADD BLOCO
+// =====================
+// ADD BLOCK
+// =====================
 void Blockchain::addBlock(Block newBlock) {
     newBlock.previousHash = getLatestBlock().hash;
     newBlock.mineBlock(4);
     chain.push_back(newBlock);
-}
 
-// GET CHAIN
-std::vector<Block>& Blockchain::getChain() {
-    return chain;
-}
+    // atualizar UTXOs
+    for (const auto& tx : newBlock.transactions) {
 
-const std::vector<Block>& Blockchain::getChain() const {
-    return chain;
-}
+        // remover inputs consumidos
+        for (const auto& input : tx.inputs) {
+            utxoPool.erase(
+                std::remove_if(utxoPool.begin(), utxoPool.end(),
+                    [&](const UTXO& u) {
+                        return u.txId == input.txId && u.index == input.outputIndex;
+                    }),
+                utxoPool.end()
+            );
+        }
 
-// LIMPAR
-void Blockchain::clearChain() {
-    chain.clear();
-}
-
-// ADD BLOCO CARREGADO
-void Blockchain::addLoadedBlock(const Block& block) {
-    chain.push_back(block);
-}
-
-// 🔥 ADD TRANSAÇÃO (CORRIGIDO)
-void Blockchain::addTransaction(const Transaction& tx) {
-
-    // recompensa de mineração sempre permitida
-    if (tx.from.empty()) {
-        pendingTransactions.push_back(tx);
-        return;
-    }
-
-    double balance = getBalance(tx.from);
-
-    // 🔥 desconta transações pendentes (anti double spend)
-    for (const auto& pending : pendingTransactions) {
-        if (pending.from == tx.from) {
-            balance -= pending.amount;
+        // adicionar novos outputs
+        for (size_t i = 0; i < tx.outputs.size(); i++) {
+            UTXO utxo;
+            utxo.txId = tx.id;
+            utxo.index = i;
+            utxo.address = tx.outputs[i].address;
+            utxo.amount = tx.outputs[i].amount;
+            utxoPool.push_back(utxo);
         }
     }
-
-    if (balance < tx.amount) {
-        std::cout << "❌ Saldo insuficiente!\n";
-        return;
-    }
-
-    pendingTransactions.push_back(tx);
-    std::cout << "✅ Transação adicionada à pending pool\n";
 }
 
-// ⛏️ MINERAR
-void Blockchain::minePendingTransactions(const std::string& minerAddress) {
-
-    // recompensa
-    Transaction reward("", minerAddress, 50);
-    pendingTransactions.push_back(reward);
-
-    Block newBlock(chain.size(), pendingTransactions, getLatestBlock().hash);
-
-    newBlock.mineBlock(4);
-
-    chain.push_back(newBlock);
-
-    pendingTransactions.clear();
-}
-
-// 💰 SALDO (somente blocos confirmados)
+// =====================
+// BALANCE (UTXO)
+// =====================
 double Blockchain::getBalance(const std::string& address) const {
 
     double balance = 0;
 
-    for (const auto& block : chain) {
-        for (const auto& tx : block.transactions) {
-
-            if (!tx.from.empty() && tx.from == address)
-                balance -= tx.amount;
-
-            if (!tx.to.empty() && tx.to == address)
-                balance += tx.amount;
+    for (const auto& utxo : utxoPool) {
+        if (utxo.address == address) {
+            balance += utxo.amount;
         }
     }
 
     return balance;
 }
 
-// 🔒 VALIDAÇÃO
+// =====================
+// VALIDATE CHAIN
+// =====================
 bool Blockchain::isChainValid() const {
 
     for (size_t i = 1; i < chain.size(); i++) {
@@ -117,12 +98,42 @@ bool Blockchain::isChainValid() const {
     return true;
 }
 
-// 🔥 GET PENDING
-const std::vector<Transaction>& Blockchain::getPendingTransactions() const {
-    return pendingTransactions;
+// =====================
+// PENDING TRANSACTIONS
+// =====================
+void Blockchain::addTransaction(const Transaction& tx) {
+    pendingTransactions.push_back(tx);
 }
 
-// 🔥 SET PENDING
-void Blockchain::setPendingTransactions(const std::vector<Transaction>& txs) {
-    pendingTransactions = txs;
+// =====================
+// MINING
+// =====================
+void Blockchain::minePendingTransactions(const std::string& minerAddress) {
+
+    // reward
+    Transaction reward;
+    reward.id = "reward";
+
+    TxOutput out;
+    out.address = minerAddress;
+    out.amount = 50;
+
+    reward.outputs.push_back(out);
+
+    pendingTransactions.push_back(reward);
+
+    Block newBlock(chain.size(), pendingTransactions, getLatestBlock().hash);
+
+    newBlock.mineBlock(4);
+
+    chain.push_back(newBlock);
+
+    pendingTransactions.clear();
+}
+
+// =====================
+// GET PENDING
+// =====================
+const std::vector<Transaction>& Blockchain::getPendingTransactions() const {
+    return pendingTransactions;
 }
