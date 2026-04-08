@@ -1,5 +1,6 @@
 #include "../include/blockchain.h"
 #include <iostream>
+#include <algorithm>
 
 // =====================
 // UTXO STRUCT
@@ -11,7 +12,7 @@ struct UTXO {
     double amount;
 };
 
-// UTXO POOL
+// UTXO POOL (global simplificado)
 std::vector<UTXO> utxoPool;
 
 // =====================
@@ -32,8 +33,10 @@ Block Blockchain::getLatestBlock() const {
 // ADD BLOCK
 // =====================
 void Blockchain::addBlock(Block newBlock) {
+
     newBlock.previousHash = getLatestBlock().hash;
     newBlock.mineBlock(4);
+
     chain.push_back(newBlock);
 
     // atualizar UTXOs
@@ -50,7 +53,7 @@ void Blockchain::addBlock(Block newBlock) {
             );
         }
 
-        // adicionar novos outputs
+        // adicionar outputs novos
         for (size_t i = 0; i < tx.outputs.size(); i++) {
             UTXO utxo;
             utxo.txId = tx.id;
@@ -99,10 +102,51 @@ bool Blockchain::isChainValid() const {
 }
 
 // =====================
-// PENDING TRANSACTIONS
+// ADD TRANSACTION (UTXO VALIDATION)
 // =====================
 void Blockchain::addTransaction(const Transaction& tx) {
+
+    double inputTotal = 0;
+
+    // validar inputs
+    for (const auto& input : tx.inputs) {
+        bool found = false;
+
+        for (const auto& utxo : utxoPool) {
+            if (utxo.txId == input.txId && utxo.index == input.outputIndex) {
+
+                found = true;
+                inputTotal += utxo.amount;
+
+                // verifica ownership
+                if (utxo.address != input.address) {
+                    std::cout << "❌ Input não pertence ao endereço!\n";
+                    return;
+                }
+            }
+        }
+
+        if (!found) {
+            std::cout << "❌ UTXO não encontrado!\n";
+            return;
+        }
+    }
+
+    // calcular outputs
+    double outputTotal = 0;
+    for (const auto& out : tx.outputs) {
+        outputTotal += out.amount;
+    }
+
+    // valida saldo
+    if (inputTotal < outputTotal) {
+        std::cout << "❌ Saldo insuficiente!\n";
+        return;
+    }
+
     pendingTransactions.push_back(tx);
+
+    std::cout << "✅ Transação adicionada à pending pool\n";
 }
 
 // =====================
