@@ -22,16 +22,25 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
 
     for (const Block& block : chain) {
 
-        // 🔥 formato mais seguro (linha simples)
         file << block.index << "|"
              << block.timestamp << "|"
              << block.hash << "|"
              << block.previousHash << "|"
-             << block.nonce
-             << "\n";
+             << block.nonce << "|";
+
+        // 🔥 salvar transactions
+        for (size_t i = 0; i < block.transactions.size(); i++) {
+            const auto& tx = block.transactions[i];
+
+            file << tx.from << "," << tx.to << "," << tx.amount;
+
+            if (i != block.transactions.size() - 1)
+                file << ";";
+        }
+
+        file << "\n";
     }
 
-    file.flush();   // 🔥 garante escrita
     file.close();
 }
 
@@ -56,20 +65,43 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
         std::stringstream ss(line);
 
-        std::string indexStr, timestamp, hash, prevHash, nonceStr;
+        std::string indexStr, timestamp, hash, prevHash, nonceStr, txStr;
 
-        // 🔥 parse simples (sem falhar por besteira)
         std::getline(ss, indexStr, '|');
         std::getline(ss, timestamp, '|');
         std::getline(ss, hash, '|');
         std::getline(ss, prevHash, '|');
-        std::getline(ss, nonceStr);
+        std::getline(ss, nonceStr, '|');
+        std::getline(ss, txStr);
 
         try {
             int index = std::stoi(indexStr);
             int nonce = std::stoi(nonceStr);
 
-            Block b(index, {}, prevHash);
+            std::vector<Transaction> txs;
+
+            // 🔥 carregar transactions
+            std::stringstream txStream(txStr);
+            std::string txItem;
+
+            while (std::getline(txStream, txItem, ';')) {
+
+                if (txItem.empty()) continue;
+
+                std::stringstream txSS(txItem);
+
+                std::string from, to, amountStr;
+
+                std::getline(txSS, from, ',');
+                std::getline(txSS, to, ',');
+                std::getline(txSS, amountStr);
+
+                double amount = std::stod(amountStr);
+
+                txs.push_back(Transaction(from, to, amount));
+            }
+
+            Block b(index, txs, prevHash);
             b.timestamp = timestamp;
             b.hash = hash;
             b.nonce = nonce;
@@ -85,7 +117,6 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
     file.close();
 
-    // 🔥 SE NÃO CARREGOU NADA → cria genesis
     if (loadedCount == 0) {
         std::cout << "Chain inválida, recriando genesis\n";
         bc.clearChain();
