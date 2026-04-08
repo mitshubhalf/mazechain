@@ -26,19 +26,18 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
 
     if (!file.is_open()) return;
 
-    // Limpa cadeia atual (se existir método)
-    // Se não existir, apenas ignore
     std::string line;
 
     while (std::getline(file, line)) {
         if (line == "---") continue;
 
-        // Aqui você pode reconstruir blocos conforme seu modelo atual
-        // (simplificado por enquanto)
+        // 🔧 CORREÇÃO: Block não tem construtor vazio
+        int index = 0;
+        std::vector<Transaction> txs;
+        std::string prevHash = "0";
 
-        // Exemplo básico:
-        Block b;
-        // preencher campos manualmente conforme seu Block atual
+        Block b(index, txs, prevHash);
+
         bc.addBlock(b);
     }
 
