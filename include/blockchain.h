@@ -2,6 +2,7 @@
 #define BLOCKCHAIN_H
 
 #include <vector>
+#include <string>
 #include "block.h"
 #include "transaction.h"
 
@@ -27,8 +28,12 @@ public:
 
     double getBalance(const std::string& address) const;
 
-    // 🔥 NOVO
+    // 🔒 validação
     bool isChainValid() const;
+
+    // 🔥 PREPARADO PRO PRÓXIMO PASSO (mempool persistente)
+    const std::vector<Transaction>& getPendingTransactions() const;
+    void setPendingTransactions(const std::vector<Transaction>& txs);
 };
 
 #endif
