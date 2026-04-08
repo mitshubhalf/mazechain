@@ -2,18 +2,27 @@
 #define TRANSACTION_H
 
 #include <string>
+#include <vector>
 
-struct Transaction {
-    std::string from = "";
-    std::string to = "";
-    double amount = 0.0;
+struct TxInput {
+    std::string txId;
+    int outputIndex;
+    std::string address;
+};
 
-    Transaction() = default;
+struct TxOutput {
+    std::string address;
+    double amount;
+};
 
-    Transaction(std::string from, std::string to, double amount)
-        : from(from), to(to), amount(amount) {}
+class Transaction {
+public:
+    std::vector<TxInput> inputs;
+    std::vector<TxOutput> outputs;
 
-    std::string toString() const;
+    std::string id;
+
+    Transaction();
 };
 
 #endif
