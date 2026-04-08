@@ -7,9 +7,6 @@
 
 class Block {
 public:
-    // 🔥 CONSTRUTOR VAZIO (ESSENCIAL PRO LOAD)
-    Block() {}
-
     int index;
     std::string timestamp;
     std::vector<Transaction> transactions;
@@ -17,7 +14,6 @@ public:
     std::string hash;
     int nonce;
 
-    // 🔥 CONSTRUTOR PRINCIPAL
     Block(int idx, std::vector<Transaction> txs, std::string prevHash);
 
     std::string calculateHash() const;
