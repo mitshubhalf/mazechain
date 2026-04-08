@@ -41,6 +41,7 @@ std::string Block::calculateHash() const {
 }
 
 void Block::mineBlock(int difficulty) {
+
     std::string target(difficulty, '0');
 
     while (hash.substr(0, difficulty) != target) {
