@@ -22,7 +22,6 @@ public:
     std::vector<TxOutput> outputs;
 
     Transaction();
-    std::string toString() const;
 };
 
 #endif
