@@ -17,12 +17,12 @@ struct TxOutput {
 
 class Transaction {
 public:
+    std::string id;
     std::vector<TxInput> inputs;
     std::vector<TxOutput> outputs;
 
-    std::string id;
-
     Transaction();
+    std::string toString() const;
 };
 
 #endif
