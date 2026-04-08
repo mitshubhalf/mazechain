@@ -1,12 +1,13 @@
 #include <iostream>
 #include "blockchain.h"
+#include "transaction.h"
 
 int main(int argc, char* argv[]) {
 
     Blockchain mazechain;
 
     if (argc < 2) {
-        std::cout << "mine | balance | send\n";
+        std::cout << "mine | chain | send | balance\n";
         return 0;
     }
 
@@ -19,10 +20,22 @@ int main(int argc, char* argv[]) {
         std::cout << "✅ Block mined!\n";
     }
 
-    else if (cmd == "balance") {
+    else if (cmd == "chain") {
 
-        std::string addr = argv[2];
-        std::cout << "Saldo: " << mazechain.getBalance(addr) << "\n";
+        const auto& chain = mazechain.getChain();
+
+        for (const auto& block : chain) {
+            std::cout << "\nIndex: " << block.index << "\n";
+            std::cout << "Hash: " << block.hash << "\n";
+
+            for (const auto& tx : block.transactions) {
+                std::cout << "Tx ID: " << tx.id << "\n";
+
+                for (const auto& out : tx.outputs) {
+                    std::cout << "  -> " << out.address << " : " << out.amount << "\n";
+                }
+            }
+        }
     }
 
     else if (cmd == "send") {
@@ -32,28 +45,28 @@ int main(int argc, char* argv[]) {
         double amount = atof(argv[4]);
 
         if (mazechain.getBalance(from) < amount) {
-            std::cout << "❌ Saldo insuficiente!\n";
+            std::cout << "❌ Saldo insuficiente\n";
             return 0;
         }
 
         Transaction tx;
         tx.id = "tx_" + from + "_" + to;
 
-        TxInput in;
-        in.txId = "coinbase";
-        in.outputIndex = 0;
-        in.address = from;
-
         TxOutput out;
         out.address = to;
         out.amount = amount;
 
-        tx.inputs.push_back(in);
         tx.outputs.push_back(out);
 
         mazechain.addTransaction(tx);
 
-        std::cout << "✅ Transação enviada\n";
+        std::cout << "✅ Transação criada\n";
+    }
+
+    else if (cmd == "balance") {
+
+        std::string addr = argv[2];
+        std::cout << "Saldo: " << mazechain.getBalance(addr) << "\n";
     }
 
     return 0;
