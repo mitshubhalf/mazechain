@@ -10,11 +10,9 @@ Block::Block(int idx, std::vector<Transaction> txs, std::string prevHash) {
     nonce = 0;
 
     time_t now = time(0);
-
-    // 🔥 pega timestamp
     std::string ts = std::ctime(&now);
 
-    // 🔥 REMOVE QUEBRA DE LINHA (\n)
+    // 🔥 remove \n
     if (!ts.empty() && ts.back() == '\n') {
         ts.pop_back();
     }
@@ -27,10 +25,7 @@ Block::Block(int idx, std::vector<Transaction> txs, std::string prevHash) {
 std::string Block::calculateHash() const {
     std::stringstream ss;
 
-    ss << index 
-       << timestamp 
-       << previousHash 
-       << nonce;
+    ss << index << timestamp << previousHash << nonce;
 
     for (const auto& tx : transactions) {
         ss << tx.from << tx.to << tx.amount;
