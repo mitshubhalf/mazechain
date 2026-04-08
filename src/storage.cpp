@@ -28,7 +28,7 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
              << block.previousHash << "|"
              << block.nonce << "|";
 
-        // 🔥 salvar transactions
+        // transactions
         for (size_t i = 0; i < block.transactions.size(); i++) {
             const auto& tx = block.transactions[i];
 
@@ -39,6 +39,13 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
         }
 
         file << "\n";
+    }
+
+    // 🔥 SALVAR PENDING (IMPORTANTE)
+    file << "#PENDING\n";
+
+    for (const auto& tx : bc.getPendingTransactions()) {
+        file << tx.from << "," << tx.to << "," << tx.amount << "\n";
     }
 
     file.close();
@@ -59,9 +66,34 @@ void loadChain(Blockchain &bc, const std::string& filename) {
     std::string line;
     int loadedCount = 0;
 
+    std::vector<Transaction> pending;
+    bool readingPending = false;
+
     while (std::getline(file, line)) {
 
         if (line.empty()) continue;
+
+        if (line == "#PENDING") {
+            readingPending = true;
+            continue;
+        }
+
+        if (readingPending) {
+            std::stringstream txSS(line);
+
+            std::string from, to, amountStr;
+
+            std::getline(txSS, from, ',');
+            std::getline(txSS, to, ',');
+            std::getline(txSS, amountStr);
+
+            try {
+                double amount = std::stod(amountStr);
+                pending.push_back(Transaction(from, to, amount));
+            } catch (...) {}
+
+            continue;
+        }
 
         std::stringstream ss(line);
 
@@ -116,7 +148,10 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
     file.close();
 
-    // 🔥 VALIDAÇÃO FINAL
+    // 🔥 restaura pending
+    bc.setPendingTransactions(pending);
+
+    // 🔒 valida
     if (loadedCount == 0 || !bc.isChainValid()) {
         std::cout << "Chain inválida, recriando genesis\n";
         bc.clearChain();
