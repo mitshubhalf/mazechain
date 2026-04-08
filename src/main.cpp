@@ -18,12 +18,14 @@ int main(int argc, char* argv[]) {
 
     std::string command = argv[1];
 
+    // ⛏️ MINERAR
     if (command == "mine") {
         std::cout << "⛏️ Mining...\n";
         mazechain.minePendingTransactions("miner1");
         std::cout << "✅ Block mined!\n";
     }
 
+    // 📦 MOSTRAR CHAIN
     else if (command == "chain") {
         const auto& chain = mazechain.getChain();
 
@@ -34,6 +36,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // 💸 ENVIAR TRANSAÇÃO
     else if (command == "send") {
 
         if (argc < 5) {
@@ -43,17 +46,46 @@ int main(int argc, char* argv[]) {
 
         std::string from = argv[2];
         std::string to = argv[3];
-        double amount = std::stod(argv[4]);
+
+        double amount;
+
+        try {
+            amount = std::stod(argv[4]);
+        } catch (...) {
+            std::cout << "❌ Valor inválido!\n";
+            return 0;
+        }
+
+        if (from.empty() || to.empty()) {
+            std::cout << "❌ Endereço inválido!\n";
+            return 0;
+        }
 
         mazechain.addTransaction(Transaction(from, to, amount));
 
         std::cout << "✅ Transação adicionada\n";
     }
 
+    // 💰 VER SALDO
     else if (command == "balance") {
 
+        if (argc < 3) {
+            std::cout << "Uso: balance ADDRESS\n";
+            return 0;
+        }
+
         std::string addr = argv[2];
+
+        if (addr.empty()) {
+            std::cout << "❌ Endereço inválido!\n";
+            return 0;
+        }
+
         std::cout << "Saldo: " << mazechain.getBalance(addr) << "\n";
+    }
+
+    else {
+        std::cout << "❌ Comando desconhecido\n";
     }
 
     return 0;
