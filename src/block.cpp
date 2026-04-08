@@ -13,7 +13,6 @@ Block::Block(int idx, std::vector<Transaction> txs, std::string prevHash) {
 std::string Block::calculateHash() const {
 
     std::stringstream ss;
-
     ss << index << previousHash << nonce;
 
     for (const auto& tx : transactions) {
