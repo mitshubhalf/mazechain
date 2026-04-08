@@ -27,12 +27,10 @@ int main(int argc, char* argv[]) {
 
         std::cout << "⛏️ Mining...\n";
 
-        // 🔥 sempre usa miner1 (ou pode evoluir depois)
         mazechain.minePendingTransactions("miner1");
 
         std::cout << "✅ Block mined!\n";
 
-        // 🔥 GARANTE SALVAMENTO
         Storage::saveChain(mazechain, "data/chain.txt");
     }
 
@@ -45,6 +43,14 @@ int main(int argc, char* argv[]) {
             std::cout << "\nIndex: " << block.index << "\n";
             std::cout << "Hash: " << block.hash << "\n";
             std::cout << "Prev: " << block.previousHash << "\n";
+
+            // 🔥 MOSTRAR TRANSAÇÕES
+            for (const auto& tx : block.transactions) {
+                std::cout << "  Tx: "
+                          << tx.from << " -> "
+                          << tx.to << " : "
+                          << tx.amount << "\n";
+            }
         }
     }
 
@@ -73,11 +79,17 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
+        // 🔥 ADD TRANSAÇÃO
         mazechain.addTransaction(Transaction(from, to, amount));
 
         std::cout << "✅ Transação adicionada\n";
 
-        // 🔥 SALVA (mesmo antes de minerar)
+        // 🔥 🔥 🔥 CORREÇÃO PRINCIPAL
+        std::cout << "⛏️ Mining...\n";
+        mazechain.minePendingTransactions("miner1");
+        std::cout << "✅ Block mined!\n";
+
+        // 🔥 SALVA TUDO
         Storage::saveChain(mazechain, "data/chain.txt");
     }
 
