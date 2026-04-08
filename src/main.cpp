@@ -2,13 +2,13 @@
 #include <string>
 #include "blockchain.h"
 #include "transaction.h"
-#include "storage.h" // 🔥 IMPORTANTE
+#include "storage.h"
 
 int main(int argc, char* argv[]) {
 
     Blockchain mazechain;
 
-    // 🔥 CARREGAR BLOCKCHAIN DO ARQUIVO
+    // 🔥 CARREGA SEMPRE AO INICIAR
     Storage::loadChain(mazechain, "data/chain.txt");
 
     if (argc < 2) {
@@ -24,16 +24,21 @@ int main(int argc, char* argv[]) {
 
     // ⛏️ MINERAR
     if (command == "mine") {
+
         std::cout << "⛏️ Mining...\n";
+
+        // 🔥 sempre usa miner1 (ou pode evoluir depois)
         mazechain.minePendingTransactions("miner1");
+
         std::cout << "✅ Block mined!\n";
 
-        // 🔥 SALVAR DEPOIS DE MINERAR
+        // 🔥 GARANTE SALVAMENTO
         Storage::saveChain(mazechain, "data/chain.txt");
     }
 
     // 📦 MOSTRAR CHAIN
     else if (command == "chain") {
+
         const auto& chain = mazechain.getChain();
 
         for (const auto& block : chain) {
@@ -72,7 +77,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "✅ Transação adicionada\n";
 
-        // 🔥 SALVAR APÓS TRANSAÇÃO
+        // 🔥 SALVA (mesmo antes de minerar)
         Storage::saveChain(mazechain, "data/chain.txt");
     }
 
@@ -91,7 +96,9 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
-        std::cout << "Saldo: " << mazechain.getBalance(addr) << "\n";
+        double balance = mazechain.getBalance(addr);
+
+        std::cout << "Saldo: " << balance << "\n";
     }
 
     else {
