@@ -24,6 +24,7 @@ void Blockchain::addBlock(Block newBlock) {
     // atualizar UTXO
     for (const auto& tx : newBlock.transactions) {
 
+        // remover UTXOs usados
         for (const auto& input : tx.inputs) {
             utxoPool.erase(
                 std::remove_if(utxoPool.begin(), utxoPool.end(),
@@ -34,12 +35,14 @@ void Blockchain::addBlock(Block newBlock) {
             );
         }
 
+        // adicionar novos UTXOs
         for (size_t i = 0; i < tx.outputs.size(); i++) {
             UTXO utxo;
             utxo.txId = tx.id;
             utxo.index = i;
             utxo.address = tx.outputs[i].address;
             utxo.amount = tx.outputs[i].amount;
+
             utxoPool.push_back(utxo);
         }
     }
