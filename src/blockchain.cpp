@@ -17,12 +17,11 @@ void Blockchain::addBlock(Block newBlock) {
     chain.push_back(newBlock);
 }
 
-// GET CHAIN (normal)
+// GET CHAIN
 std::vector<Block>& Blockchain::getChain() {
     return chain;
 }
 
-// ✅ GET CHAIN CONST (CORREÇÃO)
 const std::vector<Block>& Blockchain::getChain() const {
     return chain;
 }
@@ -42,11 +41,11 @@ void Blockchain::addTransaction(const Transaction& tx) {
     pendingTransactions.push_back(tx);
 }
 
-// MINERAR
+// ⛏️ MINERAR (CORRIGIDO)
 void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 
-    // recompensa
-    Transaction reward("SYSTEM", minerAddress, 50);
+    // 💰 reward correta
+    Transaction reward("", minerAddress, 50);
     pendingTransactions.push_back(reward);
 
     Block newBlock(chain.size(), pendingTransactions, getLatestBlock().hash);
@@ -58,7 +57,7 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
     pendingTransactions.clear();
 }
 
-// SALDO
+// 💰 SALDO (com proteção)
 double Blockchain::getBalance(const std::string& address) {
 
     double balance = 0;
@@ -66,10 +65,10 @@ double Blockchain::getBalance(const std::string& address) {
     for (const auto& block : chain) {
         for (const auto& tx : block.transactions) {
 
-            if (tx.from == address)
+            if (!tx.from.empty() && tx.from == address)
                 balance -= tx.amount;
 
-            if (tx.to == address)
+            if (!tx.to.empty() && tx.to == address)
                 balance += tx.amount;
         }
     }
