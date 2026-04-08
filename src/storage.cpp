@@ -41,10 +41,8 @@ void saveChain(const Blockchain &bc, const std::string& filename) {
         file << "\n";
     }
 
-    file.flush();   // 🔥 garante escrita completa
     file.close();
 }
-
 
 // 📂 LOAD
 void loadChain(Blockchain &bc, const std::string& filename) {
@@ -65,12 +63,6 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
         if (line.empty()) continue;
 
-        // 🔥 proteção contra linha corrompida
-        if (line.find('|') == std::string::npos) {
-            std::cout << "⚠️ Linha corrompida ignorada: " << line << "\n";
-            continue;
-        }
-
         std::stringstream ss(line);
 
         std::string indexStr, timestamp, hash, prevHash, nonceStr, txStr;
@@ -88,7 +80,6 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
             std::vector<Transaction> txs;
 
-            // 🔥 carregar transactions
             std::stringstream txStream(txStr);
             std::string txItem;
 
@@ -104,18 +95,12 @@ void loadChain(Blockchain &bc, const std::string& filename) {
                 std::getline(txSS, to, ',');
                 std::getline(txSS, amountStr);
 
-                if (amountStr.empty()) continue;
-
                 double amount = std::stod(amountStr);
 
                 txs.push_back(Transaction(from, to, amount));
             }
 
-            // 🔥 CRÍTICO: não recalcular hash
-            Block b;
-            b.index = index;
-            b.transactions = txs;
-            b.previousHash = prevHash;
+            Block b(index, txs, prevHash);
             b.timestamp = timestamp;
             b.hash = hash;
             b.nonce = nonce;
@@ -131,8 +116,8 @@ void loadChain(Blockchain &bc, const std::string& filename) {
 
     file.close();
 
-    // 🔥 se não carregou nada → recria genesis
-    if (loadedCount == 0) {
+    // 🔥 VALIDAÇÃO FINAL
+    if (loadedCount == 0 || !bc.isChainValid()) {
         std::cout << "Chain inválida, recriando genesis\n";
         bc.clearChain();
         bc.addLoadedBlock(Block(0, {}, "0"));
