@@ -2,10 +2,14 @@
 #include <string>
 #include "blockchain.h"
 #include "transaction.h"
+#include "storage.h" // 🔥 IMPORTANTE
 
 int main(int argc, char* argv[]) {
 
     Blockchain mazechain;
+
+    // 🔥 CARREGAR BLOCKCHAIN DO ARQUIVO
+    Storage::loadChain(mazechain, "data/chain.txt");
 
     if (argc < 2) {
         std::cout << "Comandos disponíveis:\n";
@@ -23,6 +27,9 @@ int main(int argc, char* argv[]) {
         std::cout << "⛏️ Mining...\n";
         mazechain.minePendingTransactions("miner1");
         std::cout << "✅ Block mined!\n";
+
+        // 🔥 SALVAR DEPOIS DE MINERAR
+        Storage::saveChain(mazechain, "data/chain.txt");
     }
 
     // 📦 MOSTRAR CHAIN
@@ -64,6 +71,9 @@ int main(int argc, char* argv[]) {
         mazechain.addTransaction(Transaction(from, to, amount));
 
         std::cout << "✅ Transação adicionada\n";
+
+        // 🔥 SALVAR APÓS TRANSAÇÃO
+        Storage::saveChain(mazechain, "data/chain.txt");
     }
 
     // 💰 VER SALDO
