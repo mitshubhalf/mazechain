@@ -1,37 +1,43 @@
 #include "../include/block.h"
-#include "../include/crypto.h"
 #include <sstream>
-#include <ctime>
+#include <openssl/sha.h>
 
 Block::Block(int idx, std::vector<Transaction> txs, std::string prevHash) {
     index = idx;
     transactions = txs;
     previousHash = prevHash;
     nonce = 0;
-
-    time_t now = time(0);
-    std::string ts = std::ctime(&now);
-
-    // 🔥 remove \n
-    if (!ts.empty() && ts.back() == '\n') {
-        ts.pop_back();
-    }
-
-    timestamp = ts;
-
     hash = calculateHash();
 }
 
 std::string Block::calculateHash() const {
+
     std::stringstream ss;
 
-    ss << index << timestamp << previousHash << nonce;
+    ss << index << previousHash << nonce;
 
     for (const auto& tx : transactions) {
-        ss << tx.from << tx.to << tx.amount;
+        ss << tx.id;
+
+        for (const auto& in : tx.inputs) {
+            ss << in.txId << in.outputIndex << in.address;
+        }
+
+        for (const auto& out : tx.outputs) {
+            ss << out.address << out.amount;
+        }
     }
 
-    return Crypto::sha256(ss.str());
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char*)ss.str().c_str(), ss.str().size(), hash);
+
+    std::stringstream hex;
+
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        hex << std::hex << (int)hash[i];
+    }
+
+    return hex.str();
 }
 
 void Block::mineBlock(int difficulty) {
