@@ -29,6 +29,9 @@ public:
     double getBalance(const std::string& address) const;
 
     const std::vector<Block>& getChain() const;
+
+    // ✅ NOVO
+    void rebuildUTXO();
 };
 
 #endif
