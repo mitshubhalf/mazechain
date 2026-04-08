@@ -44,6 +44,7 @@ void Blockchain::addTransaction(const Transaction& tx) {
 // ⛏️ MINERAR
 void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 
+    // recompensa
     Transaction reward("", minerAddress, 50);
     pendingTransactions.push_back(reward);
 
@@ -91,4 +92,14 @@ bool Blockchain::isChainValid() const {
     }
 
     return true;
+}
+
+// 🔥 GET PENDING
+const std::vector<Transaction>& Blockchain::getPendingTransactions() const {
+    return pendingTransactions;
+}
+
+// 🔥 SET PENDING
+void Blockchain::setPendingTransactions(const std::vector<Transaction>& txs) {
+    pendingTransactions = txs;
 }
