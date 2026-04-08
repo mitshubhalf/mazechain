@@ -58,8 +58,7 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 }
 
 // 💰 SALDO (com proteção)
-double Blockchain::getBalance(const std::string& address) {
-
+double Blockchain::getBalance(const std::string& address) const {
     double balance = 0;
 
     for (const auto& block : chain) {
