@@ -8,7 +8,7 @@ int main(int argc, char* argv[]) {
 
     Blockchain mazechain;
 
-    // 🔥 CARREGA SEMPRE AO INICIAR
+    // 🔥 CARREGA SEMPRE
     Storage::loadChain(mazechain, "data/chain.txt");
 
     if (argc < 2) {
@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 
     std::string command = argv[1];
 
-    // ⛏️ MINERAR
+    // ⛏️ MINERAR (PROCESSA PENDING)
     if (command == "mine") {
 
         std::cout << "⛏️ Mining...\n";
@@ -44,7 +44,6 @@ int main(int argc, char* argv[]) {
             std::cout << "Hash: " << block.hash << "\n";
             std::cout << "Prev: " << block.previousHash << "\n";
 
-            // 🔥 MOSTRAR TRANSAÇÕES
             for (const auto& tx : block.transactions) {
                 std::cout << "  Tx: "
                           << tx.from << " -> "
@@ -54,7 +53,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // 💸 ENVIAR TRANSAÇÃO
+    // 💸 ENVIAR (SEM MINERAR)
     else if (command == "send") {
 
         if (argc < 5) {
@@ -79,21 +78,23 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
-        // 🔥 ADD TRANSAÇÃO
+        // 🔥 VALIDA SALDO
+        double balance = mazechain.getBalance(from);
+
+        if (balance < amount) {
+            std::cout << "❌ Saldo insuficiente!\n";
+            return 0;
+        }
+
         mazechain.addTransaction(Transaction(from, to, amount));
 
-        std::cout << "✅ Transação adicionada\n";
+        std::cout << "✅ Transação adicionada à pending pool\n";
 
-        // 🔥 🔥 🔥 MINERA NA HORA (ESSA ERA A FALHA ANTES)
-        std::cout << "⛏️ Mining...\n";
-        mazechain.minePendingTransactions("miner1");
-        std::cout << "✅ Block mined!\n";
-
-        // 🔥 SALVA TUDO
+        // 🔥 salva mesmo sem minerar
         Storage::saveChain(mazechain, "data/chain.txt");
     }
 
-    // 💰 VER SALDO
+    // 💰 SALDO
     else if (command == "balance") {
 
         if (argc < 3) {
@@ -102,11 +103,6 @@ int main(int argc, char* argv[]) {
         }
 
         std::string addr = argv[2];
-
-        if (addr.empty()) {
-            std::cout << "❌ Endereço inválido!\n";
-            return 0;
-        }
 
         double balance = mazechain.getBalance(addr);
 
