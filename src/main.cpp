@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "✅ Transação adicionada\n";
 
-        // 🔥 🔥 🔥 CORREÇÃO PRINCIPAL
+        // 🔥 🔥 🔥 MINERA NA HORA (ESSA ERA A FALHA ANTES)
         std::cout << "⛏️ Mining...\n";
         mazechain.minePendingTransactions("miner1");
         std::cout << "✅ Block mined!\n";
