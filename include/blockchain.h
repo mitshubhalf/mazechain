@@ -2,7 +2,6 @@
 #define BLOCKCHAIN_H
 
 #include <vector>
-#include <string>
 #include "block.h"
 #include "transaction.h"
 
@@ -14,24 +13,22 @@ private:
 public:
     Blockchain();
 
-    // blocos
     void addBlock(Block newBlock);
     Block getLatestBlock() const;
 
-    // persistência
     void clearChain();
     void addLoadedBlock(const Block& block);
 
-    // acesso
     std::vector<Block>& getChain();
     const std::vector<Block>& getChain() const;
 
-    // transações
     void addTransaction(const Transaction& tx);
     void minePendingTransactions(const std::string& minerAddress);
 
-    // saldo
-    double getBalance(const std::string& address) const; // 🔥 CONST ADICIONADO
+    double getBalance(const std::string& address) const;
+
+    // 🔥 NOVO
+    bool isChainValid() const;
 };
 
 #endif
