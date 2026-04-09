@@ -2,7 +2,7 @@
 #include <iostream>
 
 Blockchain::Blockchain() {
-    difficulty = 5; // 🔥 aumentei pra ficar mais difícil
+    difficulty = 4; // começa difícil
     totalSupply = 0;
 
     chain.push_back(Block(0, "0", {}));
@@ -10,6 +10,26 @@ Blockchain::Blockchain() {
 
 Block Blockchain::getLastBlock() {
     return chain.back();
+}
+
+int Blockchain::adjustDifficulty() {
+    if (chain.size() < 2)
+        return difficulty;
+
+    Block last = chain.back();
+    Block prev = chain[chain.size() - 2];
+
+    long timeTaken = last.timestamp - prev.timestamp;
+
+    // alvo: 5 segundos por bloco
+    if (timeTaken < 5)
+        difficulty++;
+    else if (timeTaken > 15 && difficulty > 1)
+        difficulty--;
+
+    std::cout << "⏱ Tempo bloco: " << timeTaken << "s | Nova dificuldade: " << difficulty << "\n";
+
+    return difficulty;
 }
 
 double Blockchain::getBlockReward(int height) {
@@ -26,15 +46,16 @@ double Blockchain::getBlockReward(int height) {
 }
 
 void Blockchain::mineBlock(std::string minerAddress) {
+    difficulty = adjustDifficulty();
+
     double reward = getBlockReward(chain.size());
 
-    // ✅ garante transação única (anti hash repetido)
     Transaction coinbase({}, { {minerAddress, reward} });
-    coinbase.id = std::to_string(rand()); // 🔥 importante
 
     Block newBlock(chain.size(), getLastBlock().hash, {coinbase});
 
-    std::cout << "⛏️ Mining...\n";
+    std::cout << "⛏️ Mining com dificuldade " << difficulty << "...\n";
+
     newBlock.mine(difficulty);
 
     chain.push_back(newBlock);
@@ -66,9 +87,8 @@ void Blockchain::send(std::string from, std::string to, double amount) {
 
     Transaction tx({}, { {to, amount} });
 
-    tx.id = std::to_string(rand()); // ✅ garante hash diferente
-
     Block newBlock(chain.size(), getLastBlock().hash, {tx});
+
     newBlock.mine(difficulty);
 
     chain.push_back(newBlock);
