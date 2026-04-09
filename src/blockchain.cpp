@@ -14,7 +14,6 @@ const std::vector<Block>& Blockchain::getChain() const {
     return chain;
 }
 
-// 🔥 usado em mineração normal
 void Blockchain::addBlock(Block newBlock) {
 
     newBlock.previousHash = getLatestBlock().hash;
@@ -48,11 +47,6 @@ void Blockchain::addBlock(Block newBlock) {
             utxoPool.push_back(utxo);
         }
     }
-}
-
-// 🔥 usado pelo STORAGE (NÃO minera)
-void Blockchain::addBlockFromStorage(const Block& block) {
-    chain.push_back(block);
 }
 
 void Blockchain::addTransaction(const Transaction& tx) {
@@ -91,7 +85,6 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
         return;
     }
 
-    // 🔥 recompensa
     Transaction reward;
     reward.id = "reward_" + minerAddress;
 
@@ -153,7 +146,6 @@ double Blockchain::getBalance(const std::string& address) const {
     return balance;
 }
 
-// 🔥 ESSENCIAL depois do load
 void Blockchain::rebuildUTXO() {
 
     utxoPool.clear();
@@ -161,7 +153,6 @@ void Blockchain::rebuildUTXO() {
     for (const auto& block : chain) {
         for (const auto& tx : block.transactions) {
 
-            // remover inputs
             for (const auto& input : tx.inputs) {
                 utxoPool.erase(
                     std::remove_if(utxoPool.begin(), utxoPool.end(),
@@ -172,7 +163,6 @@ void Blockchain::rebuildUTXO() {
                 );
             }
 
-            // adicionar outputs
             for (size_t i = 0; i < tx.outputs.size(); i++) {
                 UTXO utxo;
                 utxo.txId = tx.id;
@@ -186,4 +176,9 @@ void Blockchain::rebuildUTXO() {
     }
 
     std::cout << "♻️ UTXO reconstruído!\n";
+}
+
+void Blockchain::replaceChain(const std::vector<Block>& newChain) {
+    chain = newChain;
+    rebuildUTXO();
 }
