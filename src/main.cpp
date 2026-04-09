@@ -18,14 +18,14 @@ int main(int argc, char* argv[]) {
 
     if (cmd == "mine") {
 
-        std::cout << "⛏️ Mining...\n";
+        std::cout << "⛏️ Iniciando mineração...\n";
 
         std::string miner = "miner1";
         if (argc >= 3) miner = argv[2];
 
         mazechain.minePendingTransactions(miner);
 
-        std::cout << "✅ Block mined!\n";
+        std::cout << "✅ Bloco minerado com sucesso!\n";
 
         // 💾 salvar após mineração
         Storage::saveChain(mazechain, "chain.dat");
@@ -36,7 +36,8 @@ int main(int argc, char* argv[]) {
         const auto& chain = mazechain.getChain();
 
         for (const auto& block : chain) {
-            std::cout << "\nIndex: " << block.index << "\n";
+            std::cout << "\n====================\n";
+            std::cout << "Index: " << block.index << "\n";
             std::cout << "Hash: " << block.hash << "\n";
 
             for (const auto& tx : block.transactions) {
@@ -78,7 +79,6 @@ int main(int argc, char* argv[]) {
 
         std::cout << "✅ Transação criada\n";
 
-        // 💾 salvar estado
         Storage::saveChain(mazechain, "chain.dat");
     }
 
@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
 
         std::string addr = argv[2];
 
-        std::cout << "Saldo: " << mazechain.getBalance(addr) << "\n";
+        std::cout << "💰 Saldo: " << mazechain.getBalance(addr) << "\n";
     }
 
     return 0;
