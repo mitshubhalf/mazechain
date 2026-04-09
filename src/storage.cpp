@@ -1,6 +1,7 @@
 #include "../include/storage.h"
 #include <fstream>
 #include <iostream>
+#include <sstream> // 🔥 IMPORTANTE
 
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
 
@@ -34,17 +35,18 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
 
         std::stringstream ss(line);
 
-        std::getline(ss, line, '|');
-        index = std::stoi(line);
+        std::string temp;
+
+        std::getline(ss, temp, '|');
+        index = std::stoi(temp);
 
         std::getline(ss, hash, '|');
         std::getline(ss, prevHash);
 
         Block b(index, {}, prevHash);
+        b.hash = hash; // 🔥 mantém hash original
 
-        b.hash = hash; // 🔥 IMPORTANTE: não recalcular
-
-        bc.getChain().push_back(b); // ⚠️ precisa ajustar header se der erro
+        bc.addBlockFromStorage(b); // ✅ CORRETO
     }
 
     file.close();
