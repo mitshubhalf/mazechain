@@ -33,56 +33,51 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     bc.clearChain();
     std::string line;
 
-    int tIdx, tNonce;
-    std::string tPrev, tHash;
-    std::vector<Transaction> tTxs;
-
     while (std::getline(file >> std::ws, line)) {
         if (line == "BLOCK") {
-            tTxs.clear();
+            int tIdx, tNonce;
+            std::string tPrev, tHash;
+            std::vector<Transaction> tTxs;
+
             if (!(file >> tIdx)) break;
             file.ignore(1000, '\n');
-            std::getline(file, tPrev);
-            std::getline(file, tHash);
+            std::getline(file >> std::ws, tPrev);
+            std::getline(file >> std::ws, tHash);
             if (!(file >> tNonce)) break;
             file.ignore(1000, '\n');
-        } 
-        else if (line == "TX") {
-            int vinS, voutS;
-            if (!(file >> vinS)) break;
-            file.ignore(1000, '\n');
 
-            if (vinS < 0 || vinS > 100) continue; // Proteção extra
-
-            std::vector<TxIn> vins;
-            for (int i = 0; i < vinS; i++) {
-                TxIn in;
-                std::getline(file, in.txid);
-                file >> in.index; file.ignore(1000, '\n');
-                vins.push_back(in);
+            // Ler as transações até encontrar END_BLOCK
+            std::string subLine;
+            while (file >> subLine && subLine != "END_BLOCK") {
+                if (subLine == "TX") {
+                    int vinS, voutS;
+                    file >> vinS; file.ignore(1000, '\n');
+                    std::vector<TxIn> vins;
+                    for (int i = 0; i < vinS; i++) {
+                        TxIn in;
+                        std::getline(file >> std::ws, in.txid);
+                        file >> in.index; file.ignore(1000, '\n');
+                        vins.push_back(in);
+                    }
+                    file >> voutS; file.ignore(1000, '\n');
+                    std::vector<TxOut> vouts;
+                    for (int i = 0; i < voutS; i++) {
+                        TxOut out;
+                        std::getline(file >> std::ws, out.address);
+                        file >> out.amount; file.ignore(1000, '\n');
+                        vouts.push_back(out);
+                    }
+                    tTxs.push_back(Transaction(vins, vouts));
+                }
             }
 
-            if (!(file >> voutS)) break;
-            file.ignore(1000, '\n');
-            if (voutS < 0 || voutS > 100) continue;
+            Block loadedBlock(tIdx, tPrev, tTxs);
+            loadedBlock.hash = tHash;
+            loadedBlock.nonce = tNonce;
 
-            std::vector<TxOut> vouts;
-            for (int i = 0; i < voutS; i++) {
-                TxOut out;
-                std::getline(file, out.address);
-                if (!(file >> out.amount)) break;
-                file.ignore(1000, '\n');
-                vouts.push_back(out);
-            }
-            tTxs.push_back(Transaction(vins, vouts));
-        } 
-        else if (line == "END_BLOCK") {
-            Block newBlock(tIdx, tPrev, tTxs);
-            newBlock.hash = tHash;
-            newBlock.nonce = tNonce;
-
-            if (newBlock.hash == newBlock.calculateHash()) {
-                bc.addBlock(newBlock);
+            // Validação de segurança
+            if (loadedBlock.hash == loadedBlock.calculateHash()) {
+                bc.addBlock(loadedBlock);
             } else {
                 std::cerr << "❌ Bloco " << tIdx << " corrompido e ignorado.\n";
             }
