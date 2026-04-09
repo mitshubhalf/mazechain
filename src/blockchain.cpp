@@ -2,7 +2,7 @@
 #include <iostream>
 
 Blockchain::Blockchain() {
-    difficulty = 4;
+    difficulty = 5; // 🔥 mais difícil (aumenta aqui se quiser insano)
     totalSupply = 0;
 
     chain.push_back(Block(0, "0", {}));
@@ -10,73 +10,6 @@ Blockchain::Blockchain() {
 
 Block Blockchain::getLastBlock() {
     return chain.back();
-}
-
-int Blockchain::adjustDifficulty() {
-    if (chain.size() < 2)
-        return difficulty;
-
-    Block last = chain.back();
-    Block prev = chain[chain.size() - 2];
-
-    long timeTaken = last.timestamp - prev.timestamp;
-
-    if (timeTaken < 5)
-        difficulty++;
-    else if (timeTaken > 15 && difficulty > 1)
-        difficulty--;
-
-    std::cout << "⏱ Tempo: " << timeTaken << "s | Diff: " << difficulty << "\n";
-
-    return difficulty;
-}
-
-bool Blockchain::isValidBlock(const Block& newBlock, const Block& previousBlock) {
-    // 🔗 ligação correta
-    if (newBlock.prevHash != previousBlock.hash)
-        return false;
-
-    // 🔢 hash correto
-    if (newBlock.calculateHash() != newBlock.hash)
-        return false;
-
-    // ⛏️ prova de trabalho
-    std::string target(difficulty, '0');
-    if (newBlock.hash.substr(0, difficulty) != target)
-        return false;
-
-    return true;
-}
-
-void Blockchain::addBlock(const Block& block) {
-    if (!chain.empty()) {
-        if (!isValidBlock(block, getLastBlock())) {
-            std::cout << "❌ Bloco inválido rejeitado!\n";
-            return;
-        }
-    }
-
-    chain.push_back(block);
-}
-
-void Blockchain::mineBlock(std::string minerAddress) {
-    difficulty = adjustDifficulty();
-
-    double reward = getBlockReward(chain.size());
-
-    Transaction coinbase({}, { {minerAddress, reward} });
-
-    Block newBlock(chain.size(), getLastBlock().hash, {coinbase});
-
-    std::cout << "⛏️ Mining diff " << difficulty << "...\n";
-
-    newBlock.mine(difficulty);
-
-    addBlock(newBlock);
-
-    totalSupply += reward;
-
-    std::cout << "🎉 Reward: " << reward << "\n";
 }
 
 double Blockchain::getBlockReward(int height) {
@@ -90,6 +23,45 @@ double Blockchain::getBlockReward(int height) {
         return 0;
 
     return reward;
+}
+
+void Blockchain::mineBlock(std::string minerAddress) {
+    double reward = getBlockReward(chain.size());
+
+    Transaction coinbase({}, { {minerAddress, reward} });
+
+    Block newBlock(chain.size(), getLastBlock().hash, {coinbase});
+
+    std::cout << "⛏️ Mining...\n";
+
+    newBlock.mine(difficulty);
+
+    // 🔥 VALIDAÇÃO ANTES DE ADICIONAR
+
+    // 1. Verifica hash correto
+    if (newBlock.hash != newBlock.calculateHash()) {
+        std::cout << "❌ Hash inválido!\n";
+        return;
+    }
+
+    // 2. Verifica Proof of Work
+    std::string target(difficulty, '0');
+    if (newBlock.hash.substr(0, difficulty) != target) {
+        std::cout << "❌ PoW inválido!\n";
+        return;
+    }
+
+    // 3. Verifica encadeamento
+    if (newBlock.prevHash != getLastBlock().hash) {
+        std::cout << "❌ Blockchain quebrada!\n";
+        return;
+    }
+
+    chain.push_back(newBlock);
+    totalSupply += reward;
+
+    std::cout << "✅ Block mined! Hash: " << newBlock.hash << "\n";
+    std::cout << "🎉 Reward: " << reward << "\n";
 }
 
 double Blockchain::getBalance(std::string address) {
@@ -117,25 +89,47 @@ void Blockchain::send(std::string from, std::string to, double amount) {
 
     Block newBlock(chain.size(), getLastBlock().hash, {tx});
 
+    std::cout << "⛏️ Mining transaction...\n";
+
     newBlock.mine(difficulty);
 
-    addBlock(newBlock);
+    // 🔥 validação igual mineração
+    if (newBlock.hash != newBlock.calculateHash()) {
+        std::cout << "❌ Hash inválido!\n";
+        return;
+    }
+
+    std::string target(difficulty, '0');
+    if (newBlock.hash.substr(0, difficulty) != target) {
+        std::cout << "❌ PoW inválido!\n";
+        return;
+    }
+
+    if (newBlock.prevHash != getLastBlock().hash) {
+        std::cout << "❌ Blockchain quebrada!\n";
+        return;
+    }
+
+    chain.push_back(newBlock);
 
     std::cout << "✅ Transação enviada\n";
 }
 
-const std::vector<Block>& Blockchain::getChain() const {
+
+// 🔥 ===== FUNÇÕES NOVAS (ESSENCIAIS) =====
+
+std::vector<Block> Blockchain::getChain() const {
     return chain;
+}
+
+void Blockchain::addBlock(const Block& block) {
+    chain.push_back(block);
 }
 
 void Blockchain::clearChain() {
     chain.clear();
 }
 
-bool Blockchain::isChainValid() {
-    for (size_t i = 1; i < chain.size(); i++) {
-        if (!isValidBlock(chain[i], chain[i - 1]))
-            return false;
-    }
-    return true;
+int Blockchain::getDifficulty() const {
+    return difficulty;
 }
