@@ -17,7 +17,7 @@ double Blockchain::getBlockReward(int height) {
     double reward = 250.0;
     int halvings = height / 1000;
     for (int i = 0; i < halvings; i++) reward /= 2.0;
-    return (totalSupply >= 21000000) ? 0 : reward;
+    return (totalSupply >= 20000000) ? 0 : reward;
 }
 
 void Blockchain::mineBlock(std::string minerAddress) {
