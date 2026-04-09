@@ -8,8 +8,12 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     if (!file.is_open()) return;
 
     for (const auto& block : bc.getChain()) {
-        file << "BLOCK\n" << block.index << "\n" << block.prevHash << "\n" 
-             << block.hash << "\n" << block.nonce << "\n";
+        file << "BLOCK\n" 
+             << block.index << "\n" 
+             << block.prevHash << "\n" 
+             << block.hash << "\n" 
+             << block.nonce << "\n"
+             << block.timestamp << "\n"; // 🔥 SALVANDO O TIMESTAMP
 
         for (const auto& tx : block.transactions) {
             file << "TX\n" << tx.vin.size() << "\n";
@@ -36,6 +40,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     while (std::getline(file >> std::ws, line)) {
         if (line == "BLOCK") {
             int tIdx, tNonce;
+            long tTime;
             std::string tPrev, tHash;
             std::vector<Transaction> tTxs;
 
@@ -44,9 +49,9 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
             std::getline(file >> std::ws, tPrev);
             std::getline(file >> std::ws, tHash);
             if (!(file >> tNonce)) break;
+            if (!(file >> tTime)) break; // 🔥 LENDO O TIMESTAMP
             file.ignore(1000, '\n');
 
-            // Ler as transações até encontrar END_BLOCK
             std::string subLine;
             while (file >> subLine && subLine != "END_BLOCK") {
                 if (subLine == "TX") {
@@ -74,12 +79,12 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
             Block loadedBlock(tIdx, tPrev, tTxs);
             loadedBlock.hash = tHash;
             loadedBlock.nonce = tNonce;
+            loadedBlock.timestamp = tTime; // 🔥 REAPLICANDO O TIMESTAMP ORIGINAL
 
-            // Validação de segurança
             if (loadedBlock.hash == loadedBlock.calculateHash()) {
                 bc.addBlock(loadedBlock);
             } else {
-                std::cerr << "❌ Bloco " << tIdx << " corrompido e ignorado.\n";
+                std::cerr << "❌ Bloco " << tIdx << " corrompido (Hash mismatch).\n";
             }
         }
     }
