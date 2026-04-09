@@ -4,13 +4,12 @@
 #include <string>
 #include <vector>
 
-struct TxInput {
-    std::string txId;
-    int outputIndex;
-    std::string address;
+struct TxIn {
+    std::string txid;
+    int index;
 };
 
-struct TxOutput {
+struct TxOut {
     std::string address;
     double amount;
 };
@@ -18,10 +17,13 @@ struct TxOutput {
 class Transaction {
 public:
     std::string id;
-    std::vector<TxInput> inputs;
-    std::vector<TxOutput> outputs;
+    std::vector<TxIn> vin;
+    std::vector<TxOut> vout;
 
-    Transaction();
+    Transaction() {}
+    Transaction(std::vector<TxIn> in, std::vector<TxOut> out);
+
+    std::string calculateHash() const;
 };
 
 #endif
