@@ -1,8 +1,9 @@
 #include "../include/blockchain.h"
+#include "../include/storage.h"
 #include <iostream>
 
 Blockchain::Blockchain() {
-    difficulty = 5; // 🔥 mais difícil (aumenta aqui se quiser insano)
+    difficulty = 5;
     totalSupply = 0;
 
     chain.push_back(Block(0, "0", {}));
@@ -36,22 +37,19 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     newBlock.mine(difficulty);
 
-    // 🔥 VALIDAÇÃO ANTES DE ADICIONAR
+    // 🔥 VALIDAÇÃO
 
-    // 1. Verifica hash correto
     if (newBlock.hash != newBlock.calculateHash()) {
         std::cout << "❌ Hash inválido!\n";
         return;
     }
 
-    // 2. Verifica Proof of Work
     std::string target(difficulty, '0');
     if (newBlock.hash.substr(0, difficulty) != target) {
         std::cout << "❌ PoW inválido!\n";
         return;
     }
 
-    // 3. Verifica encadeamento
     if (newBlock.prevHash != getLastBlock().hash) {
         std::cout << "❌ Blockchain quebrada!\n";
         return;
@@ -62,6 +60,9 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     std::cout << "✅ Block mined! Hash: " << newBlock.hash << "\n";
     std::cout << "🎉 Reward: " << reward << "\n";
+
+    // 🔥 SALVA AUTOMATICAMENTE
+    Storage::saveChain(*this, "data/blockchain.dat");
 }
 
 double Blockchain::getBalance(std::string address) {
@@ -93,7 +94,6 @@ void Blockchain::send(std::string from, std::string to, double amount) {
 
     newBlock.mine(difficulty);
 
-    // 🔥 validação igual mineração
     if (newBlock.hash != newBlock.calculateHash()) {
         std::cout << "❌ Hash inválido!\n";
         return;
@@ -113,10 +113,13 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     chain.push_back(newBlock);
 
     std::cout << "✅ Transação enviada\n";
+
+    // 🔥 SALVA
+    Storage::saveChain(*this, "data/blockchain.dat");
 }
 
 
-// 🔥 ===== FUNÇÕES NOVAS (ESSENCIAIS) =====
+// ===== FUNÇÕES =====
 
 std::vector<Block> Blockchain::getChain() const {
     return chain;
