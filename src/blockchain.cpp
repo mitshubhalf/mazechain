@@ -14,16 +14,12 @@ const std::vector<Block>& Blockchain::getChain() const {
     return chain;
 }
 
+// ✅ AGORA NÃO MINERA MAIS AQUI (CORRETO)
 void Blockchain::addBlock(Block newBlock) {
 
     std::cout << "📦 Adicionando novo bloco...\n";
 
     newBlock.previousHash = getLatestBlock().hash;
-
-    int difficulty = 4;
-    std::cout << "⚙️ Dificuldade: " << difficulty << "\n";
-
-    newBlock.mineBlock(difficulty);
 
     chain.push_back(newBlock);
 
@@ -87,9 +83,14 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 
     std::cout << "⛏️ Iniciando mineração...\n";
 
-    // 🔥 criar transação de recompensa
+    if (pendingTransactions.empty()) {
+        std::cout << "⚠️ Nenhuma transação pendente\n";
+        return;
+    }
+
+    // 🔥 recompensa (coinbase tx estilo Bitcoin)
     Transaction reward;
-    reward.id = "reward_" + minerAddress;
+    reward.id = "reward_" + minerAddress + "_" + std::to_string(chain.size());
 
     TxOutput out;
     out.address = minerAddress;
@@ -103,41 +104,15 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 
     Block newBlock(chain.size(), pendingTransactions, getLatestBlock().hash);
 
-    int difficulty = 4; // 👉 teste com 2 se quiser rápido
+    int difficulty = 4;
     std::cout << "⚙️ Dificuldade: " << difficulty << "\n";
 
-    // 🔥 mineração com logs (vem do block.cpp)
     newBlock.mineBlock(difficulty);
 
-    chain.push_back(newBlock);
+    // ✅ agora usa addBlock (sem minerar de novo)
+    addBlock(newBlock);
 
     std::cout << "🎉 Bloco minerado e adicionado na chain!\n";
-
-    // 🔥 atualizar UTXO (ESSENCIAL)
-    for (const auto& tx : newBlock.transactions) {
-
-        // remover inputs
-        for (const auto& input : tx.inputs) {
-            utxoPool.erase(
-                std::remove_if(utxoPool.begin(), utxoPool.end(),
-                    [&](const UTXO& u) {
-                        return u.txId == input.txId && u.index == input.outputIndex;
-                    }),
-                utxoPool.end()
-            );
-        }
-
-        // adicionar outputs
-        for (size_t i = 0; i < tx.outputs.size(); i++) {
-            UTXO utxo;
-            utxo.txId = tx.id;
-            utxo.index = i;
-            utxo.address = tx.outputs[i].address;
-            utxo.amount = tx.outputs[i].amount;
-
-            utxoPool.push_back(utxo);
-        }
-    }
 
     pendingTransactions.clear();
 
@@ -157,7 +132,7 @@ double Blockchain::getBalance(const std::string& address) const {
     return balance;
 }
 
-// ✅ reconstrução do UTXO (importante para load/save)
+// ✅ reconstrução do UTXO
 void Blockchain::rebuildUTXO() {
 
     std::cout << "♻️ Reconstruindo UTXO...\n";
