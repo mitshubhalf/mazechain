@@ -36,9 +36,9 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     newBlock.mine(difficulty);
 
-    // 🔥 validação forte
     std::string target(difficulty, '0');
 
+    // 🔥 validação forte
     if (newBlock.hash != newBlock.calculateHash()) {
         std::cout << "❌ Hash inválido!\n";
         return;
@@ -110,4 +110,24 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     Storage::saveChain(*this, "data/blockchain.dat");
 
     std::cout << "✅ Transação confirmada\n";
+}
+
+/* =========================================================
+   🔥 FUNÇÕES QUE ESTAVAM FALTANDO (CAUSAVAM SEU ERRO)
+   ========================================================= */
+
+std::vector<Block> Blockchain::getChain() const {
+    return chain;
+}
+
+void Blockchain::clearChain() {
+    chain.clear();
+}
+
+int Blockchain::getDifficulty() const {
+    return difficulty;
+}
+
+void Blockchain::addBlock(const Block& block) {
+    chain.push_back(block);
 }
