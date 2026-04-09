@@ -15,14 +15,9 @@ Block Blockchain::getLastBlock() {
 double Blockchain::getBlockReward(int height) {
     double reward = 250.0;
     int halvings = height / 1000;
+    for (int i = 0; i < halvings; i++) reward /= 2.0;
 
-    for (int i = 0; i < halvings; i++)
-        reward /= 2.0;
-
-    // 🔥 Sua regra de 20 Milhões restaurada
-    if (totalSupply >= 20000000)
-        return 0;
-
+    if (totalSupply >= 20000000) return 0; // 🔥 Limite de 20M
     return reward;
 }
 
@@ -37,7 +32,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
     Transaction coinbase({}, { {minerAddress, reward} });
     Block newBlock(chain.size(), getLastBlock().hash, {coinbase});
 
-    std::cout << "⛏️ Mining...\n";
+    std::cout << "⛏️ Mining block " << newBlock.index << "...\n";
     newBlock.mine(difficulty);
 
     chain.push_back(newBlock);
@@ -52,49 +47,32 @@ double Blockchain::getBalance(std::string address) {
     for (const auto &block : chain)
         for (const auto &tx : block.transactions)
             for (const auto &out : tx.vout)
-                if (out.address == address)
-                    balance += out.amount;
+                if (out.address == address) balance += out.amount;
     return balance;
 }
 
-// 🔥 Função 'send' restaurada (estava faltando o corpo no anterior)
 void Blockchain::send(std::string from, std::string to, double amount) {
     if (getBalance(from) < amount) {
         std::cout << "❌ Saldo insuficiente\n";
         return;
     }
-
     Transaction tx({}, { {to, amount}, {from, getBalance(from) - amount} });
     Block newBlock(chain.size(), getLastBlock().hash, {tx});
-
-    std::cout << "⛏️ Mining transaction...\n";
     newBlock.mine(difficulty);
-
     chain.push_back(newBlock);
     Storage::saveChain(*this, "data/blockchain.dat");
-    std::cout << "✅ Transação confirmada\n";
 }
 
-// 🔥 Funções essenciais para o Storage funcionar (undefined reference fix)
-std::vector<Block> Blockchain::getChain() const {
-    return chain;
-}
+std::vector<Block> Blockchain::getChain() const { return chain; }
+int Blockchain::getDifficulty() const { return difficulty; }
 
-void Blockchain::clearChain() {
-    chain.clear();
-    totalSupply = 0;
-}
-
-int Blockchain::getDifficulty() const {
-    return difficulty;
+void Blockchain::clearChain() { 
+    chain.clear(); 
+    totalSupply = 0; 
 }
 
 void Blockchain::addBlock(const Block& block) {
     chain.push_back(block);
-    // Atualiza o supply total com base nos blocos carregados
-    for(const auto& tx : block.transactions) {
-        for(const auto& out : tx.vout) {
-            totalSupply += out.amount;
-        }
-    }
+    for(const auto& tx : block.transactions)
+        for(const auto& out : tx.vout) totalSupply += out.amount;
 }
