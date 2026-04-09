@@ -11,6 +11,7 @@ private:
     double totalSupply;
 
     int adjustDifficulty();
+    bool isValidBlock(const Block& newBlock, const Block& previousBlock);
 
 public:
     Blockchain();
@@ -22,6 +23,13 @@ public:
     void send(std::string from, std::string to, double amount);
 
     double getBlockReward(int height);
+
+    // 🔐 Segurança
+    const std::vector<Block>& getChain() const;
+    void clearChain();
+    void addBlock(const Block& block);
+
+    bool isChainValid();
 };
 
 #endif
