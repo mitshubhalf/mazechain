@@ -1,81 +1,83 @@
 #include "../include/storage.h"
 #include <fstream>
-#include <sstream>
 #include <iostream>
 
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     std::ofstream file(filename);
 
-    for (const auto& block : bc.getChain()) {
-        file << block.index << "|"
-             << block.hash << "|"
-             << block.previousHash << "\n";
+    if (!file.is_open()) {
+        std::cout << "Erro ao salvar blockchain\n";
+        return;
+    }
+
+    for (const auto& block : bc.chain) {
+        file << "BLOCK\n";
+        file << block.index << "\n";
+        file << block.previousHash << "\n";
+        file << block.hash << "\n";
+        file << block.nonce << "\n";
 
         for (const auto& tx : block.transactions) {
-            file << "TX|" << tx.id << "\n";
-
-            for (const auto& out : tx.outputs) {
-                file << "OUT|" << out.address << "|" << out.amount << "\n";
-            }
+            file << "TX\n";
+            file << tx.from << "\n";
+            file << tx.to << "\n";
+            file << tx.amount << "\n";
         }
 
-        file << "---\n";
+        file << "END_BLOCK\n";
     }
+
+    file.close();
 }
 
 void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     std::ifstream file(filename);
+
     if (!file.is_open()) return;
 
-    bc.clearChain();
+    bc.chain.clear();
 
     std::string line;
     Block* currentBlock = nullptr;
 
     while (std::getline(file, line)) {
+        if (line == "BLOCK") {
+            int index;
+            std::string prevHash, hash;
+            int nonce;
 
-        if (line == "---") {
-            if (currentBlock) {
-                bc.addBlockDirect(*currentBlock);
-                delete currentBlock;
-                currentBlock = nullptr;
-            }
-            continue;
-        }
+            file >> index;
+            file.ignore();
 
-        std::stringstream ss(line);
-        std::string type;
-        std::getline(ss, type, '|');
+            std::getline(file, prevHash);
+            std::getline(file, hash);
 
-        if (type != "TX" && type != "OUT") {
-            int index = std::stoi(type);
-            std::string hash, prev;
+            file >> nonce;
+            file.ignore();
 
-            std::getline(ss, hash, '|');
-            std::getline(ss, prev, '|');
-
-            currentBlock = new Block(index, {}, prev);
+            currentBlock = new Block(index, prevHash, {});
             currentBlock->hash = hash;
+            currentBlock->nonce = nonce;
         }
-        else if (type == "TX") {
-            std::string id;
-            std::getline(ss, id, '|');
 
-            Transaction tx;
-            tx.id = id;
+        else if (line == "TX") {
+            std::string from, to;
+            double amount;
 
+            std::getline(file, from);
+            std::getline(file, to);
+            file >> amount;
+            file.ignore();
+
+            Transaction tx(from, to, amount);
             currentBlock->transactions.push_back(tx);
         }
-        else if (type == "OUT") {
-            std::string addr, amountStr;
-            std::getline(ss, addr, '|');
-            std::getline(ss, amountStr, '|');
 
-            TxOutput out;
-            out.address = addr;
-            out.amount = std::stod(amountStr);
-
-            currentBlock->transactions.back().outputs.push_back(out);
+        else if (line == "END_BLOCK") {
+            bc.chain.push_back(*currentBlock);
+            delete currentBlock;
         }
     }
+
+    file.close();
 }
