@@ -1,29 +1,26 @@
-#ifndef TRANSACTION_H
-#define TRANSACTION_H
+#ifndef BLOCKCHAIN_H
+#define BLOCKCHAIN_H
 
-#include <string>
+#include "block.h"
 #include <vector>
+#include <map>
 
-struct TxIn {
-    std::string txid;
-    int index;
-};
-
-struct TxOut {
-    std::string address;
-    double amount;
-};
-
-class Transaction {
+class Blockchain {
 public:
-    std::string id;
-    std::vector<TxIn> vin;
-    std::vector<TxOut> vout;
+    std::vector<Block> chain;
+    int difficulty;
+    double totalSupply;
 
-    Transaction() {}
-    Transaction(std::vector<TxIn> in, std::vector<TxOut> out);
+    Blockchain();
 
-    std::string calculateHash() const;
+    Block getLastBlock();
+    void addBlock(Block block);
+
+    double getBlockReward(int height);
+    void mineBlock(std::string minerAddress);
+
+    double getBalance(std::string address);
+    void send(std::string from, std::string to, double amount);
 };
 
 #endif
