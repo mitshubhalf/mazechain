@@ -29,14 +29,14 @@ std::string Block::calculateHash() const {
         }
     }
 
-    unsigned char hashBytes[SHA256_DIGEST_LENGTH];
-    SHA256((unsigned char*)ss.str().c_str(), ss.str().size(), hashBytes);
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char*)ss.str().c_str(), ss.str().size(), hash);
 
     std::stringstream hex;
 
-    // ✅ CORREÇÃO PROFISSIONAL
+    // ✅ CORREÇÃO PRINCIPAL AQUI
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-        hex << std::hex << std::setw(2) << std::setfill('0') << (int)hashBytes[i];
+        hex << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
     }
 
     return hex.str();
