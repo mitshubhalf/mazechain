@@ -2,6 +2,12 @@
 #include <fstream>
 #include <iostream>
 
+static bool safeReadInt(std::ifstream &file, int &out) {
+    if (!(file >> out)) return false;
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    return true;
+}
+
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     std::ofstream file(filename);
 
@@ -47,30 +53,22 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     bc.clearChain();
 
     std::string line;
-
     Block* currentBlock = nullptr;
 
     while (std::getline(file, line)) {
 
         if (line == "BLOCK") {
 
-            if (currentBlock != nullptr) {
-                delete currentBlock;
-                currentBlock = nullptr;
-            }
+            delete currentBlock;
+            currentBlock = nullptr;
 
-            int index;
+            int index, nonce;
             std::string prevHash, hash;
-            int nonce;
 
-            if (!(file >> index)) break;
-            file.ignore();
-
+            if (!safeReadInt(file, index)) break;
             std::getline(file, prevHash);
             std::getline(file, hash);
-
-            if (!(file >> nonce)) break;
-            file.ignore();
+            if (!safeReadInt(file, nonce)) break;
 
             currentBlock = new Block(index, prevHash, {});
             currentBlock->hash = hash;
@@ -80,40 +78,38 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
         else if (line == "TX") {
             if (!currentBlock) continue;
 
-            std::vector<TxIn> vin;
-            std::vector<TxOut> vout;
-
             int vinSize;
-            if (!(file >> vinSize)) break;
-            file.ignore();
+            if (!safeReadInt(file, vinSize)) break;
+            if (vinSize < 0 || vinSize > 500) continue;
 
-            if (vinSize < 0 || vinSize > 1000) {
-                std::cout << "❌ TX corrompida ignorada\n";
-                continue;
-            }
+            std::vector<TxIn> vin;
 
             for (int i = 0; i < vinSize; i++) {
                 TxIn in;
                 std::getline(file, in.txid);
-                file >> in.index;
-                file.ignore();
+
+                int idx;
+                if (!safeReadInt(file, idx)) break;
+                in.index = idx;
+
                 vin.push_back(in);
             }
 
             int voutSize;
-            file >> voutSize;
-            file.ignore();
+            if (!safeReadInt(file, voutSize)) break;
+            if (voutSize < 0 || voutSize > 500) continue;
 
-            if (voutSize < 0 || voutSize > 1000) {
-                std::cout << "❌ TX corrompida ignorada\n";
-                continue;
-            }
+            std::vector<TxOut> vout;
 
             for (int i = 0; i < voutSize; i++) {
                 TxOut out;
                 std::getline(file, out.address);
-                file >> out.amount;
+
+                double amount;
+                file >> amount;
                 file.ignore();
+                out.amount = amount;
+
                 vout.push_back(out);
             }
 
@@ -125,7 +121,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
 
             if (!currentBlock) continue;
 
-            // 🔥 validação forte ANTES de aceitar
+            // 🔥 validação mínima segura
 
             if (currentBlock->hash != currentBlock->calculateHash()) {
                 std::cout << "❌ Bloco corrompido ignorado\n";
@@ -143,10 +139,10 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
                 continue;
             }
 
-            std::vector<Block> currentChain = bc.getChain();
+            auto chain = bc.getChain();
 
-            if (!currentChain.empty()) {
-                if (currentBlock->prevHash != currentChain.back().hash) {
+            if (!chain.empty()) {
+                if (currentBlock->prevHash != chain.back().hash) {
                     std::cout << "❌ Fork ignorado\n";
                     delete currentBlock;
                     currentBlock = nullptr;
@@ -161,7 +157,5 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
         }
     }
 
-    if (currentBlock) {
-        delete currentBlock;
-    }
+    delete currentBlock;
 }
