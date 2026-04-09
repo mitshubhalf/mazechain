@@ -1,38 +1,29 @@
-#ifndef BLOCKCHAIN_H
-#define BLOCKCHAIN_H
+#ifndef TRANSACTION_H
+#define TRANSACTION_H
 
+#include <string>
 #include <vector>
-#include "block.h"
 
-struct UTXO {
-    std::string txId;
+struct TxIn {
+    std::string txid;
     int index;
+};
+
+struct TxOut {
     std::string address;
     double amount;
 };
 
-class Blockchain {
-private:
-    std::vector<Block> chain;
-    std::vector<Transaction> pendingTransactions;
-    std::vector<UTXO> utxoPool;
-
+class Transaction {
 public:
-    Blockchain();
+    std::string id;
+    std::vector<TxIn> vin;
+    std::vector<TxOut> vout;
 
-    Block getLatestBlock() const;
-    const std::vector<Block>& getChain() const;
+    Transaction() {}
+    Transaction(std::vector<TxIn> in, std::vector<TxOut> out);
 
-    void addBlock(Block block);
-    void addBlockDirect(const Block& block); // 🔥 NÃO minera
-
-    void addTransaction(const Transaction& tx);
-    void minePendingTransactions(const std::string& minerAddress);
-
-    double getBalance(const std::string& address) const;
-
-    void rebuildUTXO();
-    void clearChain(); // 🔥 usado no load
+    std::string calculateHash() const;
 };
 
 #endif
