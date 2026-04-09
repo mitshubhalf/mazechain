@@ -8,15 +8,15 @@
 class Block {
 public:
     int index;
-    std::string previousHash;
+    std::string prevHash;
     std::string hash;
+    long nonce;
     std::vector<Transaction> transactions;
-    int nonce;
 
-    Block(int idx, std::vector<Transaction> txs, std::string prevHash);
+    Block(int idx, std::string prev, std::vector<Transaction> txs);
 
     std::string calculateHash() const;
-    void mineBlock(int difficulty);
+    void mine(int difficulty);
 };
 
 #endif
