@@ -2,7 +2,9 @@
 #define BLOCKCHAIN_H
 
 #include <vector>
+#include <string>
 #include "block.h"
+#include "transaction.h"
 
 class Blockchain {
 private:
@@ -10,26 +12,24 @@ private:
     int difficulty;
     double totalSupply;
 
-    int adjustDifficulty();
-    bool isValidBlock(const Block& newBlock, const Block& previousBlock);
-
 public:
     Blockchain();
 
     Block getLastBlock();
-    void mineBlock(std::string minerAddress);
-
-    double getBalance(std::string address);
-    void send(std::string from, std::string to, double amount);
 
     double getBlockReward(int height);
 
-    // 🔐 Segurança
-    const std::vector<Block>& getChain() const;
-    void clearChain();
-    void addBlock(const Block& block);
+    void mineBlock(std::string minerAddress);
 
-    bool isChainValid();
+    double getBalance(std::string address);
+
+    void send(std::string from, std::string to, double amount);
+
+    // 🔥 NOVOS (necessários pro storage e segurança)
+    std::vector<Block> getChain() const;
+    void addBlock(const Block& block);
+    void clearChain();
+    int getDifficulty() const;
 };
 
 #endif
