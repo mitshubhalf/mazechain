@@ -14,13 +14,26 @@ const std::vector<Block>& Blockchain::getChain() const {
     return chain;
 }
 
+void Blockchain::clearChain() {
+    chain.clear();
+}
+
+void Blockchain::addBlockDirect(const Block& block) {
+    chain.push_back(block);
+}
+
+// 🔥 bloco normal (com mineração)
 void Blockchain::addBlock(Block newBlock) {
 
     newBlock.previousHash = getLatestBlock().hash;
 
+    int difficulty = 4;
+
+    newBlock.mineBlock(difficulty);
+
     chain.push_back(newBlock);
 
-    // atualizar UTXO
+    // 🔥 atualizar UTXO
     for (const auto& tx : newBlock.transactions) {
 
         for (const auto& input : tx.inputs) {
@@ -45,6 +58,33 @@ void Blockchain::addBlock(Block newBlock) {
     }
 }
 
+void Blockchain::addTransaction(const Transaction& tx) {
+
+    double inputTotal = 0;
+
+    for (const auto& input : tx.inputs) {
+        for (const auto& utxo : utxoPool) {
+            if (utxo.txId == input.txId && utxo.index == input.outputIndex) {
+                inputTotal += utxo.amount;
+            }
+        }
+    }
+
+    double outputTotal = 0;
+    for (const auto& out : tx.outputs) {
+        outputTotal += out.amount;
+    }
+
+    if (!tx.inputs.empty() && inputTotal < outputTotal) {
+        std::cout << "❌ Saldo insuficiente!\n";
+        return;
+    }
+
+    pendingTransactions.push_back(tx);
+
+    std::cout << "✅ Transação adicionada\n";
+}
+
 void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 
     std::cout << "⛏️ Iniciando mineração...\n";
@@ -54,7 +94,7 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
         return;
     }
 
-    // recompensa
+    // 🔥 recompensa
     Transaction reward;
     reward.id = "reward_" + minerAddress;
 
@@ -74,7 +114,7 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 
     chain.push_back(newBlock);
 
-    // atualizar UTXO
+    // 🔥 atualizar UTXO
     for (const auto& tx : newBlock.transactions) {
 
         for (const auto& input : tx.inputs) {
@@ -103,7 +143,22 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
     std::cout << "🎉 Bloco minerado com recompensa!\n";
 }
 
+double Blockchain::getBalance(const std::string& address) const {
+
+    double balance = 0;
+
+    for (const auto& utxo : utxoPool) {
+        if (utxo.address == address) {
+            balance += utxo.amount;
+        }
+    }
+
+    return balance;
+}
+
 void Blockchain::rebuildUTXO() {
+
+    std::cout << "♻️ UTXO reconstruído!\n";
 
     utxoPool.clear();
 
@@ -131,6 +186,4 @@ void Blockchain::rebuildUTXO() {
             }
         }
     }
-
-    std::cout << "♻️ UTXO reconstruído!\n";
 }
