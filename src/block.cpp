@@ -43,5 +43,5 @@ void Block::mine(int difficulty) {
             std::cout << "Nonce: " << nonce << " | Hash: " << hash.substr(0,16) << "...\n";
     }
 
-    std::cout << "✅ Block mined! Hash: " << hash << "\n";
+    // ❌ REMOVIDO print duplicado daqui
 }
