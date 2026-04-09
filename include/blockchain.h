@@ -24,14 +24,15 @@ public:
     const std::vector<Block>& getChain() const;
 
     void addBlock(Block block);
-    void addBlockFromStorage(const Block& block); // 🔥 IMPORTANTE
-
     void addTransaction(const Transaction& tx);
     void minePendingTransactions(const std::string& minerAddress);
 
     double getBalance(const std::string& address) const;
 
-    void rebuildUTXO(); // 🔥 reconstruir saldo ao carregar
+    void rebuildUTXO();
+
+    // 🔥 ESSENCIAL PRO STORAGE
+    void replaceChain(const std::vector<Block>& newChain);
 };
 
 #endif
