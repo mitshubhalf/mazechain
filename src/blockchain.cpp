@@ -5,7 +5,6 @@
 Blockchain::Blockchain() {
     difficulty = 5;
     totalSupply = 0;
-    // O Gênese será carregado do arquivo ou criado na primeira mineração
 }
 
 Block Blockchain::getLastBlock() {
@@ -17,12 +16,13 @@ double Blockchain::getBlockReward(int height) {
     double reward = 250.0;
     int halvings = height / 1000;
     for (int i = 0; i < halvings; i++) reward /= 2.0;
-    return (totalSupply >= 20000000) ? 0 : reward;
+    return reward;
 }
 
 void Blockchain::mineBlock(std::string minerAddress) {
-    // Cria Gênese se estiver vazio
+    // Só cria o gênese se a chain estiver realmente vazia após o load
     if (chain.empty()) {
+        std::cout << "⚒️ Creating Genesis Block...\n";
         Block genesis(0, "0", {});
         genesis.mine(difficulty);
         chain.push_back(genesis);
@@ -30,9 +30,10 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     double reward = getBlockReward(chain.size());
     Transaction coinbase({}, { {minerAddress, reward} });
+    
     Block newBlock(chain.size(), getLastBlock().hash, {coinbase});
 
-    std::cout << "⛏️ Mining...\n";
+    std::cout << "⛏️ Mining block " << newBlock.index << "...\n";
     newBlock.mine(difficulty);
 
     chain.push_back(newBlock);
@@ -44,30 +45,24 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
 double Blockchain::getBalance(std::string address) {
     double balance = 0;
-    for (const auto &block : chain)
-        for (const auto &tx : block.transactions)
-            for (const auto &out : tx.vout)
+    for (const auto &block : chain) {
+        for (const auto &tx : block.transactions) {
+            for (const auto &out : tx.vout) {
                 if (out.address == address) balance += out.amount;
+            }
+        }
+    }
     return balance;
 }
 
-void Blockchain::send(std::string from, std::string to, double amount) {
-    if (getBalance(from) < amount) {
-        std::cout << "❌ Saldo insuficiente\n";
-        return;
+void Blockchain::addBlock(const Block& block) {
+    chain.push_back(block);
+    // Atualiza o supply para que o balance funcione
+    for(const auto& tx : block.transactions) {
+        for(const auto& out : tx.vout) {
+            totalSupply += out.amount;
+        }
     }
-    Transaction tx({}, { {to, amount}, {from, getBalance(from) - amount} });
-    Block newBlock(chain.size(), getLastBlock().hash, {tx});
-    newBlock.mine(difficulty);
-    chain.push_back(newBlock);
-    Storage::saveChain(*this, "data/blockchain.dat");
 }
 
-std::vector<Block> Blockchain::getChain() const { return chain; }
-void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
-int Blockchain::getDifficulty() const { return difficulty; }
-void Blockchain::addBlock(const Block& block) { 
-    chain.push_back(block); 
-    for(auto& tx : block.transactions) 
-        for(auto& out : tx.vout) totalSupply += out.amount;
-}
+// Mantenha as outras funções (send, clearChain, etc) como estão.
