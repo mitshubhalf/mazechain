@@ -10,7 +10,7 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
         return;
     }
 
-    std::vector<Block> chain = bc.getChain();
+    auto chain = bc.getChain();
 
     for (const auto& block : chain) {
         file << "BLOCK\n";
@@ -18,7 +18,6 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
         file << block.prevHash << "\n";
         file << block.hash << "\n";
         file << block.nonce << "\n";
-        file << block.timestamp << "\n"; // 🔥 CORREÇÃO CRÍTICA
 
         for (const auto& tx : block.transactions) {
             file << "TX\n";
@@ -38,27 +37,24 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
 
         file << "END_BLOCK\n";
     }
-
-    file.close();
 }
 
 void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     std::ifstream file(filename);
 
-    if (!file.is_open()) return;
+    if (!file.is_open())
+        return;
 
     bc.clearChain();
 
     std::string line;
-    Block* currentBlock = nullptr;
+    Block* current = nullptr;
 
     while (std::getline(file, line)) {
 
         if (line == "BLOCK") {
-            int index;
+            int index, nonce;
             std::string prevHash, hash;
-            int nonce;
-            long timestamp;
 
             file >> index;
             file.ignore();
@@ -69,23 +65,18 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
             file >> nonce;
             file.ignore();
 
-            file >> timestamp;       // 🔥 NOVO
-            file.ignore();
-
-            currentBlock = new Block(index, prevHash, {});
-            currentBlock->hash = hash;
-            currentBlock->nonce = nonce;
-            currentBlock->timestamp = timestamp; // 🔥 CRÍTICO
+            current = new Block(index, prevHash, {});
+            current->nonce = nonce;
+            current->hash = hash;
         }
 
         else if (line == "TX") {
-            std::vector<TxIn> vin;
-            std::vector<TxOut> vout;
+            int vinSize, voutSize;
 
-            int vinSize;
             file >> vinSize;
             file.ignore();
 
+            std::vector<TxIn> vin;
             for (int i = 0; i < vinSize; i++) {
                 TxIn in;
                 std::getline(file, in.txid);
@@ -94,10 +85,10 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
                 vin.push_back(in);
             }
 
-            int voutSize;
             file >> voutSize;
             file.ignore();
 
+            std::vector<TxOut> vout;
             for (int i = 0; i < voutSize; i++) {
                 TxOut out;
                 std::getline(file, out.address);
@@ -106,41 +97,38 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
                 vout.push_back(out);
             }
 
-            Transaction tx(vin, vout);
-            currentBlock->transactions.push_back(tx);
+            current->transactions.emplace_back(vin, vout);
         }
 
         else if (line == "END_BLOCK") {
 
-            // 🔥 valida hash
-            if (currentBlock->hash != currentBlock->calculateHash()) {
-                std::cout << "❌ Hash inválido detectado!\n";
-                delete currentBlock;
+            // 🔥 VALIDAÇÃO FINAL REAL
+
+            if (current->hash != current->calculateHash()) {
+                std::cout << "❌ Bloco corrompido ignorado\n";
+                delete current;
                 continue;
             }
 
-            // 🔥 valida PoW
             std::string target(bc.getDifficulty(), '0');
-            if (currentBlock->hash.substr(0, bc.getDifficulty()) != target) {
-                std::cout << "❌ PoW inválido!\n";
-                delete currentBlock;
+
+            if (current->hash.substr(0, bc.getDifficulty()) != target) {
+                std::cout << "❌ PoW inválido no storage\n";
+                delete current;
                 continue;
             }
 
-            // 🔥 valida encadeamento
-            std::vector<Block> currentChain = bc.getChain();
-            if (!currentChain.empty()) {
-                if (currentBlock->prevHash != currentChain.back().hash) {
-                    std::cout << "❌ Blockchain quebrada!\n";
-                    delete currentBlock;
-                    continue;
-                }
+            auto chain = bc.getChain();
+
+            if (!chain.empty() &&
+                current->prevHash != chain.back().hash) {
+                std::cout << "❌ Fork inválido no storage\n";
+                delete current;
+                continue;
             }
 
-            bc.addBlock(*currentBlock);
-            delete currentBlock;
+            bc.addBlock(*current);
+            delete current;
         }
     }
-
-    file.close();
 }
