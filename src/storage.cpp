@@ -3,42 +3,48 @@
 #include <iostream>
 
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
+
     std::ofstream file(filename);
 
     if (!file.is_open()) return;
 
     for (const auto& block : bc.getChain()) {
-        file << block.hash << "|";
-        file << block.previousHash << "\n";
-
-        for (const auto& tx : block.transactions) {
-            file << tx.id << "\n";
-        }
-
-        file << "---\n";
+        file << block.index << "|"
+             << block.hash << "|"
+             << block.previousHash << "\n";
     }
 
     file.close();
 }
 
 void Storage::loadChain(Blockchain& bc, const std::string& filename) {
+
     std::ifstream file(filename);
 
     if (!file.is_open()) return;
 
     std::string line;
 
+    bc = Blockchain(); // reset
+
     while (std::getline(file, line)) {
-        if (line == "---") continue;
 
-        // 🔧 CORREÇÃO: Block não tem construtor vazio
-        int index = 0;
-        std::vector<Transaction> txs;
-        std::string prevHash = "0";
+        int index;
+        std::string hash, prevHash;
 
-        Block b(index, txs, prevHash);
+        std::stringstream ss(line);
 
-        bc.addBlock(b);
+        std::getline(ss, line, '|');
+        index = std::stoi(line);
+
+        std::getline(ss, hash, '|');
+        std::getline(ss, prevHash);
+
+        Block b(index, {}, prevHash);
+
+        b.hash = hash; // 🔥 IMPORTANTE: não recalcular
+
+        bc.getChain().push_back(b); // ⚠️ precisa ajustar header se der erro
     }
 
     file.close();
