@@ -1,145 +1,97 @@
 #include "../include/storage.h"
 #include <fstream>
 #include <iostream>
-
-static bool readInt(std::ifstream &f, int &out) {
-    f >> out;
-    if (f.fail()) return false;
-    f.ignore(10000, '\n');
-    return true;
-}
+#include <vector>
 
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
-
-    std::ofstream file(filename);
+    std::ofstream file(filename, std::ios::trunc); // Sobrescreve para evitar lixo
 
     if (!file.is_open()) {
-        std::cout << "Erro ao salvar blockchain\n";
+        std::cerr << "❌ Erro ao abrir arquivo para salvar!\n";
         return;
     }
 
-    const auto& chain = bc.getChain();
-
-    for (const auto& block : chain) {
-
-        file << "BLOCK\n";
-        file << block.index << "\n";
-        file << block.prevHash << "\n";
-        file << block.hash << "\n";
-        file << block.nonce << "\n";
-
-        file << block.transactions.size() << "\n";
+    for (const auto& block : bc.getChain()) {
+        file << "BLOCK\n" << block.index << "\n" << block.prevHash << "\n" 
+             << block.hash << "\n" << block.nonce << "\n";
 
         for (const auto& tx : block.transactions) {
-
-            file << tx.vin.size() << "\n";
+            file << "TX\n" << tx.vin.size() << "\n";
             for (const auto& in : tx.vin) {
-                file << in.txid << "\n";
-                file << in.index << "\n";
+                file << in.txid << "\n" << in.index << "\n";
             }
-
             file << tx.vout.size() << "\n";
             for (const auto& out : tx.vout) {
-                file << out.address << "\n";
-                file << out.amount << "\n";
+                file << out.address << "\n" << out.amount << "\n";
             }
         }
-
         file << "END_BLOCK\n";
     }
+    file.close();
 }
 
 void Storage::loadChain(Blockchain& bc, const std::string& filename) {
-
     std::ifstream file(filename);
     if (!file.is_open()) return;
 
     bc.clearChain();
-
     std::string line;
 
-    Block* block = nullptr;
+    // Usaremos um bloco temporário para carregar os dados com segurança
+    int tempIdx = 0, tempNonce = 0;
+    std::string tempPrev, tempHash;
+    std::vector<Transaction> tempTxs;
 
     while (std::getline(file, line)) {
+        if (line == "BLOCK") {
+            tempTxs.clear();
+            if (!(file >> tempIdx)) break;
+            file.ignore();
+            std::getline(file, tempPrev);
+            std::getline(file, tempHash);
+            if (!(file >> tempNonce)) break;
+            file.ignore();
+        } 
+        else if (line == "TX") {
+            int vinSize, voutSize;
+            if (!(file >> vinSize)) break;
+            file.ignore();
+            
+            // Proteção contra bad_alloc: limita transações malucas
+            if (vinSize < 0 || vinSize > 1000) continue; 
 
-        if (line != "BLOCK") continue;
-
-        delete block;
-        block = nullptr;
-
-        int index, nonce;
-        std::string prevHash, hash;
-
-        if (!readInt(file, index)) break;
-        std::getline(file, prevHash);
-        std::getline(file, hash);
-        if (!readInt(file, nonce)) break;
-
-        block = new Block(index, prevHash, {});
-        block->hash = hash;
-        block->nonce = nonce;
-
-        int txCount;
-        if (!readInt(file, txCount)) break;
-
-        if (txCount < 0 || txCount > 1000) continue;
-
-        for (int i = 0; i < txCount; i++) {
-
-            int vinSize;
-            if (!readInt(file, vinSize)) break;
-
-            std::vector<TxIn> vin;
-
-            for (int j = 0; j < vinSize; j++) {
+            std::vector<TxIn> vins;
+            for (int i = 0; i < vinSize; i++) {
                 TxIn in;
                 std::getline(file, in.txid);
-                file >> in.index;
-                file.ignore(10000, '\n');
-                vin.push_back(in);
+                file >> in.index; file.ignore();
+                vins.push_back(in);
             }
 
-            int voutSize;
-            if (!readInt(file, voutSize)) break;
+            file >> voutSize; file.ignore();
+            if (voutSize < 0 || voutSize > 1000) continue;
 
-            std::vector<TxOut> vout;
-
-            for (int j = 0; j < voutSize; j++) {
+            std::vector<TxOut> vouts;
+            for (int i = 0; i < voutSize; i++) {
                 TxOut out;
                 std::getline(file, out.address);
-                file >> out.amount;
-                file.ignore(10000, '\n');
-                vout.push_back(out);
+                file >> out.amount; file.ignore();
+                vouts.push_back(out);
             }
+            tempTxs.push_back(Transaction(vins, vouts));
+        } 
+        else if (line == "END_BLOCK") {
+            Block newBlock(tempIdx, tempPrev, tempTxs);
+            newBlock.hash = tempHash;
+            newBlock.nonce = tempNonce;
 
-            Transaction tx(vin, vout);
-            block->transactions.push_back(tx);
-        }
-
-        // 🔥 validação final
-        std::string target(bc.getDifficulty(), '0');
-
-        if (block->hash != block->calculateHash()) {
-            std::cout << "❌ bloco corrompido ignorado\n";
-            continue;
-        }
-
-        if (block->hash.substr(0, bc.getDifficulty()) != target) {
-            std::cout << "❌ PoW inválido ignorado\n";
-            continue;
-        }
-
-        auto chain = bc.getChain();
-
-        if (!chain.empty()) {
-            if (block->prevHash != chain.back().hash) {
-                std::cout << "❌ fork ignorado\n";
-                continue;
+            // Validação de integridade antes de aceitar o bloco carregado
+            if (newBlock.calculateHash() != newBlock.hash) {
+                std::cerr << "⚠️ Bloco " << tempIdx << " corrompido no arquivo. Parando carga.\n";
+                break; 
             }
+            bc.addBlock(newBlock);
         }
-
-        bc.addBlock(*block);
     }
-
-    delete block;
+    file.close();
 }
