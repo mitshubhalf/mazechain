@@ -1,10 +1,13 @@
 #include "../include/storage.h"
 #include <fstream>
 #include <iostream>
+#include <limits>
 
+// 🔥 leitura segura (SEM numeric_limits problema)
 static bool safeReadInt(std::ifstream &file, int &out) {
-    if (!(file >> out)) return false;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    file >> out;
+    if (file.fail()) return false;
+    file.ignore(10000, '\n');
     return true;
 }
 
@@ -105,10 +108,8 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
                 TxOut out;
                 std::getline(file, out.address);
 
-                double amount;
-                file >> amount;
-                file.ignore();
-                out.amount = amount;
+                file >> out.amount;
+                file.ignore(10000, '\n');
 
                 vout.push_back(out);
             }
@@ -121,8 +122,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
 
             if (!currentBlock) continue;
 
-            // 🔥 validação mínima segura
-
+            // 🔥 validação anti corrupção
             if (currentBlock->hash != currentBlock->calculateHash()) {
                 std::cout << "❌ Bloco corrompido ignorado\n";
                 delete currentBlock;
