@@ -36,6 +36,8 @@ std::string Block::calculateHash() const {
 void Block::mine(int difficulty) {
     std::string target(difficulty, '0');
 
+    nonce = 0; // 🔥 sempre reset antes de minerar
+
     while (true) {
         hash = calculateHash();
 
