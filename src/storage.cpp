@@ -13,15 +13,26 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     for (const auto& block : bc.chain) {
         file << "BLOCK\n";
         file << block.index << "\n";
-        file << block.previousHash << "\n";
+        file << block.prevHash << "\n";
         file << block.hash << "\n";
         file << block.nonce << "\n";
 
         for (const auto& tx : block.transactions) {
             file << "TX\n";
-            file << tx.from << "\n";
-            file << tx.to << "\n";
-            file << tx.amount << "\n";
+
+            // INPUTS
+            file << tx.vin.size() << "\n";
+            for (const auto& in : tx.vin) {
+                file << in.txid << "\n";
+                file << in.vout << "\n";
+            }
+
+            // OUTPUTS
+            file << tx.vout.size() << "\n";
+            for (const auto& out : tx.vout) {
+                file << out.address << "\n";
+                file << out.amount << "\n";
+            }
         }
 
         file << "END_BLOCK\n";
@@ -41,6 +52,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     Block* currentBlock = nullptr;
 
     while (std::getline(file, line)) {
+
         if (line == "BLOCK") {
             int index;
             std::string prevHash, hash;
@@ -61,15 +73,34 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
         }
 
         else if (line == "TX") {
-            std::string from, to;
-            double amount;
+            std::vector<TxIn> vin;
+            std::vector<TxOut> vout;
 
-            std::getline(file, from);
-            std::getline(file, to);
-            file >> amount;
+            int vinSize;
+            file >> vinSize;
             file.ignore();
 
-            Transaction tx(from, to, amount);
+            for (int i = 0; i < vinSize; i++) {
+                TxIn in;
+                std::getline(file, in.txid);
+                file >> in.vout;
+                file.ignore();
+                vin.push_back(in);
+            }
+
+            int voutSize;
+            file >> voutSize;
+            file.ignore();
+
+            for (int i = 0; i < voutSize; i++) {
+                TxOut out;
+                std::getline(file, out.address);
+                file >> out.amount;
+                file.ignore();
+                vout.push_back(out);
+            }
+
+            Transaction tx(vin, vout);
             currentBlock->transactions.push_back(tx);
         }
 
