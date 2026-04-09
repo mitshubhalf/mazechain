@@ -3,7 +3,7 @@
 #include <iostream>
 
 Blockchain::Blockchain() {
-    difficulty = 5;
+    difficulty = 7;
     totalSupply = 0;
 }
 
