@@ -25,7 +25,7 @@ public:
 
     void send(std::string from, std::string to, double amount);
 
-    // 🔥 NOVOS (necessários pro storage e segurança)
+    // 🔥 IMPORTANTES PRO STORAGE
     std::vector<Block> getChain() const;
     void addBlock(const Block& block);
     void clearChain();
