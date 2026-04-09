@@ -9,6 +9,9 @@ int main(int argc, char* argv[]) {
 
     Storage::loadChain(mazechain, "chain.dat");
 
+    // 🔥 ESSENCIAL
+    mazechain.rebuildUTXO();
+
     if (argc < 2) {
         std::cout << "Comandos: mine | chain | send | balance\n";
         return 0;
@@ -21,9 +24,16 @@ int main(int argc, char* argv[]) {
         std::string miner = "miner1";
         if (argc >= 3) miner = argv[2];
 
-        // sempre garante transação
+        // 🔥 garante mineração sempre
         Transaction dummy;
         dummy.id = "tx_" + std::to_string(rand());
+
+        TxOutput out;
+        out.address = miner;
+        out.amount = 1;
+
+        dummy.outputs.push_back(out);
+
         mazechain.addTransaction(dummy);
 
         mazechain.minePendingTransactions(miner);
@@ -38,21 +48,17 @@ int main(int argc, char* argv[]) {
             std::cout << "Index: " << block.index << "\n";
             std::cout << "Hash: " << block.hash << "\n";
             std::cout << "Prev: " << block.previousHash << "\n";
-
-            for (const auto& tx : block.transactions) {
-                std::cout << "Tx: " << tx.id << "\n";
-
-                for (const auto& out : tx.outputs) {
-                    std::cout << "  -> " << out.address << " : " << out.amount << "\n";
-                }
-            }
         }
     }
 
     else if (cmd == "balance") {
 
+        if (argc < 3) {
+            std::cout << "Uso: balance <address>\n";
+            return 0;
+        }
+
         std::string addr = argv[2];
-        mazechain.rebuildUTXO();
 
         std::cout << "💰 Saldo: " << mazechain.getBalance(addr) << "\n";
     }
