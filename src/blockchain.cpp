@@ -2,7 +2,7 @@
 #include <iostream>
 
 Blockchain::Blockchain() {
-    difficulty = 4;
+    difficulty = 2;
     totalSupply = 0;
 
     chain.push_back(Block(0, "0", {}));
