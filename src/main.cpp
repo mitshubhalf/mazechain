@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <ctime>
 #include "blockchain.h"
 #include "storage.h"
 
@@ -10,12 +11,18 @@ int main(int argc, char* argv[]) {
     // 🔥 carregar chain salva
     Storage::loadChain(mazechain, "chain.dat");
 
+    // 🔥 reconstruir UTXO (ESSENCIAL)
+    mazechain.rebuildUTXO();
+
     if (argc < 2) {
         std::cout << "Comandos: mine | chain | send | balance\n";
         return 0;
     }
 
     std::string cmd = argv[1];
+
+    // seed pro rand (evita repetir dummy tx id)
+    srand(time(0));
 
     // =========================
     // ⛏️ MINERAR
@@ -27,10 +34,10 @@ int main(int argc, char* argv[]) {
         std::string miner = "miner1";
         if (argc >= 3) miner = argv[2];
 
-        // 🔥 se não tiver transação, cria uma dummy
+        // 🔥 se não tiver transações, cria uma dummy
         if (mazechain.getChain().size() > 0) {
             Transaction dummy;
-            dummy.id = "dummy_tx_" + std::to_string(rand());
+            dummy.id = "dummy_" + std::to_string(rand());
 
             mazechain.addTransaction(dummy);
         }
