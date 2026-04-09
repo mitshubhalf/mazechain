@@ -37,31 +37,23 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     newBlock.mine(difficulty);
 
-    // 🔥 VALIDAÇÃO
-
-    if (newBlock.hash != newBlock.calculateHash()) {
-        std::cout << "❌ Hash inválido!\n";
-        return;
-    }
-
     std::string target(difficulty, '0');
-    if (newBlock.hash.substr(0, difficulty) != target) {
-        std::cout << "❌ PoW inválido!\n";
-        return;
-    }
 
-    if (newBlock.prevHash != getLastBlock().hash) {
-        std::cout << "❌ Blockchain quebrada!\n";
+    // 🔥 validação REAL (nível Bitcoin simplificado)
+    if (newBlock.hash != newBlock.calculateHash())
         return;
-    }
+
+    if (newBlock.hash.substr(0, difficulty) != target)
+        return;
+
+    if (newBlock.prevHash != getLastBlock().hash)
+        return;
 
     chain.push_back(newBlock);
     totalSupply += reward;
 
-    std::cout << "✅ Block mined! Hash: " << newBlock.hash << "\n";
     std::cout << "🎉 Reward: " << reward << "\n";
 
-    // 🔥 SALVA AUTOMATICAMENTE
     Storage::saveChain(*this, "data/blockchain.dat");
 }
 
@@ -81,10 +73,8 @@ double Blockchain::getBalance(std::string address) {
 }
 
 void Blockchain::send(std::string from, std::string to, double amount) {
-    if (getBalance(from) < amount) {
-        std::cout << "❌ Saldo insuficiente\n";
+    if (getBalance(from) < amount)
         return;
-    }
 
     Transaction tx({}, { {to, amount} });
 
@@ -94,32 +84,23 @@ void Blockchain::send(std::string from, std::string to, double amount) {
 
     newBlock.mine(difficulty);
 
-    if (newBlock.hash != newBlock.calculateHash()) {
-        std::cout << "❌ Hash inválido!\n";
-        return;
-    }
-
     std::string target(difficulty, '0');
-    if (newBlock.hash.substr(0, difficulty) != target) {
-        std::cout << "❌ PoW inválido!\n";
-        return;
-    }
 
-    if (newBlock.prevHash != getLastBlock().hash) {
-        std::cout << "❌ Blockchain quebrada!\n";
+    if (newBlock.hash != newBlock.calculateHash())
         return;
-    }
+
+    if (newBlock.hash.substr(0, difficulty) != target)
+        return;
+
+    if (newBlock.prevHash != getLastBlock().hash)
+        return;
 
     chain.push_back(newBlock);
 
-    std::cout << "✅ Transação enviada\n";
-
-    // 🔥 SALVA
     Storage::saveChain(*this, "data/blockchain.dat");
+
+    std::cout << "✅ Transaction confirmed\n";
 }
-
-
-// ===== FUNÇÕES =====
 
 std::vector<Block> Blockchain::getChain() const {
     return chain;
