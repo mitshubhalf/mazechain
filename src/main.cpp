@@ -6,8 +6,11 @@ int main(int argc, char* argv[]) {
 
     Blockchain mazechain;
 
-    // 🔥 carregar chain salva
+    // 🔥 carregar chain corretamente
     Storage::loadChain(mazechain, "chain.dat");
+
+    // 🔥 reconstruir UTXO sempre após load
+    mazechain.rebuildUTXO();
 
     if (argc < 2) {
         std::cout << "mine | chain | send | balance\n";
@@ -18,8 +21,6 @@ int main(int argc, char* argv[]) {
 
     if (cmd == "mine") {
 
-        std::cout << "⛏️ Iniciando mineração...\n";
-
         std::string miner = "miner1";
         if (argc >= 3) miner = argv[2];
 
@@ -27,7 +28,6 @@ int main(int argc, char* argv[]) {
 
         std::cout << "✅ Bloco minerado com sucesso!\n";
 
-        // 💾 salvar após mineração
         Storage::saveChain(mazechain, "chain.dat");
     }
 
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
         }
 
         Transaction tx;
-        tx.id = "tx_" + from + "_" + to;
+        tx.id = "tx_" + from + "_" + to + "_" + std::to_string(rand());
 
         TxOutput out;
         out.address = to;
