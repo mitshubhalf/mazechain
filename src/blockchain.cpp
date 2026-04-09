@@ -26,8 +26,8 @@ double Blockchain::getBlockReward(int height) {
 }
 
 void Blockchain::mineBlock(std::string minerAddress) {
-    double reward = getBlockReward(chain.size());
 
+    double reward = getBlockReward(chain.size());
     Transaction coinbase({}, { {minerAddress, reward} });
 
     Block newBlock(chain.size(), getLastBlock().hash, {coinbase});
@@ -38,7 +38,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     std::string target(difficulty, '0');
 
-    // 🔥 validação forte
     if (newBlock.hash != newBlock.calculateHash()) {
         std::cout << "❌ Hash inválido!\n";
         return;
@@ -63,6 +62,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
 }
 
 double Blockchain::getBalance(std::string address) {
+
     double balance = 0;
 
     for (auto &block : chain)
@@ -75,6 +75,7 @@ double Blockchain::getBalance(std::string address) {
 }
 
 void Blockchain::send(std::string from, std::string to, double amount) {
+
     if (getBalance(from) < amount) {
         std::cout << "❌ Saldo insuficiente\n";
         return;
@@ -112,11 +113,9 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     std::cout << "✅ Transação confirmada\n";
 }
 
-/* =========================================================
-   🔥 FUNÇÕES QUE ESTAVAM FALTANDO (CAUSAVAM SEU ERRO)
-   ========================================================= */
+// 🔥 FINAL FIX
 
-std::vector<Block> Blockchain::getChain() const {
+const std::vector<Block>& Blockchain::getChain() const {
     return chain;
 }
 
