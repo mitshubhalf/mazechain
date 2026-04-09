@@ -4,12 +4,9 @@
 #include <iostream>
 
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
-
     std::ofstream file(filename);
-    if (!file.is_open()) return;
 
     for (const auto& block : bc.getChain()) {
-
         file << block.index << "|"
              << block.hash << "|"
              << block.previousHash << "\n";
@@ -24,81 +21,61 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
 
         file << "---\n";
     }
-
-    file.close();
 }
 
 void Storage::loadChain(Blockchain& bc, const std::string& filename) {
-
     std::ifstream file(filename);
     if (!file.is_open()) return;
 
-    std::string line;
-    std::vector<Block> loadedBlocks;
+    bc.clearChain();
 
-    int index;
-    std::string hash, prevHash;
-    std::vector<Transaction> txs;
-    Transaction currentTx;
+    std::string line;
+    Block* currentBlock = nullptr;
 
     while (std::getline(file, line)) {
 
         if (line == "---") {
-            Block b(index, txs, prevHash);
-            b.hash = hash;
-            loadedBlocks.push_back(b);
-
-            txs.clear();
+            if (currentBlock) {
+                bc.addBlockDirect(*currentBlock);
+                delete currentBlock;
+                currentBlock = nullptr;
+            }
             continue;
         }
 
         std::stringstream ss(line);
         std::string type;
-        getline(ss, type, '|');
+        std::getline(ss, type, '|');
 
         if (type != "TX" && type != "OUT") {
-            std::stringstream ss2(line);
-            std::string idxStr;
+            int index = std::stoi(type);
+            std::string hash, prev;
 
-            getline(ss2, idxStr, '|');
-            getline(ss2, hash, '|');
-            getline(ss2, prevHash, '|');
+            std::getline(ss, hash, '|');
+            std::getline(ss, prev, '|');
 
-            index = std::stoi(idxStr);
+            currentBlock = new Block(index, {}, prev);
+            currentBlock->hash = hash;
         }
-
         else if (type == "TX") {
             std::string id;
-            getline(ss, id, '|');
+            std::getline(ss, id, '|');
 
-            currentTx = Transaction();
-            currentTx.id = id;
+            Transaction tx;
+            tx.id = id;
 
-            txs.push_back(currentTx);
+            currentBlock->transactions.push_back(tx);
         }
-
         else if (type == "OUT") {
             std::string addr, amountStr;
-
-            getline(ss, addr, '|');
-            getline(ss, amountStr, '|');
+            std::getline(ss, addr, '|');
+            std::getline(ss, amountStr, '|');
 
             TxOutput out;
             out.address = addr;
             out.amount = std::stod(amountStr);
 
-            txs.back().outputs.push_back(out);
+            currentBlock->transactions.back().outputs.push_back(out);
         }
     }
-
-    // 🔥 substitui chain inteira
-    bc = Blockchain();
-
-    for (const auto& b : loadedBlocks) {
-        bc.addBlock(b);
-    }
-
-    bc.rebuildUTXO();
-
-    file.close();
 }
