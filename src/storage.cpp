@@ -10,7 +10,7 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
         return;
     }
 
-    std::vector<Block> chain = bc.getChain(); // ✅ usar getter
+    std::vector<Block> chain = bc.getChain();
 
     for (const auto& block : chain) {
         file << "BLOCK\n";
@@ -18,6 +18,7 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
         file << block.prevHash << "\n";
         file << block.hash << "\n";
         file << block.nonce << "\n";
+        file << block.timestamp << "\n"; // 🔥 CORREÇÃO CRÍTICA
 
         for (const auto& tx : block.transactions) {
             file << "TX\n";
@@ -46,7 +47,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
 
     if (!file.is_open()) return;
 
-    bc.clearChain(); // ✅ limpa corretamente
+    bc.clearChain();
 
     std::string line;
     Block* currentBlock = nullptr;
@@ -57,6 +58,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
             int index;
             std::string prevHash, hash;
             int nonce;
+            long timestamp;
 
             file >> index;
             file.ignore();
@@ -67,9 +69,13 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
             file >> nonce;
             file.ignore();
 
+            file >> timestamp;       // 🔥 NOVO
+            file.ignore();
+
             currentBlock = new Block(index, prevHash, {});
             currentBlock->hash = hash;
             currentBlock->nonce = nonce;
+            currentBlock->timestamp = timestamp; // 🔥 CRÍTICO
         }
 
         else if (line == "TX") {
@@ -106,16 +112,14 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
 
         else if (line == "END_BLOCK") {
 
-            // 🔥 VALIDAÇÃO REAL (NÍVEL BITCOIN SIMPLIFICADO)
-
-            // 1. Validar hash
+            // 🔥 valida hash
             if (currentBlock->hash != currentBlock->calculateHash()) {
                 std::cout << "❌ Hash inválido detectado!\n";
                 delete currentBlock;
                 continue;
             }
 
-            // 2. Validar Proof of Work
+            // 🔥 valida PoW
             std::string target(bc.getDifficulty(), '0');
             if (currentBlock->hash.substr(0, bc.getDifficulty()) != target) {
                 std::cout << "❌ PoW inválido!\n";
@@ -123,7 +127,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
                 continue;
             }
 
-            // 3. Validar encadeamento
+            // 🔥 valida encadeamento
             std::vector<Block> currentChain = bc.getChain();
             if (!currentChain.empty()) {
                 if (currentBlock->prevHash != currentChain.back().hash) {
@@ -133,7 +137,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
                 }
             }
 
-            bc.addBlock(*currentBlock); // ✅ método seguro
+            bc.addBlock(*currentBlock);
             delete currentBlock;
         }
     }
