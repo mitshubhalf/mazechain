@@ -1,6 +1,7 @@
 #include "../include/block.h"
 #include <sstream>
 #include <openssl/sha.h>
+#include <iostream>
 
 Block::Block(int idx, std::vector<Transaction> txs, std::string prevHash) {
     index = idx;
@@ -42,9 +43,24 @@ std::string Block::calculateHash() const {
 void Block::mineBlock(int difficulty) {
 
     std::string target(difficulty, '0');
+    int iterations = 0;
+
+    std::cout << "⛏️ Mining block...\n";
 
     while (hash.substr(0, difficulty) != target) {
         nonce++;
         hash = calculateHash();
+        iterations++;
+
+        // 🔥 log de progresso
+        if (iterations % 10000 == 0) {
+            std::cout << "Nonce: " << nonce
+                      << " | Hash: " << hash.substr(0, 16)
+                      << "...\n";
+        }
     }
+
+    std::cout << "✅ Block mined!\n";
+    std::cout << "Nonce final: " << nonce << "\n";
+    std::cout << "Hash: " << hash << "\n";
 }
