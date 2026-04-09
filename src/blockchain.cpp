@@ -14,6 +14,7 @@ const std::vector<Block>& Blockchain::getChain() const {
     return chain;
 }
 
+// 🔥 usado em mineração normal
 void Blockchain::addBlock(Block newBlock) {
 
     newBlock.previousHash = getLatestBlock().hash;
@@ -24,7 +25,7 @@ void Blockchain::addBlock(Block newBlock) {
 
     chain.push_back(newBlock);
 
-    // 🔥 atualizar UTXO
+    // atualizar UTXO
     for (const auto& tx : newBlock.transactions) {
 
         for (const auto& input : tx.inputs) {
@@ -47,6 +48,11 @@ void Blockchain::addBlock(Block newBlock) {
             utxoPool.push_back(utxo);
         }
     }
+}
+
+// 🔥 usado pelo STORAGE (NÃO minera)
+void Blockchain::addBlockFromStorage(const Block& block) {
+    chain.push_back(block);
 }
 
 void Blockchain::addTransaction(const Transaction& tx) {
@@ -105,7 +111,7 @@ void Blockchain::minePendingTransactions(const std::string& minerAddress) {
 
     chain.push_back(newBlock);
 
-    // 🔥 atualizar UTXO
+    // atualizar UTXO
     for (const auto& tx : newBlock.transactions) {
 
         for (const auto& input : tx.inputs) {
@@ -145,4 +151,39 @@ double Blockchain::getBalance(const std::string& address) const {
     }
 
     return balance;
+}
+
+// 🔥 ESSENCIAL depois do load
+void Blockchain::rebuildUTXO() {
+
+    utxoPool.clear();
+
+    for (const auto& block : chain) {
+        for (const auto& tx : block.transactions) {
+
+            // remover inputs
+            for (const auto& input : tx.inputs) {
+                utxoPool.erase(
+                    std::remove_if(utxoPool.begin(), utxoPool.end(),
+                        [&](const UTXO& u) {
+                            return u.txId == input.txId && u.index == input.outputIndex;
+                        }),
+                    utxoPool.end()
+                );
+            }
+
+            // adicionar outputs
+            for (size_t i = 0; i < tx.outputs.size(); i++) {
+                UTXO utxo;
+                utxo.txId = tx.id;
+                utxo.index = i;
+                utxo.address = tx.outputs[i].address;
+                utxo.amount = tx.outputs[i].amount;
+
+                utxoPool.push_back(utxo);
+            }
+        }
+    }
+
+    std::cout << "♻️ UTXO reconstruído!\n";
 }
