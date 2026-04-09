@@ -21,17 +21,17 @@ public:
     Blockchain();
 
     Block getLatestBlock() const;
+    const std::vector<Block>& getChain() const;
+
     void addBlock(Block block);
+    void addBlockFromStorage(const Block& block); // 🔥 IMPORTANTE
 
     void addTransaction(const Transaction& tx);
     void minePendingTransactions(const std::string& minerAddress);
 
     double getBalance(const std::string& address) const;
 
-    const std::vector<Block>& getChain() const;
-
-    // ✅ NOVO
-    void rebuildUTXO();
+    void rebuildUTXO(); // 🔥 reconstruir saldo ao carregar
 };
 
 #endif
