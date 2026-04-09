@@ -1,8 +1,12 @@
 #include "../include/blockchain.h"
+#include "../include/storage.h"
 #include <iostream>
 
 int main(int argc, char* argv[]) {
     Blockchain bc;
+
+    // 🔥 CARREGA blockchain ao iniciar
+    Storage::loadChain(bc, "data/blockchain.dat");
 
     if (argc < 2) {
         std::cout << "Comandos: mine | balance | send\n";
