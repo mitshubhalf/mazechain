@@ -24,7 +24,7 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
             file << tx.vin.size() << "\n";
             for (const auto& in : tx.vin) {
                 file << in.txid << "\n";
-                file << in.vout << "\n";
+                file << in.index << "\n"; // ✅ CORRETO
             }
 
             // OUTPUTS
@@ -83,7 +83,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
             for (int i = 0; i < vinSize; i++) {
                 TxIn in;
                 std::getline(file, in.txid);
-                file >> in.vout;
+                file >> in.index; // ✅ CORRETO
                 file.ignore();
                 vin.push_back(in);
             }
