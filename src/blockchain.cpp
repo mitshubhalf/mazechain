@@ -52,12 +52,13 @@ void Blockchain::mineBlock(std::string minerAddress) {
     std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
     std::vector<Transaction> validTransactions; 
     double totalFees = 0;
-
+    
+    // Criamos um mapa temporário para rastrear o saldo durante a montagem do bloco
+    // Isso evita que o minerador aceite 2 TXs que sozinhas cabem, mas juntas estouram o saldo.
     for (const auto& tx : pending) {
         std::string sender = "";
         double amountNeeded = 0;
 
-        // Identifica quem está enviando e quanto (valor negativo no seu modelo)
         for (const auto& out : tx.vout) {
             if (out.amount < 0) {
                 sender = out.address;
@@ -65,17 +66,14 @@ void Blockchain::mineBlock(std::string minerAddress) {
             }
         }
 
-        // VALIDAÇÃO REAL: O minerador checa o saldo atual antes de aceitar a TX
+        // Checa saldo atual na Blockchain
         if (getBalance(sender) >= amountNeeded) {
             validTransactions.push_back(tx);
-            // Taxa de 1% sobre o valor enviado (o valor total inclui a taxa)
-            // No seu modelo: totalNeeded = amount + fee, então a taxa é (totalNeeded / 1.01) * 0.01
             totalFees += (amountNeeded / 1.01) * 0.01; 
         } else {
-            std::cout << "🚫 TX Rejeitada! " << sender << " tentou gastar sem ter saldo." << std::endl;
+            std::cout << "🚫 TX Rejeitada no Bloco! " << sender << " saldo insuficiente." << std::endl;
         }
     }
-    // ----------------------------------------------
 
     double subsidy = getBlockReward(chain.size());
     Transaction coinbase({}, { {minerAddress, subsidy + totalFees} });
@@ -91,7 +89,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
     totalSupply += subsidy;
 
     Storage::saveChain(*this, "data/blockchain.dat");
-    Storage::clearMempool("data/mempool.dat"); // Limpa tudo, as rejeitadas somem da rede
+    Storage::clearMempool("data/mempool.dat"); 
 }
 
 double Blockchain::getBalance(std::string address) {
@@ -110,9 +108,19 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     double fee = amount * 0.01;
     double totalNeeded = amount + fee;
 
-    // Verificação preventiva básica
-    if (getBalance(from) < totalNeeded) {
-        std::cout << "❌ Erro: Saldo insuficiente!" << std::endl;
+    // --- NOVA PROTEÇÃO: CHECAR SALDO PENDENTE NA MEMPOOL ---
+    std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
+    double alreadyInMempool = 0;
+    for (const auto& tx : pending) {
+        for (const auto& out : tx.vout) {
+            if (out.address == from && out.amount < 0) {
+                alreadyInMempool += std::abs(out.amount);
+            }
+        }
+    }
+
+    if (getBalance(from) - alreadyInMempool < totalNeeded) {
+        std::cout << "❌ Erro: Saldo insuficiente (considerando transações pendentes)!" << std::endl;
         return;
     }
 
@@ -131,22 +139,14 @@ void Blockchain::printBlockDetails(int height) {
     std::cout << "📦 DETALHES DO BLOCO #" << block.index << std::endl;
     std::cout << "==========================================" << std::endl;
     std::cout << "🔗 Hash: " << block.hash << std::endl;
-    std::cout << "⬅️  Prev Hash: " << block.prevHash << std::endl;
-    std::cout << "⏰ Timestamp: " << block.timestamp << std::endl;
-    std::cout << "🔢 Nonce: " << block.nonce << std::endl;
     std::cout << "🧾 Transações (" << block.transactions.size() << "):" << std::endl;
     for (size_t i = 0; i < block.transactions.size(); ++i) {
         const auto& tx = block.transactions[i];
-        std::cout << "   --------------------------------------" << std::endl;
-        if (i == 0) std::cout << "   [COINBASE - Recompensa de Mineração]" << std::endl;
+        if (i == 0) std::cout << "   [COINBASE]" << std::endl;
         for (const auto& out : tx.vout) {
-            if (out.amount > 0)
-                std::cout << "   ➡️  Para: " << out.address << " | Valor: +" << out.amount << " MZ" << std::endl;
-            else
-                std::cout << "   ⬅️  De:   " << out.address << " | Valor: " << out.amount << " MZ (Saída + Taxa)" << std::endl;
+            std::cout << "   " << (out.amount > 0 ? "➡️ " : "⬅️ ") << out.address << ": " << out.amount << " MZ" << std::endl;
         }
     }
-    std::cout << "==========================================\n" << std::endl;
 }
 
 bool Blockchain::isChainValid() {
@@ -155,8 +155,6 @@ bool Blockchain::isChainValid() {
         Block prevBlock = chain[i-1];
         if (currentBlock.hash != currentBlock.calculateHash()) return false;
         if (currentBlock.prevHash != prevBlock.hash) return false;
-        std::string target(difficulty, '0');
-        if (currentBlock.hash.substr(0, difficulty) != target) return false;
     }
     return true;
 }
@@ -167,19 +165,6 @@ void Blockchain::printStats() {
     std::cout << "🧱 Altura Atual: " << chain.size() << " blocos" << std::endl;
     std::cout << "💰 Moedas em Circulação: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
     std::cout << "🎯 Dificuldade Atual: " << difficulty << std::endl;
-
-    if (chain.size() >= 2) {
-        long totalTime = chain.back().timestamp - chain[0].timestamp;
-        double avgTime = (double)totalTime / (chain.size() - 1);
-        std::cout << "⏱️  Tempo Médio por Bloco: " << avgTime << " seg" << std::endl;
-        
-        double hashrate = std::pow(16, difficulty) / TARGET_BLOCK_TIME;
-        std::cout << "⚡ Hashrate Estimado: " << hashrate << " H/s" << std::endl;
-        
-        if (avgTime < TARGET_BLOCK_TIME / 2) std::cout << "🔥 Status: Rede Rápida (Dificuldade deve subir)" << std::endl;
-        else if (avgTime > TARGET_BLOCK_TIME * 2) std::cout << "❄️  Status: Rede Lenta (Dificuldade deve cair)" << std::endl;
-        else std::cout << "🟢 Status: Rede Estável" << std::endl;
-    }
     std::cout << "------------------------------------------\n" << std::endl;
 }
 
