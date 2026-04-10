@@ -1,6 +1,7 @@
 #include "../include/blockchain.h"
 #include "../include/storage.h"
 #include <iostream>
+#include <chrono>
 
 Blockchain::Blockchain() {
     difficulty = 5;
@@ -14,11 +15,9 @@ Block Blockchain::getLastBlock() {
 
 double Blockchain::getBlockReward(int height) {
     if (totalSupply >= 20000000) return 0;
-
     double reward = 250.0;
     int halvings = height / 1000;
     for (int i = 0; i < halvings; i++) reward /= 2.0;
-    
     return reward;
 }
 
@@ -32,15 +31,13 @@ void Blockchain::adjustDifficulty() {
     long timeTaken = lastBlock.timestamp - relayBlock.timestamp;
 
     std::cout << "\n📊 --- AJUSTE DE DIFICULDADE ---" << std::endl;
-    std::cout << "Tempo gasto: " << timeTaken << "s | Esperado: " << timeExpected << "s" << std::endl;
-
     if (timeTaken < timeExpected / 2) {
         difficulty++;
-        std::cout << "🔥 Rede rápida! Dificuldade subiu para: " << difficulty << std::endl;
+        std::cout << "🔥 Rede rápida (" << timeTaken << "s)! Dificuldade: " << difficulty << std::endl;
     } 
     else if (timeTaken > timeExpected * 2) {
         if (difficulty > 1) difficulty--;
-        std::cout << "🧊 Rede lenta! Dificuldade caiu para: " << difficulty << std::endl;
+        std::cout << "🧊 Rede lenta (" << timeTaken << "s)! Dificuldade: " << difficulty << std::endl;
     }
     std::cout << "--------------------------------\n" << std::endl;
 }
@@ -52,7 +49,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
         chain.push_back(genesis);
     }
 
-    if (chain.size() % DIFFICULTY_ADJUSTMENT_INTERVAL == 0 && chain.size() > 0) {
+    if (chain.size() % DIFFICULTY_ADJUSTMENT_INTERVAL == 0) {
         adjustDifficulty();
     }
 
@@ -61,7 +58,15 @@ void Blockchain::mineBlock(std::string minerAddress) {
     Block newBlock(chain.size(), getLastBlock().hash, {coinbase});
 
     std::cout << "⛏️ Mining block " << newBlock.index << " (Diff: " << difficulty << ")..." << std::endl;
+    
+    auto start = std::chrono::high_resolution_clock::now();
     newBlock.mine(difficulty);
+    auto end = std::chrono::high_resolution_clock::now();
+    
+    std::chrono::duration<double> diff = end - start;
+    if (diff.count() > 0) {
+        std::cout << "🚀 Speed: " << (newBlock.nonce / diff.count()) / 1000 << " KH/s" << std::endl;
+    }
 
     chain.push_back(newBlock);
     totalSupply += reward;
@@ -91,9 +96,9 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     Storage::saveChain(*this, "data/blockchain.dat");
 }
 
-// Funções de acesso corrigidas com o prefixo Blockchain::
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
+void Blockchain::setDifficulty(int d) { difficulty = d; }
 void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
 
 void Blockchain::addBlock(const Block& block) {
