@@ -12,9 +12,8 @@ private:
     int difficulty;
     double totalSupply;
 
-    // Configurações de Dificuldade Dinâmica
-    const int DIFFICULTY_ADJUSTMENT_INTERVAL = 10; // Ajusta a cada 10 blocos
-    const int TARGET_BLOCK_TIME = 30;              // Alvo: 30 segundos por bloco
+    const int DIFFICULTY_ADJUSTMENT_INTERVAL = 10; 
+    const int TARGET_BLOCK_TIME = 30;             
 
 public:
     Blockchain();
@@ -24,12 +23,13 @@ public:
     double getBalance(std::string address);
     void send(std::string from, std::string to, double amount);
     
-    // Funções de Gerenciamento
+    // Funções de Gerenciamento e Persistência
     void adjustDifficulty();
     std::vector<Block> getChain() const;
     void addBlock(const Block& block);
     void clearChain();
     int getDifficulty() const;
+    void setDifficulty(int d); // Novo: Para carregar do arquivo
 };
 
 #endif
