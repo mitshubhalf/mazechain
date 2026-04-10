@@ -18,7 +18,7 @@ Block Blockchain::getLastBlock() {
 double Blockchain::getBlockReward(int height) {
     if (totalSupply >= 20000000) return 0;
     double reward = 250.0;
-    int interval = 10;
+    int interval = 10; 
     int h = height;
     while (h >= interval) {
         reward /= 2.0;
@@ -124,27 +124,38 @@ void Blockchain::printBlockDetails(int height) {
     std::cout << "==========================================\n" << std::endl;
 }
 
-// <-- NOVO: Lógica de Verificação -->
 bool Blockchain::isChainValid() {
     for (size_t i = 1; i < chain.size(); i++) {
         Block currentBlock = chain[i];
         Block prevBlock = chain[i-1];
-
-        if (currentBlock.hash != currentBlock.calculateHash()) {
-            std::cout << "🚨 Erro: O Hash do bloco #" << i << " não confere com os dados!" << std::endl;
-            return false;
-        }
-        if (currentBlock.prevHash != prevBlock.hash) {
-            std::cout << "🚨 Erro: O link entre o bloco #" << i << " e o #" << i-1 << " foi quebrado!" << std::endl;
-            return false;
-        }
+        if (currentBlock.hash != currentBlock.calculateHash()) return false;
+        if (currentBlock.prevHash != prevBlock.hash) return false;
         std::string target(difficulty, '0');
-        if (currentBlock.hash.substr(0, difficulty) != target) {
-            std::cout << "🚨 Erro: O bloco #" << i << " não possui Prova de Trabalho válida!" << std::endl;
-            return false;
-        }
+        if (currentBlock.hash.substr(0, difficulty) != target) return false;
     }
     return true;
+}
+
+void Blockchain::printStats() {
+    std::cout << "\n📊 ESTATÍSTICAS DA MAZECHAIN" << std::endl;
+    std::cout << "------------------------------------------" << std::endl;
+    std::cout << "🧱 Altura Atual: " << chain.size() << " blocos" << std::endl;
+    std::cout << "💰 Moedas em Circulação: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
+    std::cout << "🎯 Dificuldade Atual: " << difficulty << std::endl;
+
+    if (chain.size() >= 2) {
+        long totalTime = chain.back().timestamp - chain[0].timestamp;
+        double avgTime = (double)totalTime / (chain.size() - 1);
+        std::cout << "⏱️  Tempo Médio por Bloco: " << avgTime << " seg" << std::endl;
+        
+        double hashrate = std::pow(16, difficulty) / TARGET_BLOCK_TIME;
+        std::cout << "⚡ Hashrate Estimado: " << hashrate << " H/s" << std::endl;
+        
+        if (avgTime < TARGET_BLOCK_TIME / 2) std::cout << "🔥 Status: Rede Rápida (Dificuldade deve subir)" << std::endl;
+        else if (avgTime > TARGET_BLOCK_TIME * 2) std::cout << "❄️  Status: Rede Lenta (Dificuldade deve cair)" << std::endl;
+        else std::cout << "🟢 Status: Rede Estável" << std::endl;
+    }
+    std::cout << "------------------------------------------\n" << std::endl;
 }
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
