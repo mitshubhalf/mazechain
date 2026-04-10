@@ -2,6 +2,7 @@
 #include "../include/storage.h"
 #include <iostream>
 #include <chrono>
+#include <cmath>
 
 Blockchain::Blockchain() {
     difficulty = 5;
@@ -13,16 +14,18 @@ Block Blockchain::getLastBlock() {
     return chain.back();
 }
 
-// LOGICA DE HALVING: 1000, 2000, 4000, 8000...
 double Blockchain::getBlockReward(int height) {
     if (totalSupply >= 20000000) return 0;
+
     double reward = 250.0;
-    int next_halving = 1000;
+    int interval = 1000;
     int h = height;
-    while (h >= next_halving) {
+
+    // Regra: 1000 p/ 250, 2000 p/ 125, 4000 p/ 62.5...
+    while (h >= interval) {
         reward /= 2.0;
-        h -= next_halving;
-        next_halving *= 2; 
+        h -= interval;
+        interval *= 2; 
     }
     return (reward < 0.000001) ? 0 : reward;
 }
@@ -47,7 +50,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
     }
     if (chain.size() % DIFFICULTY_ADJUSTMENT_INTERVAL == 0) adjustDifficulty();
 
-    // Carrega pendentes da Mempool
     std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
     double totalFees = 0;
     for (const auto& tx : pending) {
@@ -63,7 +65,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
     blockTxs.insert(blockTxs.end(), pending.begin(), pending.end());
 
     Block newBlock(chain.size(), getLastBlock().hash, blockTxs);
-    std::cout << "⛏️ Bloco " << newBlock.index << " (Subsídio: " << subsidy << " | Taxas: " << totalFees << ")" << std::endl;
+    std::cout << "⛏️ Bloco " << newBlock.index << " | Subsídio: " << subsidy << " | Taxas: " << totalFees << std::endl;
     
     newBlock.mine(difficulty);
     chain.push_back(newBlock);
@@ -93,16 +95,17 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     }
     Transaction tx({}, { {to, amount}, {from, (amount + fee) * -1} });
     Storage::saveMempool(tx, "data/mempool.dat");
-    std::cout << "✅ Enviado para Mempool! Minere para confirmar." << std::endl;
+    std::cout << "✅ Transação enviada para Mempool!" << std::endl;
 }
 
-// Getters...
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
 void Blockchain::setDifficulty(int d) { difficulty = d; }
 void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
 void Blockchain::addBlock(const Block& block) {
     chain.push_back(block);
-    for(const auto& tx : block.transactions)
-        for(const auto& out : tx.vout) if(out.amount > 0) totalSupply += out.amount;
+    if(!block.transactions.empty()){
+        for(const auto& out : block.transactions[0].vout) 
+            if(out.amount > 0) totalSupply += out.amount;
+    }
 }
