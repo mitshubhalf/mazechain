@@ -39,10 +39,12 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
             std::string tPrev, tHash;
             std::vector<Transaction> tTxs;
 
-            file >> tIdx; file.ignore(1000, '\n');
+            if (!(file >> tIdx)) break;
+            file.ignore(1000, '\n');
             std::getline(file >> std::ws, tPrev);
             std::getline(file >> std::ws, tHash);
-            file >> tNonce; file >> tTime; file.ignore(1000, '\n');
+            if (!(file >> tNonce >> tTime)) break;
+            file.ignore(1000, '\n');
 
             std::string subLine;
             while (file >> subLine && subLine != "END_BLOCK") {
