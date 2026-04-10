@@ -4,11 +4,52 @@
 #include <chrono>
 #include <cmath>
 #include <iomanip>
-#include <openssl/ecdsa.h>
-#include <openssl/obj_mac.h>
-#include <openssl/evp.h>
+#include <sstream>
 #include <openssl/sha.h>
 
+// --- UTILITÁRIO SHA256 ---
+std::string sha256_util(std::string str) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, str.c_str(), str.size());
+    SHA256_Final(hash, &sha256);
+    std::stringstream ss;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    }
+    return ss.str();
+}
+
+// --- IMPLEMENTAÇÃO DA CLASSE BLOCK ---
+Block::Block(int idx, std::string prev, std::vector<Transaction> txs) {
+    index = idx;
+    prevHash = prev;
+    transactions = txs;
+    timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    nonce = 0;
+    hash = calculateHash();
+}
+
+std::string Block::calculateHash() const {
+    std::stringstream ss;
+    ss << index << timestamp << prevHash << nonce;
+    for (const auto& tx : transactions) {
+        ss << tx.id; // Simplificado: usa o ID da transação no hash do bloco
+    }
+    return sha256_util(ss.str());
+}
+
+void Block::mine(int difficulty) {
+    std::string target(difficulty, '0');
+    while (hash.substr(0, difficulty) != target) {
+        nonce++;
+        hash = calculateHash();
+    }
+    std::cout << "🎯 Bloco Minerado! Hash: " << hash << std::endl;
+}
+
+// --- IMPLEMENTAÇÃO DA CLASSE BLOCKCHAIN ---
 Blockchain::Blockchain() {
     difficulty = 5;
     totalSupply = 0;
@@ -33,13 +74,12 @@ double Blockchain::getBlockReward(int height) {
 }
 
 void Blockchain::adjustDifficulty() {
-    if (chain.size() < DIFFICULTY_ADJUSTMENT_INTERVAL) return;
+    if (chain.size() < 10) return;
     const Block& lastBlock = chain.back();
-    const Block& relayBlock = chain[chain.size() - DIFFICULTY_ADJUSTMENT_INTERVAL];
-    long timeExpected = TARGET_BLOCK_TIME * DIFFICULTY_ADJUSTMENT_INTERVAL;
+    const Block& relayBlock = chain[chain.size() - 10];
+    long timeExpected = 60 * 10;
     long timeTaken = lastBlock.timestamp - relayBlock.timestamp;
     if (timeTaken < 1) timeTaken = 1;
-
     if (timeTaken < timeExpected / 2) difficulty++;
     else if (timeTaken > timeExpected * 2 && difficulty > 1) difficulty--;
 }
@@ -50,8 +90,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
         genesis.mine(difficulty);
         chain.push_back(genesis);
     }
-    
-    if (chain.size() % DIFFICULTY_ADJUSTMENT_INTERVAL == 0) adjustDifficulty();
+    adjustDifficulty();
 
     std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
     std::vector<Transaction> validTransactions; 
@@ -60,24 +99,13 @@ void Blockchain::mineBlock(std::string minerAddress) {
     for (const auto& tx : pending) {
         std::string sender = "";
         double amountNeeded = 0;
-
-        for (const auto& out : tx.vout) {
-            if (out.amount < 0) {
-                sender = out.address;
-                amountNeeded = std::abs(out.amount);
-            }
+        for (const auto& out : tx.vout) { 
+            if (out.amount < 0) { sender = out.address; amountNeeded = std::abs(out.amount); } 
         }
 
-        // --- CONSENSO MAZECHAIN ---
-        // 1. Checa Saldo
-        // 2. Verifica Assinatura (Simulada até integrar wallet.cpp real)
-        bool signatureOk = (tx.signature != ""); 
-
-        if (getBalance(sender) >= amountNeeded && signatureOk) {
+        if (getBalance(sender) >= amountNeeded && !tx.signature.empty()) {
             validTransactions.push_back(tx);
             totalFees += (amountNeeded / 1.01) * 0.01; 
-        } else {
-            std::cout << "🚫 TX Bloqueada! Assinatura inválida ou saldo insuficiente: " << sender << std::endl;
         }
     }
 
@@ -89,8 +117,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
     blockTxs.insert(blockTxs.end(), validTransactions.begin(), validTransactions.end());
 
     Block newBlock(chain.size(), getLastBlock().hash, blockTxs);
-    std::cout << "⛏️ Bloco " << newBlock.index << " | Subsídio: " << subsidy << " | Taxas: " << totalFees << std::endl;
-    
     newBlock.mine(difficulty);
     chain.push_back(newBlock);
     totalSupply += subsidy;
@@ -100,51 +126,30 @@ void Blockchain::mineBlock(std::string minerAddress) {
 }
 
 void Blockchain::send(std::string from, std::string to, double amount) {
-    double fee = amount * 0.01;
-    double totalNeeded = amount + fee;
-
-    std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
-    double alreadyInMempool = 0;
-    for (const auto& tx : pending) {
-        for (const auto& out : tx.vout) {
-            if (out.address == from && out.amount < 0) alreadyInMempool += std::abs(out.amount);
-        }
-    }
-
-    if (getBalance(from) - alreadyInMempool < totalNeeded) {
-        std::cout << "❌ Erro: Saldo insuficiente!" << std::endl;
-        return;
-    }
+    double totalNeeded = amount * 1.01;
+    if (getBalance(from) < totalNeeded) { std::cout << "❌ Saldo insuficiente!" << std::endl; return; }
 
     Transaction tx({}, { {to, amount}, {from, totalNeeded * -1} });
-    
-    // --- PROCESSO DE ASSINATURA ECDSA ---
-    std::cout << "🔐 Assinando transação com ECDSA (Secp256k1)..." << std::endl;
-    tx.signature = "3045022100ef" + from.substr(2, 6); 
-    tx.publicKey = "04678af" + from.substr(2, 6); 
+    tx.id = sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(0)));
+    tx.signature = "SIG_AUTH_" + from.substr(2, 6); 
     
     Storage::saveMempool(tx, "data/mempool.dat");
-    std::cout << "✅ Transação enviada com prova criptográfica!" << std::endl;
+    std::cout << "✅ Transação enviada para Mempool!" << std::endl;
 }
 
 double Blockchain::getBalance(std::string address) {
     double balance = 0;
-    for (const auto &block : chain) {
-        for (const auto &tx : block.transactions) {
-            for (const auto &out : tx.vout) {
+    for (const auto &block : chain) 
+        for (const auto &tx : block.transactions) 
+            for (const auto &out : tx.vout) 
                 if (out.address == address) balance += out.amount;
-            }
-        }
-    }
     return balance;
 }
 
 bool Blockchain::isChainValid() {
     for (size_t i = 1; i < chain.size(); i++) {
-        Block currentBlock = chain[i];
-        Block prevBlock = chain[i-1];
-        if (currentBlock.hash != currentBlock.calculateHash()) return false;
-        if (currentBlock.prevHash != prevBlock.hash) return false;
+        if (chain[i].hash != chain[i].calculateHash()) return false;
+        if (chain[i].prevHash != chain[i-1].hash) return false;
     }
     return true;
 }
@@ -152,21 +157,18 @@ bool Blockchain::isChainValid() {
 void Blockchain::printStats() {
     std::cout << "\n📊 ESTATÍSTICAS DA MAZECHAIN" << std::endl;
     std::cout << "------------------------------------------" << std::endl;
-    std::cout << "🧱 Altura Atual: " << chain.size() << " blocos" << std::endl;
-    std::cout << "💰 Moedas em Circulação: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
-    std::cout << "🎯 Dificuldade Atual: " << difficulty << std::endl;
+    std::cout << "🧱 Altura: " << chain.size() << " | 💰 Circulação: " << totalSupply << " MZ" << std::endl;
     std::cout << "------------------------------------------\n" << std::endl;
 }
 
-// Getters e Setters necessários para o funcionamento do sistema
+// --- GETTERS E SETTERS PARA STORAGE ---
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
 void Blockchain::setDifficulty(int d) { difficulty = d; }
 void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
-void Blockchain::addBlock(const Block& block) {
-    chain.push_back(block);
-    if(!block.transactions.empty()){
-        for(const auto& out : block.transactions[0].vout) 
-            if(out.amount > 0) totalSupply += out.amount;
+void Blockchain::addBlock(const Block& block) { 
+    chain.push_back(block); 
+    if(!block.transactions.empty()) {
+        for(auto& out : block.transactions[0].vout) if(out.amount > 0) totalSupply += out.amount;
     }
 }
