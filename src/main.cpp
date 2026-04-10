@@ -3,6 +3,7 @@
 #include "../include/wallet.h"
 #include <iostream>
 #include <sys/stat.h>
+#include <string>
 
 int main(int argc, char* argv[]) {
     #ifdef _WIN32
@@ -15,7 +16,7 @@ int main(int argc, char* argv[]) {
     Storage::loadChain(bc, "data/blockchain.dat");
 
     if (argc < 2) {
-        std::cout << "Usage: ./mazechain [mine/balance/send/wallet/chain/mempool]\n";
+        std::cout << "Usage: ./mazechain [mine/balance/send/wallet/chain/mempool/block]\n";
         return 0;
     }
 
@@ -43,6 +44,14 @@ int main(int argc, char* argv[]) {
     else if (cmd == "chain") {
         for (const auto& b : bc.getChain()) {
             std::cout << "Bloco #" << b.index << " | Hash: " << b.hash.substr(0,10) << " | TXs: " << b.transactions.size() << std::endl;
+        }
+    }
+    else if (cmd == "block" && argc > 2) {
+        try {
+            int height = std::stoi(argv[2]);
+            bc.printBlockDetails(height);
+        } catch (...) {
+            std::cout << "❌ Erro: Forneça um número de bloco válido." << std::endl;
         }
     }
 
