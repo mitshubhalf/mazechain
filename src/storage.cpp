@@ -3,10 +3,15 @@
 #include <fstream>
 #include <iostream>
 
-// Salva a transação na Mempool (Anexa ao arquivo)
+// Salva a transação na Mempool
 void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     std::ofstream file(filename, std::ios::binary | std::ios::app);
     if (!file.is_open()) return;
+
+    // Salva o ID da TX
+    int idSize = tx.id.size();
+    file.write((char*)&idSize, sizeof(int));
+    file.write(tx.id.c_str(), idSize);
 
     int vCount = tx.vout.size();
     file.write((char*)&vCount, sizeof(int));
@@ -19,15 +24,20 @@ void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     file.close();
 }
 
-// Carrega todas as transações da Mempool
+// Carrega a Mempool
 std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
     std::vector<Transaction> txs;
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) return txs;
 
     while (file.peek() != EOF) {
+        int idSize;
+        if (!file.read((char*)&idSize, sizeof(int))) break;
+        std::string id(idSize, ' ');
+        file.read(&id[0], idSize);
+
         int vCount;
-        if (!file.read((char*)&vCount, sizeof(int))) break;
+        file.read((char*)&vCount, sizeof(int));
         
         std::vector<TxOut> vouts;
         for (int k = 0; k < vCount; k++) {
@@ -40,22 +50,21 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
             vouts.push_back({a, amt});
         }
         Transaction t;
+        t.id = id;
         t.vout = vouts;
-        t.id = "mempool_tx"; // ID temporário
-        t.signature = "SIG";  // Assinatura temporária
+        t.signature = "SIG"; 
         txs.push_back(t);
     }
     file.close();
     return txs;
 }
 
-// Limpa a Mempool (Sobrescreve o arquivo com nada)
 void Storage::clearMempool(const std::string& filename) {
     std::ofstream file(filename, std::ios::trunc);
     file.close();
 }
 
-// Salva a Blockchain inteira
+// Salva a Blockchain (Agora com IDs de transação)
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) return;
@@ -83,6 +92,11 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
         int txCount = block.transactions.size();
         file.write((char*)&txCount, sizeof(int));
         for (const auto& tx : block.transactions) {
+            // SALVA ID DA TX
+            int idS = tx.id.size();
+            file.write((char*)&idS, sizeof(int));
+            file.write(tx.id.c_str(), idS);
+
             int vCount = tx.vout.size();
             file.write((char*)&vCount, sizeof(int));
             for (const auto& out : tx.vout) {
@@ -96,7 +110,7 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     file.close();
 }
 
-// Carrega a Blockchain do arquivo
+// Carrega a Blockchain (Recuperando IDs de transação)
 void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) return;
@@ -121,6 +135,10 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
         int txCount; file.read((char*)&txCount, sizeof(int));
         std::vector<Transaction> txs;
         for (int j = 0; j < txCount; j++) {
+            // LE ID DA TX
+            int idS; file.read((char*)&idS, sizeof(int));
+            std::string id(idS, ' '); file.read(&id[0], idS);
+
             int vCount; file.read((char*)&vCount, sizeof(int));
             std::vector<TxOut> vouts;
             for (int k = 0; k < vCount; k++) {
@@ -129,9 +147,12 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
                 double amt; file.read((char*)&amt, sizeof(double));
                 vouts.push_back({a, amt});
             }
-            Transaction t; t.vout = vouts;
+            Transaction t; 
+            t.id = id;
+            t.vout = vouts;
             txs.push_back(t);
         }
+        // Usamos um bloco temporário para carregar os dados exatos
         Block b(index, ph, txs);
         b.hash = h;
         b.timestamp = timestamp;
