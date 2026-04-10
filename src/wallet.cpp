@@ -5,22 +5,26 @@
 #include <sstream>
 #include <iomanip>
 #include <ctime>
-#include <algorithm>
 
-// Lista simplificada de palavras (No Bitcoin real são 2048 palavras)
-const std::vector<std::string> wordlist = {
+// No Bitcoin real, essa lista tem 2048 palavras (BIP-39 english)
+// Aqui está uma amostra representativa. 
+const std::vector<std::string> bip39_words = {
     "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd", "abuse",
     "access", "accident", "account", "accuse", "achieve", "acid", "acoustic", "acquire", "across", "act",
     "action", "actor", "actress", "actual", "adapt", "add", "addict", "address", "adjust", "admit",
-    "adult", "advance", "advice", "aerobic", "affair", "afford", "afraid", "again", "age", "agent"
-    // ... adicione mais palavras se desejar
+    "adult", "advance", "advice", "aerobic", "affair", "afford", "afraid", "again", "age", "agent",
+    "agree", "ahead", "aim", "air", "airport", "aisle", "alarm", "album", "alcohol", "alert"
+    // Para 2048 palavras, o ideal é carregar um arquivo externo .txt
 };
 
 std::string Wallet::generateMnemonic() {
     std::string mnemonic = "";
     std::srand(std::time(0));
+    
     for(int i = 0; i < 12; i++) {
-        mnemonic += wordlist[std::rand() % wordlist.size()];
+        // No sistema real: random index entre 0 e 2047
+        int index = std::rand() % bip39_words.size(); 
+        mnemonic += bip39_words[index];
         if(i < 11) mnemonic += " ";
     }
     return mnemonic;
@@ -31,8 +35,9 @@ std::string Wallet::deriveAddress(std::string mnemonic) {
     SHA256((const unsigned char*)mnemonic.c_str(), mnemonic.length(), hash);
 
     std::stringstream ss;
-    for(int i = 0; i < 20; i++) { // Usamos os primeiros 20 bytes para o endereço
+    // Pegamos os primeiros 20 bytes do hash SHA256 para gerar o endereço
+    for(int i = 0; i < 20; i++) {
         ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
     }
-    return "MZ" + ss.str(); // Prefixo da Mazechain
+    return "MZ" + ss.str(); // Endereço estilo Mazechain
 }
