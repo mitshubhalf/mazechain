@@ -5,13 +5,18 @@
 #include <random>
 
 void Wallet::create() {
-    // Exemplo de lista. Para 2048, você carregaria de um arquivo .txt
-    std::vector<std::string> wordlist = {"abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd", "abuse", "access", "accident", "account", "accuse", "achieve", "acid", "acoustic", "acquire", "across", "act", "action", "actor", "actress", "actual"}; 
+    // Lista para sorteio (Wordlist de 2048 palavras)
+    // Aqui você pode colocar a lista BIP-39 completa depois
+    std::vector<std::string> wordlist = {
+        "abandon", "ability", "able", "about", "above", "absent", 
+        "absorb", "abstract", "absurd", "abuse", "access", "accident"
+        // ... adicione mais palavras se quiser testar ...
+    }; 
 
     std::random_device rd;
     std::mt19937 g(rd());
 
-    // EMBARALHAMENTO: Garante que não há repetição
+    // Embaralha para garantir que não repete
     std::shuffle(wordlist.begin(), wordlist.end(), g);
 
     std::string seed = "";
@@ -19,7 +24,12 @@ void Wallet::create() {
         seed += wordlist[i] + (i == 11 ? "" : " ");
     }
 
-    std::cout << "📝 Seed (12 palavras únicas): " << seed << std::endl;
-    this->address = "MZ" + seed.substr(0, 8); // Simplificação do endereço
-    std::cout << "💳 Addr: " << this->address << std::endl;
+    std::cout << "\n==========================================" << std::endl;
+    std::cout << "📝 SEED GERADA (Guarde em local seguro):" << std::endl;
+    std::cout << seed << std::endl;
+    std::cout << "==========================================\n" << std::endl;
+
+    // Gera um endereço baseado nas primeiras letras da seed (exemplo simples)
+    this->address = "MZ" + wordlist[0].substr(0, 3) + wordlist[1].substr(0, 3);
+    std::cout << "💳 Endereço da Carteira: " << this->address << std::endl;
 }
