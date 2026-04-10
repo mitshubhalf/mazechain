@@ -35,7 +35,7 @@ std::string Block::calculateHash() const {
     std::stringstream ss;
     ss << index << timestamp << prevHash << nonce;
     for (const auto& tx : transactions) {
-        ss << tx.id; // Simplificado: usa o ID da transação no hash do bloco
+        ss << tx.id; 
     }
     return sha256_util(ss.str());
 }
@@ -100,9 +100,13 @@ void Blockchain::mineBlock(std::string minerAddress) {
         std::string sender = "";
         double amountNeeded = 0;
         for (const auto& out : tx.vout) { 
-            if (out.amount < 0) { sender = out.address; amountNeeded = std::abs(out.amount); } 
+            if (out.amount < 0) { 
+                sender = out.address; 
+                amountNeeded = std::abs(out.amount); 
+            } 
         }
 
+        // Validação básica de saldo e assinatura
         if (getBalance(sender) >= amountNeeded && !tx.signature.empty()) {
             validTransactions.push_back(tx);
             totalFees += (amountNeeded / 1.01) * 0.01; 
@@ -110,14 +114,20 @@ void Blockchain::mineBlock(std::string minerAddress) {
     }
 
     double subsidy = getBlockReward(chain.size());
-    Transaction coinbase({}, { {minerAddress, subsidy + totalFees} });
+    
+    // Criação da transação Coinbase (Recompensa + Taxas)
+    Transaction coinbase;
+    coinbase.id = sha256_util("coinbase" + std::to_string(chain.size()));
+    coinbase.vout.push_back({minerAddress, subsidy + totalFees});
     coinbase.signature = "coinbase"; 
 
-    std::vector<Transaction> blockTxs = {coinbase};
-    blockTxs.insert(blockTxs.end(), validTransactions.begin(), validTransactions.end());
+    std::vector<Transaction> blockTxs;
+    blockTxs.push_back(coinbase);
+    for(const auto& t : validTransactions) blockTxs.push_back(t);
 
-    Block newBlock(chain.size(), getLastBlock().hash, blockTxs);
+    Block newBlock(chain.size(), chain.back().hash, blockTxs);
     newBlock.mine(difficulty);
+    
     chain.push_back(newBlock);
     totalSupply += subsidy;
 
@@ -126,11 +136,16 @@ void Blockchain::mineBlock(std::string minerAddress) {
 }
 
 void Blockchain::send(std::string from, std::string to, double amount) {
-    double totalNeeded = amount * 1.01;
-    if (getBalance(from) < totalNeeded) { std::cout << "❌ Saldo insuficiente!" << std::endl; return; }
+    double totalNeeded = amount * 1.01; // 1% de taxa incluída
+    if (getBalance(from) < totalNeeded) { 
+        std::cout << "❌ Saldo insuficiente!" << std::endl; 
+        return; 
+    }
 
-    Transaction tx({}, { {to, amount}, {from, totalNeeded * -1} });
+    Transaction tx;
     tx.id = sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(0)));
+    tx.vout.push_back({to, amount});
+    tx.vout.push_back({from, totalNeeded * -1});
     tx.signature = "SIG_AUTH_" + from.substr(2, 6); 
     
     Storage::saveMempool(tx, "data/mempool.dat");
@@ -157,7 +172,7 @@ bool Blockchain::isChainValid() {
 void Blockchain::printStats() {
     std::cout << "\n📊 ESTATÍSTICAS DA MAZECHAIN" << std::endl;
     std::cout << "------------------------------------------" << std::endl;
-    std::cout << "🧱 Altura: " << chain.size() << " | 💰 Circulação: " << totalSupply << " MZ" << std::endl;
+    std::cout << "🧱 Altura: " << chain.size() << " | 💰 Circulação: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
     std::cout << "------------------------------------------\n" << std::endl;
 }
 
@@ -169,6 +184,9 @@ void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
 void Blockchain::addBlock(const Block& block) { 
     chain.push_back(block); 
     if(!block.transactions.empty()) {
-        for(auto& out : block.transactions[0].vout) if(out.amount > 0) totalSupply += out.amount;
+        // Assume que a primeira TX é sempre a recompensa para o cálculo do supply
+        for(auto& out : block.transactions[0].vout) {
+            if(out.amount > 0) totalSupply += out.amount;
+        }
     }
 }
