@@ -23,13 +23,13 @@ public:
     double getBalance(std::string address);
     void send(std::string from, std::string to, double amount);
     
-    // Funções de Gerenciamento e Persistência
+    // Gerenciamento e Persistência
     void adjustDifficulty();
     std::vector<Block> getChain() const;
     void addBlock(const Block& block);
     void clearChain();
     int getDifficulty() const;
-    void setDifficulty(int d); // Novo: Para carregar do arquivo
+    void setDifficulty(int d); 
 };
 
 #endif
