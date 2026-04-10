@@ -25,7 +25,8 @@ public:
     void send(std::string from, std::string to, double amount);
     
     void printBlockDetails(int height);
-    bool isChainValid(); // <-- NOVO: Para verificar fraudes
+    bool isChainValid();
+    void printStats(); // <-- NOVO: Estatísticas da rede
 
     Block getLastBlock();
     std::vector<Block> getChain() const;
