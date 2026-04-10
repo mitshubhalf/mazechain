@@ -12,20 +12,20 @@ private:
     int difficulty;
     double totalSupply;
 
+    // Configurações de Dificuldade Dinâmica
+    const int DIFFICULTY_ADJUSTMENT_INTERVAL = 10; // Ajusta a cada 10 blocos
+    const int TARGET_BLOCK_TIME = 30;              // Alvo: 30 segundos por bloco
+
 public:
     Blockchain();
-
     Block getLastBlock();
-
     double getBlockReward(int height);
-
     void mineBlock(std::string minerAddress);
-
     double getBalance(std::string address);
-
     void send(std::string from, std::string to, double amount);
-
-    // 🔥 IMPORTANTES PRO STORAGE
+    
+    // Funções de Gerenciamento
+    void adjustDifficulty();
     std::vector<Block> getChain() const;
     void addBlock(const Block& block);
     void clearChain();
