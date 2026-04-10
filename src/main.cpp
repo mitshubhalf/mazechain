@@ -16,45 +16,55 @@ int main(int argc, char* argv[]) {
 
     Blockchain bc;
 
-    // Carrega a blockchain existente
+    // Carrega a blockchain existente para ter os saldos atualizados
     Storage::loadChain(bc, "data/blockchain.dat");
 
     if (argc < 2) {
-        std::cout << "--- 🔗 MAZECHAIN CLI ---" << std::endl;
+        std::cout << "--- 🔗 MAZECHAIN CLI V2 ---" << std::endl;
         std::cout << "Usage: ./mazechain [command] [args]\n\n";
         std::cout << "Commands:\n";
         std::cout << "  wallet create           - Gera uma nova carteira (12 palavras)\n";
-        std::cout << "  wallet load <palavras>  - Recupera endereço de 12 palavras\n";
+        std::cout << "  wallet load <12 words>  - Recupera endereço MZ através da seed\n";
         std::cout << "  mine <address>          - Minera um bloco para recompensar um endereço\n";
-        std::cout << "  balance <address>       - Consulta o saldo de um endereço\n";
-        std::cout << "  send <from> <to> <amt>  - Envia moedas (cobra 1% de taxa)\n";
+        std::cout << "  balance <address>       - Consulta o saldo real (entradas - saídas)\n";
+        std::cout << "  send <from> <to> <amt>  - Envia moedas (taxa de 1% inclusa)\n";
         return 0;
     }
 
     std::string cmd = argv[1];
 
     try {
-        // --- COMANDOS DE WALLET ---
+        // --- COMANDOS DE CARTEIRA (WALLET) ---
         if (cmd == "wallet" && argc > 2) {
             std::string sub = argv[2];
             
             if (sub == "create") {
+                // Chamada static: não precisa de objeto 'Wallet w'
                 std::string mnem = Wallet::generateMnemonic();
                 std::string addr = Wallet::deriveAddress(mnem);
-                std::cout << "✨ NOVA CARTEIRA GERADA!" << std::endl;
-                std::cout << "📝 SEED (12 palavras): " << mnem << std::endl;
+                
+                std::cout << "\n✨ NOVA CARTEIRA GERADA!" << std::endl;
+                std::cout << "------------------------------------------" << std::endl;
+                std::cout << "📝 SEED (12 palavras):\n   " << mnem << std::endl;
+                std::cout << "------------------------------------------" << std::endl;
                 std::cout << "💳 ENDEREÇO: " << addr << std::endl;
-                std::cout << "⚠️  AVISO: Guarde sua SEED em local seguro!" << std::endl;
+                std::cout << "⚠️  AVISO: Se perder a seed, perderá suas moedas!" << std::endl;
             } 
             else if (sub == "load") {
-                if (argc < 15) { // "wallet" + "load" + 12 palavras = 14 argumentos extras
+                if (argc < 14 && argc != 4) { 
                     std::cout << "❌ Erro: Forneça as 12 palavras da sua seed.\n";
                 } else {
                     std::string mnem = "";
-                    for(int i = 3; i < 15; i++) {
-                        mnem += argv[i];
-                        if(i < 14) mnem += " ";
+                    // Se as palavras vierem separadas por espaços
+                    if (argc >= 14) {
+                        for(int i = 3; i < 15; i++) {
+                            mnem += argv[i];
+                            if(i < 14) mnem += " ";
+                        }
+                    } else { // Se vierem entre aspas como um único argumento
+                        mnem = argv[3];
                     }
+                    
                     std::cout << "🔑 CARTEIRA CARREGADA!" << std::endl;
                     std::cout << "💳 ENDEREÇO: " << Wallet::deriveAddress(mnem) << std::endl;
                 }
@@ -65,16 +75,18 @@ int main(int argc, char* argv[]) {
             bc.mineBlock(argv[2]);
         }
         else if (cmd == "balance" && argc > 2) {
-            std::cout << "💰 Balance of " << argv[2] << ": " << bc.getBalance(argv[2]) << "\n";
+            double bal = bc.getBalance(argv[2]);
+            std::cout << "💰 Endereço: " << argv[2] << "\n💵 Saldo: " << bal << " MZ\n";
         }
         else if (cmd == "send" && argc > 4) {
+            // A função send no blockchain.cpp já cuida da taxa de 1%
             bc.send(argv[2], argv[3], std::stod(argv[4]));
         }
         else {
-            std::cout << "❌ Comando inválido ou argumentos faltando.\n";
+            std::cout << "❌ Comando inválido ou argumentos insuficientes.\n";
         }
     } catch (const std::exception& e) {
-        std::cerr << "❌ Erro: " << e.what() << "\n";
+        std::cerr << "❌ Erro de Execução: " << e.what() << "\n";
     }
 
     return 0;
