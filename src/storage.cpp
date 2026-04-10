@@ -6,6 +6,8 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     std::ofstream file(filename, std::ios::trunc);
     if (!file.is_open()) return;
 
+    file << "DIFFICULTY " << bc.getDifficulty() << "\n";
+
     for (const auto& block : bc.getChain()) {
         file << "BLOCK\n" << block.index << "\n" << block.prevHash << "\n" 
              << block.hash << "\n" << block.nonce << "\n" << block.timestamp << "\n";
@@ -32,52 +34,49 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     bc.clearChain();
     std::string line;
 
-    while (std::getline(file >> std::ws, line)) {
-        if (line == "BLOCK") {
+    while (file >> line) {
+        if (line == "DIFFICULTY") {
+            int d;
+            file >> d;
+            bc.setDifficulty(d);
+        } else if (line == "BLOCK") {
             int tIdx, tNonce;
             long tTime;
             std::string tPrev, tHash;
             std::vector<Transaction> tTxs;
 
-            if (!(file >> tIdx)) break;
+            file >> tIdx;
             file.ignore(1000, '\n');
             std::getline(file >> std::ws, tPrev);
             std::getline(file >> std::ws, tHash);
-            if (!(file >> tNonce >> tTime)) break;
-            file.ignore(1000, '\n');
+            file >> tNonce >> tTime;
 
             std::string subLine;
             while (file >> subLine && subLine != "END_BLOCK") {
                 if (subLine == "TX") {
                     int vinS, voutS;
-                    file >> vinS; file.ignore(1000, '\n');
+                    file >> vinS;
                     std::vector<TxIn> vins;
                     for (int i = 0; i < vinS; i++) {
                         TxIn in;
-                        std::getline(file >> std::ws, in.txid);
-                        file >> in.index; file.ignore(1000, '\n');
+                        file >> std::ws; std::getline(file, in.txid);
+                        file >> in.index;
                         vins.push_back(in);
                     }
-                    file >> voutS; file.ignore(1000, '\n');
+                    file >> voutS;
                     std::vector<TxOut> vouts;
                     for (int i = 0; i < voutS; i++) {
                         TxOut out;
-                        std::getline(file >> std::ws, out.address);
-                        file >> out.amount; file.ignore(1000, '\n');
+                        file >> std::ws; std::getline(file, out.address);
+                        file >> out.amount;
                         vouts.push_back(out);
                     }
                     tTxs.push_back(Transaction(vins, vouts));
                 }
             }
-
             Block loadedBlock(tIdx, tPrev, tTxs);
-            loadedBlock.hash = tHash;
-            loadedBlock.nonce = tNonce;
-            loadedBlock.timestamp = tTime;
-
-            if (loadedBlock.hash == loadedBlock.calculateHash()) {
-                bc.addBlock(loadedBlock);
-            }
+            loadedBlock.hash = tHash; loadedBlock.nonce = tNonce; loadedBlock.timestamp = tTime;
+            bc.addBlock(loadedBlock);
         }
     }
 }
