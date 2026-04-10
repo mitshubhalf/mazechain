@@ -3,65 +3,120 @@
 #include <iostream>
 
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
-    std::ofstream file(filename, std::ios::trunc);
+    std::ofstream file(filename, std::ios::binary);
+    if (file.is_open()) {
+        int chainSize = bc.getChain().size();
+        file.write((char*)&chainSize, sizeof(int));
+        for (const auto& block : bc.getChain()) {
+            file.write((char*)&block.index, sizeof(int));
+            file.write((char*)&block.timestamp, sizeof(long));
+            int hashSize = block.hash.size();
+            file.write((char*)&hashSize, sizeof(int));
+            file.write(block.hash.c_str(), hashSize);
+            int prevHashSize = block.previousHash.size();
+            file.write((char*)&prevHashSize, sizeof(int));
+            file.write(block.previousHash.c_str(), prevHashSize);
+            file.write((char*)&block.nonce, sizeof(long));
+
+            int txCount = block.transactions.size();
+            file.write((char*)&txCount, sizeof(int));
+            for (const auto& tx : block.transactions) {
+                int voutCount = tx.vout.size();
+                file.write((char*)&voutCount, sizeof(int));
+                for (const auto& out : tx.vout) {
+                    int addrSize = out.address.size();
+                    file.write((char*)&addrSize, sizeof(int));
+                    file.write(out.address.c_str(), addrSize);
+                    file.write((char*)&out.amount, sizeof(double));
+                }
+            }
+        }
+        file.close();
+    }
+}
+
+void Storage::loadChain(Blockchain& bc, const std::string& filename) {
+    std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) return;
 
-    file << "DIFFICULTY " << bc.getDifficulty() << "\n";
+    bc.clearChain();
+    int chainSize;
+    file.read((char*)&chainSize, sizeof(int));
 
-    for (const auto& block : bc.getChain()) {
-        file << "BLOCK\n" << block.index << "\n" << block.prevHash << "\n" 
-             << block.hash << "\n" << block.nonce << "\n" << block.timestamp << "\n";
+    for (int i = 0; i < chainSize; i++) {
+        int index; long timestamp; long nonce;
+        file.read((char*)&index, sizeof(int));
+        file.read((char*)&timestamp, sizeof(long));
+        int hashSize; file.read((char*)&hashSize, sizeof(int));
+        char* hashBuf = new char[hashSize + 1];
+        file.read(hashBuf, hashSize); hashBuf[hashSize] = '\0';
+        int prevHashSize; file.read((char*)&prevHashSize, sizeof(int));
+        char* prevHashBuf = new char[prevHashSize + 1];
+        file.read(prevHashBuf, prevHashSize); prevHashBuf[prevHashSize] = '\0';
+        file.read((char*)&nonce, sizeof(long));
 
-        for (const auto& tx : block.transactions) {
-            file << "TX\n" << tx.vin.size() << "\n";
-            for (const auto& in : tx.vin) file << in.txid << "\n" << in.index << "\n";
-            file << tx.vout.size() << "\n";
-            for (const auto& out : tx.vout) file << out.address << "\n" << out.amount << "\n";
+        std::vector<Transaction> txs;
+        int txCount; file.read((char*)&txCount, sizeof(int));
+        for (int j = 0; j < txCount; j++) {
+            int voutCount; file.read((char*)&voutCount, sizeof(int));
+            std::vector<VOut> vouts;
+            for (int k = 0; k < voutCount; k++) {
+                int addrSize; file.read((char*)&addrSize, sizeof(int));
+                char* addrBuf = new char[addrSize + 1];
+                file.read(addrBuf, addrSize); addrBuf[addrSize] = '\0';
+                double amount; file.read((char*)&amount, sizeof(double));
+                vouts.push_back({addrBuf, amount});
+                delete[] addrBuf;
+            }
+            txs.push_back({{}, vouts});
         }
-        file << "END_BLOCK\n";
+        Block b(index, prevHashBuf, txs);
+        b.hash = hashBuf; b.timestamp = timestamp; b.nonce = nonce;
+        bc.addBlock(b);
+        delete[] hashBuf; delete[] prevHashBuf;
     }
     file.close();
 }
 
-void Storage::loadChain(Blockchain& bc, const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file.is_open()) return;
-
-    bc.clearChain();
-    std::string line;
-
-    while (file >> line) {
-        if (line == "DIFFICULTY") {
-            int d; file >> d; bc.setDifficulty(d);
-        } else if (line == "BLOCK") {
-            int tIdx, tNonce; long tTime; std::string tPrev, tHash;
-            file >> tIdx; file.ignore(1000, '\n');
-            std::getline(file >> std::ws, tPrev);
-            std::getline(file >> std::ws, tHash);
-            file >> tNonce >> tTime;
-
-            std::vector<Transaction> tTxs;
-            std::string subLine;
-            while (file >> subLine && subLine != "END_BLOCK") {
-                if (subLine == "TX") {
-                    int vinS, voutS; file >> vinS;
-                    std::vector<TxIn> vins;
-                    for (int i = 0; i < vinS; i++) {
-                        TxIn in; file >> std::ws; std::getline(file, in.txid);
-                        file >> in.index; vins.push_back(in);
-                    }
-                    file >> voutS;
-                    std::vector<TxOut> vouts;
-                    for (int i = 0; i < voutS; i++) {
-                        TxOut out; file >> std::ws; std::getline(file, out.address);
-                        file >> out.amount; vouts.push_back(out);
-                    }
-                    tTxs.push_back(Transaction(vins, vouts));
-                }
-            }
-            Block loadedBlock(tIdx, tPrev, tTxs);
-            loadedBlock.hash = tHash; loadedBlock.nonce = tNonce; loadedBlock.timestamp = tTime;
-            bc.addBlock(loadedBlock);
+void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
+    std::ofstream file(filename, std::ios::app | std::ios::binary);
+    if (file.is_open()) {
+        int voutCount = tx.vout.size();
+        file.write((char*)&voutCount, sizeof(int));
+        for (const auto& out : tx.vout) {
+            int addrSize = out.address.size();
+            file.write((char*)&addrSize, sizeof(int));
+            file.write(out.address.c_str(), addrSize);
+            file.write((char*)&out.amount, sizeof(double));
         }
+        file.close();
     }
+}
+
+std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
+    std::vector<Transaction> txs;
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) return txs;
+
+    while (file.peek() != EOF) {
+        int voutCount;
+        if(!file.read((char*)&voutCount, sizeof(int))) break;
+        std::vector<VOut> vouts;
+        for (int k = 0; k < voutCount; k++) {
+            int addrSize; file.read((char*)&addrSize, sizeof(int));
+            char* addrBuf = new char[addrSize + 1];
+            file.read(addrBuf, addrSize); addrBuf[addrSize] = '\0';
+            double amount; file.read((char*)&amount, sizeof(double));
+            vouts.push_back({addrBuf, amount});
+            delete[] addrBuf;
+        }
+        txs.push_back({{}, vouts});
+    }
+    file.close();
+    return txs;
+}
+
+void Storage::clearMempool(const std::string& filename) {
+    std::ofstream file(filename, std::ios::trunc);
+    file.close();
 }
