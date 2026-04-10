@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <string>
-#include <ctime>
 
 struct TxOut {
     std::string address;
@@ -16,14 +15,12 @@ struct TxIn {
 };
 
 struct Transaction {
-    std::string id;
+    std::string id; 
     std::vector<TxIn> vin;
     std::vector<TxOut> vout;
-    std::string signature; // <--- CAMPO ESSENCIAL PARA ECDSA
+    std::string signature; // Assinatura DER em Hex
+    std::string publicKey; // Chave pública para o minerador verificar
 };
 
-// ... (Restante das definições de Block e Blockchain) ...
-// Adicione ou verifique se estas assinaturas existem na classe Blockchain:
-// double getBalance(std::string address);
-// bool verifyTransaction(const Transaction& tx);
+// ... (Restante das definições de classe)
 #endif
