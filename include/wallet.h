@@ -2,21 +2,13 @@
 #define WALLET_H
 
 #include <string>
+#include <vector>
 
 class Wallet {
 public:
-    std::string mnemonic;
-    std::string privateKey;
-    std::string publicKey;
-    std::string address;
-
-    Wallet();
-
-    void generateMnemonic();
-    void generateFromMnemonic();
-
-    void saveToFile(const std::string& filename);
-    void loadFromFile(const std::string& filename);
+    // static permite chamar sem criar um objeto "Wallet w;"
+    static std::string generateMnemonic(); 
+    static std::string deriveAddress(std::string mnemonic);
 };
 
 #endif
