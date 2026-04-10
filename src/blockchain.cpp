@@ -3,6 +3,7 @@
 #include <iostream>
 #include <chrono>
 #include <cmath>
+#include <iomanip>
 
 Blockchain::Blockchain() {
     difficulty = 5;
@@ -18,10 +19,9 @@ double Blockchain::getBlockReward(int height) {
     if (totalSupply >= 20000000) return 0;
 
     double reward = 250.0;
-    int interval = 10;
+    int interval = 10; // Mantido em 10 conforme seu teste de sucesso
     int h = height;
 
-    // Regra: 1000 p/ 250, 2000 p/ 125, 4000 p/ 62.5...
     while (h >= interval) {
         reward /= 2.0;
         h -= interval;
@@ -96,6 +96,38 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     Transaction tx({}, { {to, amount}, {from, (amount + fee) * -1} });
     Storage::saveMempool(tx, "data/mempool.dat");
     std::cout << "✅ Transação enviada para Mempool!" << std::endl;
+}
+
+// Nova função para detalhar o bloco
+void Blockchain::printBlockDetails(int height) {
+    if (height < 0 || height >= (int)chain.size()) {
+        std::cout << "❌ Erro: Bloco " << height << " não encontrado!" << std::endl;
+        return;
+    }
+
+    const Block& block = chain[height];
+    std::cout << "\n==========================================" << std::endl;
+    std::cout << "📦 DETALHES DO BLOCO #" << block.index << std::endl;
+    std::cout << "==========================================" << std::endl;
+    std::cout << "🔗 Hash: " << block.hash << std::endl;
+    std::cout << "⬅️  Prev Hash: " << block.prevHash << std::endl;
+    std::cout << "⏰ Timestamp: " << block.timestamp << std::endl;
+    std::cout << "🔢 Nonce: " << block.nonce << std::endl;
+    std::cout << "🧾 Transações (" << block.transactions.size() << "):" << std::endl;
+
+    for (size_t i = 0; i < block.transactions.size(); ++i) {
+        const auto& tx = block.transactions[i];
+        std::cout << "   --------------------------------------" << std::endl;
+        if (i == 0) std::cout << "   [COINBASE - Recompensa de Mineração]" << std::endl;
+        
+        for (const auto& out : tx.vout) {
+            if (out.amount > 0)
+                std::cout << "   ➡️  Para: " << out.address << " | Valor: +" << out.amount << " MZ" << std::endl;
+            else
+                std::cout << "   ⬅️  De:   " << out.address << " | Valor: " << out.amount << " MZ (Saída + Taxa)" << std::endl;
+        }
+    }
+    std::cout << "==========================================\n" << std::endl;
 }
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
