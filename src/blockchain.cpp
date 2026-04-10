@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <sstream>
 #include <openssl/sha.h>
+#include <map>
 
 // --- UTILITÁRIO SHA256 ---
 std::string sha256_util(std::string str) {
@@ -34,8 +35,12 @@ Block::Block(int idx, std::string prev, std::vector<Transaction> txs) {
 std::string Block::calculateHash() const {
     std::stringstream ss;
     ss << index << timestamp << prevHash << nonce;
+    // RECOLOCADO: Detalhes das transações no hash para garantir que o verify funcione
     for (const auto& tx : transactions) {
-        ss << tx.id; 
+        ss << tx.id;
+        for (const auto& out : tx.vout) {
+            ss << out.address << out.amount;
+        }
     }
     return sha256_util(ss.str());
 }
@@ -61,7 +66,7 @@ Block Blockchain::getLastBlock() {
 }
 
 double Blockchain::getBlockReward(int height) {
-    if (totalSupply >= 20000000) return 0;
+    if (totalSupply >= 21000000) return 0; // Limite total
     double reward = 250.0;
     int interval = 10; 
     int h = height;
@@ -96,28 +101,35 @@ void Blockchain::mineBlock(std::string minerAddress) {
     std::vector<Transaction> validTransactions; 
     double totalFees = 0;
 
+    // RECOLOCADO: Proteção contra gasto duplo no mesmo bloco
+    std::map<std::string, double> spendingInThisBlock;
+
     for (const auto& tx : pending) {
         std::string sender = "";
-        double amountNeeded = 0;
+        double amountWithFee = 0;
         for (const auto& out : tx.vout) { 
             if (out.amount < 0) { 
                 sender = out.address; 
-                amountNeeded = std::abs(out.amount); 
+                amountWithFee = std::abs(out.amount); 
             } 
         }
 
-        // Validação básica de saldo e assinatura
-        if (getBalance(sender) >= amountNeeded && !tx.signature.empty()) {
+        // Validação de saldo considerando o que já foi gasto neste bloco
+        double currentBalance = getBalance(sender) - spendingInThisBlock[sender];
+
+        if (currentBalance >= amountWithFee && !tx.signature.empty()) {
             validTransactions.push_back(tx);
-            totalFees += (amountNeeded / 1.01) * 0.01; 
+            spendingInThisBlock[sender] += amountWithFee;
+            totalFees += (amountWithFee / 1.01) * 0.01; 
+        } else {
+            std::cout << "⚠️ TX Ignorada: Saldo insuficiente para " << sender << std::endl;
         }
     }
 
     double subsidy = getBlockReward(chain.size());
     
-    // Criação da transação Coinbase (Recompensa + Taxas)
     Transaction coinbase;
-    coinbase.id = sha256_util("coinbase" + std::to_string(chain.size()));
+    coinbase.id = sha256_util("coinbase" + std::to_string(chain.size()) + minerAddress);
     coinbase.vout.push_back({minerAddress, subsidy + totalFees});
     coinbase.signature = "coinbase"; 
 
@@ -136,7 +148,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
 }
 
 void Blockchain::send(std::string from, std::string to, double amount) {
-    double totalNeeded = amount * 1.01; // 1% de taxa incluída
+    double totalNeeded = amount * 1.01; // 1% de taxa
     if (getBalance(from) < totalNeeded) { 
         std::cout << "❌ Saldo insuficiente!" << std::endl; 
         return; 
@@ -181,10 +193,11 @@ std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
 void Blockchain::setDifficulty(int d) { difficulty = d; }
 void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
+
 void Blockchain::addBlock(const Block& block) { 
     chain.push_back(block); 
     if(!block.transactions.empty()) {
-        // Assume que a primeira TX é sempre a recompensa para o cálculo do supply
+        // Recalcula o supply baseado apenas nas recompensas de mineração (Coinbase)
         for(auto& out : block.transactions[0].vout) {
             if(out.amount > 0) totalSupply += out.amount;
         }
