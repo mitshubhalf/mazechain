@@ -2,13 +2,18 @@
 #define STORAGE_H
 
 #include "blockchain.h"
+#include <vector>
 #include <string>
 
-namespace Storage {
-
-void saveChain(const Blockchain &bc, const std::string& filename = "chain.txt");
-void loadChain(Blockchain &bc, const std::string& filename = "chain.txt");
-
-}
+class Storage {
+public:
+    static void saveChain(const Blockchain& bc, const std::string& filename);
+    static void loadChain(Blockchain& bc, const std::string& filename);
+    
+    // Novas funções para Mempool
+    static void saveMempool(const Transaction& tx, const std::string& filename);
+    static std::vector<Transaction> loadMempool(const std::string& filename);
+    static void clearMempool(const std::string& filename);
+};
 
 #endif
