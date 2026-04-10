@@ -1,51 +1,37 @@
 #ifndef BLOCKCHAIN_H
 #define BLOCKCHAIN_H
 
-#include <string>
 #include <vector>
+#include <string>
+#include "block.h"
 
-struct VOut {
-    std::string address;
-    double amount;
-};
-
-struct Transaction {
-    std::vector<std::string> vin;
-    std::vector<VOut> vout;
-    Transaction() {}
-    Transaction(std::vector<std::string> i, std::vector<VOut> o) : vin(i), vout(o) {}
-};
-
-class Block {
-public:
-    int index;
-    long timestamp;
-    std::string hash;
-    std::string prevHash; 
-    long nonce;
-    std::vector<Transaction> transactions;
-
-    Block(int idx, std::string prev, std::vector<Transaction> txs);
-    std::string calculateHash() const;
-    void mine(int difficulty);
-};
+// Configurações da Rede
+const int DIFFICULTY_ADJUSTMENT_INTERVAL = 10; // Ajusta a cada 10 blocos
+const int TARGET_BLOCK_TIME = 60;              // Alvo de 60 segundos por bloco
 
 class Blockchain {
 private:
     std::vector<Block> chain;
     int difficulty;
     double totalSupply;
-    const int DIFFICULTY_ADJUSTMENT_INTERVAL = 10;
-    const int TARGET_BLOCK_TIME = 30;
+
+    // Funções internas de auxílio
+    void adjustDifficulty();
+    double getBlockReward(int height);
 
 public:
     Blockchain();
+
+    // Funções Principais
     void mineBlock(std::string minerAddress);
     double getBalance(std::string address);
     void send(std::string from, std::string to, double amount);
+    
+    // Visualização e Auditoria
+    void printBlockDetails(int height); // A LINHA QUE FALTAVA
+    
+    // Getters e Utilitários
     Block getLastBlock();
-    double getBlockReward(int height);
-    void adjustDifficulty();
     std::vector<Block> getChain() const;
     int getDifficulty() const;
     void setDifficulty(int d);
