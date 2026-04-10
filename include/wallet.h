@@ -6,9 +6,14 @@
 
 class Wallet {
 public:
-    // static permite chamar sem criar um objeto "Wallet w;"
-    static std::string generateMnemonic(); 
-    static std::string deriveAddress(std::string mnemonic);
+    std::string address;
+    
+    // Esta linha é a que estava faltando:
+    void create(); 
+    
+    // Funções auxiliares que você pode precisar
+    bool load();
+    void save(const std::string& seed);
 };
 
 #endif
