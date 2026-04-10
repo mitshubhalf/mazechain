@@ -18,7 +18,7 @@ double Blockchain::getBlockReward(int height) {
     if (totalSupply >= 20000000) return 0;
 
     double reward = 250.0;
-    int interval = 1000;
+    int interval = 10;
     int h = height;
 
     // Regra: 1000 p/ 250, 2000 p/ 125, 4000 p/ 62.5...
