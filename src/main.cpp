@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     Storage::loadChain(bc, "data/blockchain.dat");
 
     if (argc < 2) {
-        std::cout << "Usage: ./mazechain [mine/balance/send/wallet/chain/mempool/block/verify]\n";
+        std::cout << "Usage: ./mazechain [mine/balance/send/wallet/chain/mempool/block/verify/stats]\n";
         return 0;
     }
 
@@ -48,19 +48,17 @@ int main(int argc, char* argv[]) {
     }
     else if (cmd == "block" && argc > 2) {
         try {
-            int height = std::stoi(argv[2]);
-            bc.printBlockDetails(height);
+            bc.printBlockDetails(std::stoi(argv[2]));
         } catch (...) {
             std::cout << "❌ Erro: Forneça um número de bloco válido." << std::endl;
         }
     }
-    // <-- NOVO: Comando de Verificação -->
     else if (cmd == "verify") {
-        if (bc.isChainValid()) {
-            std::cout << "✅ Blockchain íntegra! Todos os blocos estão validados." << std::endl;
-        } else {
-            std::cout << "🚨 ALERTA: Blockchain corrompida ou fraudada detectada!" << std::endl;
-        }
+        if (bc.isChainValid()) std::cout << "✅ Blockchain íntegra!" << std::endl;
+        else std::cout << "🚨 ALERTA: Fraude detectada!" << std::endl;
+    }
+    else if (cmd == "stats") {
+        bc.printStats();
     }
 
     return 0;
