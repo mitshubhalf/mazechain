@@ -1,19 +1,14 @@
 #include "../include/storage.h"
 #include <fstream>
 #include <iostream>
-#include <vector>
 
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     std::ofstream file(filename, std::ios::trunc);
     if (!file.is_open()) return;
 
     for (const auto& block : bc.getChain()) {
-        file << "BLOCK\n" 
-             << block.index << "\n" 
-             << block.prevHash << "\n" 
-             << block.hash << "\n" 
-             << block.nonce << "\n"
-             << block.timestamp << "\n"; // 🔥 SALVANDO O TIMESTAMP
+        file << "BLOCK\n" << block.index << "\n" << block.prevHash << "\n" 
+             << block.hash << "\n" << block.nonce << "\n" << block.timestamp << "\n";
 
         for (const auto& tx : block.transactions) {
             file << "TX\n" << tx.vin.size() << "\n";
@@ -44,13 +39,10 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
             std::string tPrev, tHash;
             std::vector<Transaction> tTxs;
 
-            if (!(file >> tIdx)) break;
-            file.ignore(1000, '\n');
+            file >> tIdx; file.ignore(1000, '\n');
             std::getline(file >> std::ws, tPrev);
             std::getline(file >> std::ws, tHash);
-            if (!(file >> tNonce)) break;
-            if (!(file >> tTime)) break; // 🔥 LENDO O TIMESTAMP
-            file.ignore(1000, '\n');
+            file >> tNonce; file >> tTime; file.ignore(1000, '\n');
 
             std::string subLine;
             while (file >> subLine && subLine != "END_BLOCK") {
@@ -79,14 +71,11 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
             Block loadedBlock(tIdx, tPrev, tTxs);
             loadedBlock.hash = tHash;
             loadedBlock.nonce = tNonce;
-            loadedBlock.timestamp = tTime; // 🔥 REAPLICANDO O TIMESTAMP ORIGINAL
+            loadedBlock.timestamp = tTime;
 
             if (loadedBlock.hash == loadedBlock.calculateHash()) {
                 bc.addBlock(loadedBlock);
-            } else {
-                std::cerr << "❌ Bloco " << tIdx << " corrompido (Hash mismatch).\n";
             }
         }
     }
-    file.close();
 }
