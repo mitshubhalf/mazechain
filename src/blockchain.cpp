@@ -3,7 +3,7 @@
 #include <iostream>
 
 Blockchain::Blockchain() {
-    difficulty = 5; // Começa na dificuldade 5
+    difficulty = 5;
     totalSupply = 0;
 }
 
@@ -13,7 +13,7 @@ Block Blockchain::getLastBlock() {
 }
 
 double Blockchain::getBlockReward(int height) {
-    if (totalSupply >= 20000000) return 0; // Limite de 20 Milhões
+    if (totalSupply >= 20000000) return 0;
 
     double reward = 250.0;
     int halvings = height / 1000;
@@ -52,8 +52,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
         chain.push_back(genesis);
     }
 
-    // Ajusta a dificuldade a cada 10 blocos
-    if (chain.size() % DIFFICULTY_ADJUSTMENT_INTERVAL == 0) {
+    if (chain.size() % DIFFICULTY_ADJUSTMENT_INTERVAL == 0 && chain.size() > 0) {
         adjustDifficulty();
     }
 
@@ -92,9 +91,10 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     Storage::saveChain(*this, "data/blockchain.dat");
 }
 
-std::vector<Block> getChain() const { return chain; }
-int getDifficulty() const { return difficulty; }
-void clearChain() { chain.clear(); totalSupply = 0; }
+// Funções de acesso corrigidas com o prefixo Blockchain::
+std::vector<Block> Blockchain::getChain() const { return chain; }
+int Blockchain::getDifficulty() const { return difficulty; }
+void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
 
 void Blockchain::addBlock(const Block& block) {
     chain.push_back(block);
