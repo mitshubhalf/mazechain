@@ -3,37 +3,27 @@
 
 #include <vector>
 #include <string>
-#include "block.h"
+#include <ctime>
 
-const int DIFFICULTY_ADJUSTMENT_INTERVAL = 10;
-const int TARGET_BLOCK_TIME = 60;
-
-class Blockchain {
-private:
-    std::vector<Block> chain;
-    int difficulty;
-    double totalSupply;
-
-    void adjustDifficulty();
-    double getBlockReward(int height);
-
-public:
-    Blockchain();
-
-    void mineBlock(std::string minerAddress);
-    double getBalance(std::string address);
-    void send(std::string from, std::string to, double amount);
-    
-    void printBlockDetails(int height);
-    bool isChainValid();
-    void printStats(); // <-- NOVO: Estatísticas da rede
-
-    Block getLastBlock();
-    std::vector<Block> getChain() const;
-    int getDifficulty() const;
-    void setDifficulty(int d);
-    void clearChain();
-    void addBlock(const Block& block);
+struct TxOut {
+    std::string address;
+    double amount;
 };
 
+struct TxIn {
+    std::string prevTxId;
+    int outIndex;
+};
+
+struct Transaction {
+    std::string id;
+    std::vector<TxIn> vin;
+    std::vector<TxOut> vout;
+    std::string signature; // <--- CAMPO ESSENCIAL PARA ECDSA
+};
+
+// ... (Restante das definições de Block e Blockchain) ...
+// Adicione ou verifique se estas assinaturas existem na classe Blockchain:
+// double getBalance(std::string address);
+// bool verifyTransaction(const Transaction& tx);
 #endif
