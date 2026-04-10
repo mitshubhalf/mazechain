@@ -39,7 +39,6 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) return;
     int chainSize;
-    // TRAVA 1: Se o tamanho for absurdo, aborta
     if (!file.read((char*)&chainSize, sizeof(int)) || chainSize < 0 || chainSize > 1000000) return;
     bc.clearChain();
     for (int i = 0; i < chainSize; i++) {
@@ -47,7 +46,6 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
         file.read((char*)&index, sizeof(int));
         file.read((char*)&timestamp, sizeof(long));
         
-        // TRAVA 2: Proteção de strings
         int hSize; file.read((char*)&hSize, sizeof(int));
         if(hSize < 0 || hSize > 1024) break;
         std::string h(hSize, ' '); file.read(&h[0], hSize);
@@ -63,7 +61,7 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
 
         for (int j = 0; j < txCount; j++) {
             int vCount; file.read((char*)&vCount, sizeof(int));
-            std::vector<VOut> vouts;
+            std::vector<TxOut> vouts; // CORRIGIDO: de VOut para TxOut
             for (int k = 0; k < vCount; k++) {
                 int aSize; file.read((char*)&aSize, sizeof(int));
                 if(aSize < 0 || aSize > 512) break;
@@ -100,7 +98,7 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
     while (file.peek() != EOF) {
         int vCount; if(!file.read((char*)&vCount, sizeof(int))) break;
         if(vCount < 0 || vCount > 1000) break;
-        std::vector<VOut> vouts;
+        std::vector<TxOut> vouts; // CORRIGIDO: de VOut para TxOut
         for (int k = 0; k < vCount; k++) {
             int aSize; file.read((char*)&aSize, sizeof(int));
             if(aSize < 0 || aSize > 512) break;
