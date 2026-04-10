@@ -7,6 +7,7 @@
 #include <sstream>
 #include <openssl/sha.h>
 #include <map>
+#include <ctime>
 
 // --- UTILITÁRIO SHA256 ---
 std::string sha256_util(std::string str) {
@@ -27,19 +28,20 @@ Block::Block(int idx, std::string prev, std::vector<Transaction> txs) {
     index = idx;
     prevHash = prev;
     transactions = txs;
-    timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    // MELHORIA: Define o timestamp uma única vez na criação
+    timestamp = std::time(0); 
     nonce = 0;
     hash = calculateHash();
 }
 
 std::string Block::calculateHash() const {
     std::stringstream ss;
-    // Adicionado fixed e setprecision para garantir que o timestamp e valores não variem no hash
-    ss << index << timestamp << prevHash << nonce;
+    // MELHORIA: Cast para long long garante que o número seja tratado como texto fixo
+    ss << index << (long long)timestamp << prevHash << nonce;
     for (const auto& tx : transactions) {
         ss << tx.id;
         for (const auto& out : tx.vout) {
-            // ESSENCIAL: Garante que 10.0 e 10.00000000 gerem o mesmo hash
+            // MELHORIA: Precisão de 8 casas decimais evita erro de arredondamento no hash
             ss << out.address << std::fixed << std::setprecision(8) << out.amount;
         }
     }
@@ -126,7 +128,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     double subsidy = getBlockReward(chain.size());
     Transaction coinbase;
-    // Adicionado minerAddress no ID para evitar colisões de hash
     coinbase.id = sha256_util("coinbase" + std::to_string(chain.size()) + minerAddress);
     coinbase.vout.push_back({minerAddress, subsidy + totalFees});
     coinbase.signature = "coinbase"; 
@@ -139,7 +140,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
     newBlock.mine(difficulty);
     
     chain.push_back(newBlock);
-    // Aqui somamos apenas o subsídio ao suprimento global
     totalSupply += subsidy;
 
     Storage::saveChain(*this, "data/blockchain.dat");
@@ -174,11 +174,8 @@ double Blockchain::getBalance(std::string address) {
 
 bool Blockchain::isChainValid() {
     for (size_t i = 1; i < chain.size(); i++) {
-        // O calculateHash() agora é estável entre sessões
-        if (chain[i].hash != chain[i].calculateHash()) {
-             std::cout << "Debug: Bloco " << i << " hash corrompido." << std::endl;
-             return false;
-        }
+        // Agora o hash calculado será idêntico ao hash salvo, pois o timestamp é fixo
+        if (chain[i].hash != chain[i].calculateHash()) return false;
         if (chain[i].prevHash != chain[i-1].hash) return false;
     }
     return true;
@@ -188,6 +185,7 @@ void Blockchain::printStats() {
     std::cout << "\n📊 ESTATÍSTICAS DA MAZECHAIN" << std::endl;
     std::cout << "------------------------------------------" << std::endl;
     std::cout << "🧱 Altura: " << chain.size() << " | 💰 Circulação: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
+    std::cout << "⚙️ Dificuldade: " << difficulty << std::endl;
     std::cout << "------------------------------------------\n" << std::endl;
 }
 
@@ -198,9 +196,8 @@ void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
 
 void Blockchain::addBlock(const Block& block) { 
     chain.push_back(block); 
-    // Correção na reconstrução do totalSupply para manter consistência no Halving
+    // RECONSTRUÇÃO: Usa o prêmio teórico para evitar erros de soma com taxas
     if(!block.transactions.empty()) {
-        double rewardCalculada = getBlockReward(block.index);
-        totalSupply += rewardCalculada;
+        totalSupply += getBlockReward(block.index);
     }
 }
