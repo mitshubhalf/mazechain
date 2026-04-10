@@ -12,8 +12,6 @@ struct VOut {
 struct Transaction {
     std::vector<std::string> vin;
     std::vector<VOut> vout;
-
-    // Adicione esses construtores para aceitar a sintaxe de chaves { }
     Transaction() {}
     Transaction(std::vector<std::string> i, std::vector<VOut> o) : vin(i), vout(o) {}
 };
@@ -45,11 +43,9 @@ public:
     void mineBlock(std::string minerAddress);
     double getBalance(std::string address);
     void send(std::string from, std::string to, double amount);
-    
     Block getLastBlock();
     double getBlockReward(int height);
     void adjustDifficulty();
-    
     std::vector<Block> getChain() const;
     int getDifficulty() const;
     void setDifficulty(int d);
