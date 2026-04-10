@@ -8,12 +8,8 @@ class Wallet {
 public:
     std::string address;
     
-    // Esta linha é a que estava faltando:
+    // Esta função gera a seed de 2048 palavras e o endereço
     void create(); 
-    
-    // Funções auxiliares que você pode precisar
-    bool load();
-    void save(const std::string& seed);
 };
 
 #endif
