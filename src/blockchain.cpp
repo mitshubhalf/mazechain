@@ -17,11 +17,9 @@ Block Blockchain::getLastBlock() {
 
 double Blockchain::getBlockReward(int height) {
     if (totalSupply >= 20000000) return 0;
-
     double reward = 250.0;
-    int interval = 10; // Mantido em 10 conforme seu teste de sucesso
+    int interval = 10;
     int h = height;
-
     while (h >= interval) {
         reward /= 2.0;
         h -= interval;
@@ -98,13 +96,11 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     std::cout << "✅ Transação enviada para Mempool!" << std::endl;
 }
 
-// Nova função para detalhar o bloco
 void Blockchain::printBlockDetails(int height) {
     if (height < 0 || height >= (int)chain.size()) {
         std::cout << "❌ Erro: Bloco " << height << " não encontrado!" << std::endl;
         return;
     }
-
     const Block& block = chain[height];
     std::cout << "\n==========================================" << std::endl;
     std::cout << "📦 DETALHES DO BLOCO #" << block.index << std::endl;
@@ -114,12 +110,10 @@ void Blockchain::printBlockDetails(int height) {
     std::cout << "⏰ Timestamp: " << block.timestamp << std::endl;
     std::cout << "🔢 Nonce: " << block.nonce << std::endl;
     std::cout << "🧾 Transações (" << block.transactions.size() << "):" << std::endl;
-
     for (size_t i = 0; i < block.transactions.size(); ++i) {
         const auto& tx = block.transactions[i];
         std::cout << "   --------------------------------------" << std::endl;
         if (i == 0) std::cout << "   [COINBASE - Recompensa de Mineração]" << std::endl;
-        
         for (const auto& out : tx.vout) {
             if (out.amount > 0)
                 std::cout << "   ➡️  Para: " << out.address << " | Valor: +" << out.amount << " MZ" << std::endl;
@@ -128,6 +122,29 @@ void Blockchain::printBlockDetails(int height) {
         }
     }
     std::cout << "==========================================\n" << std::endl;
+}
+
+// <-- NOVO: Lógica de Verificação -->
+bool Blockchain::isChainValid() {
+    for (size_t i = 1; i < chain.size(); i++) {
+        Block currentBlock = chain[i];
+        Block prevBlock = chain[i-1];
+
+        if (currentBlock.hash != currentBlock.calculateHash()) {
+            std::cout << "🚨 Erro: O Hash do bloco #" << i << " não confere com os dados!" << std::endl;
+            return false;
+        }
+        if (currentBlock.prevHash != prevBlock.hash) {
+            std::cout << "🚨 Erro: O link entre o bloco #" << i << " e o #" << i-1 << " foi quebrado!" << std::endl;
+            return false;
+        }
+        std::string target(difficulty, '0');
+        if (currentBlock.hash.substr(0, difficulty) != target) {
+            std::cout << "🚨 Erro: O bloco #" << i << " não possui Prova de Trabalho válida!" << std::endl;
+            return false;
+        }
+    }
+    return true;
 }
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
