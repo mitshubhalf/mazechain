@@ -10,12 +10,16 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
         for (const auto& block : bc.getChain()) {
             file.write((char*)&block.index, sizeof(int));
             file.write((char*)&block.timestamp, sizeof(long));
+            
             int hashSize = block.hash.size();
             file.write((char*)&hashSize, sizeof(int));
             file.write(block.hash.c_str(), hashSize);
-            int prevHashSize = block.previousHash.size();
+            
+            // CORREÇÃO: Usando prevHash em vez de previousHash
+            int prevHashSize = block.prevHash.size();
             file.write((char*)&prevHashSize, sizeof(int));
-            file.write(block.previousHash.c_str(), prevHashSize);
+            file.write(block.prevHash.c_str(), prevHashSize);
+            
             file.write((char*)&block.nonce, sizeof(long));
 
             int txCount = block.transactions.size();
@@ -47,33 +51,43 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
         int index; long timestamp; long nonce;
         file.read((char*)&index, sizeof(int));
         file.read((char*)&timestamp, sizeof(long));
+        
         int hashSize; file.read((char*)&hashSize, sizeof(int));
         char* hashBuf = new char[hashSize + 1];
         file.read(hashBuf, hashSize); hashBuf[hashSize] = '\0';
+        
         int prevHashSize; file.read((char*)&prevHashSize, sizeof(int));
         char* prevHashBuf = new char[prevHashSize + 1];
         file.read(prevHashBuf, prevHashSize); prevHashBuf[prevHashSize] = '\0';
+        
         file.read((char*)&nonce, sizeof(long));
 
         std::vector<Transaction> txs;
         int txCount; file.read((char*)&txCount, sizeof(int));
         for (int j = 0; j < txCount; j++) {
             int voutCount; file.read((char*)&voutCount, sizeof(int));
-            std::vector<VOut> vouts;
+            std::vector<VOut> vouts; // Agora o compilador reconhecerá VOut
             for (int k = 0; k < voutCount; k++) {
                 int addrSize; file.read((char*)&addrSize, sizeof(int));
                 char* addrBuf = new char[addrSize + 1];
                 file.read(addrBuf, addrSize); addrBuf[addrSize] = '\0';
                 double amount; file.read((char*)&amount, sizeof(double));
-                vouts.push_back({addrBuf, amount});
+                
+                vouts.push_back({std::string(addrBuf), amount});
                 delete[] addrBuf;
             }
             txs.push_back({{}, vouts});
         }
-        Block b(index, prevHashBuf, txs);
-        b.hash = hashBuf; b.timestamp = timestamp; b.nonce = nonce;
+        
+        // CORREÇÃO: Passando os parâmetros para o construtor do Block
+        Block b(index, std::string(prevHashBuf), txs);
+        b.hash = std::string(hashBuf); 
+        b.timestamp = timestamp; 
+        b.nonce = nonce;
+        
         bc.addBlock(b);
-        delete[] hashBuf; delete[] prevHashBuf;
+        delete[] hashBuf; 
+        delete[] prevHashBuf;
     }
     file.close();
 }
@@ -101,13 +115,15 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
     while (file.peek() != EOF) {
         int voutCount;
         if(!file.read((char*)&voutCount, sizeof(int))) break;
+        
         std::vector<VOut> vouts;
         for (int k = 0; k < voutCount; k++) {
             int addrSize; file.read((char*)&addrSize, sizeof(int));
             char* addrBuf = new char[addrSize + 1];
             file.read(addrBuf, addrSize); addrBuf[addrSize] = '\0';
             double amount; file.read((char*)&amount, sizeof(double));
-            vouts.push_back({addrBuf, amount});
+            
+            vouts.push_back({std::string(addrBuf), amount});
             delete[] addrBuf;
         }
         txs.push_back({{}, vouts});
