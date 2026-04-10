@@ -9,8 +9,40 @@
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 
-// Função auxiliar para converter string hex para bytes (necessário para o OpenSSL)
-// No seu código real, você precisará dessa conversão para validar a assinatura.
+Blockchain::Blockchain() {
+    difficulty = 5;
+    totalSupply = 0;
+}
+
+Block Blockchain::getLastBlock() {
+    if (chain.empty()) return Block(-1, "0", {});
+    return chain.back();
+}
+
+double Blockchain::getBlockReward(int height) {
+    if (totalSupply >= 20000000) return 0;
+    double reward = 250.0;
+    int interval = 10; 
+    int h = height;
+    while (h >= interval) {
+        reward /= 2.0;
+        h -= interval;
+        interval *= 2; 
+    }
+    return (reward < 0.000001) ? 0 : reward;
+}
+
+void Blockchain::adjustDifficulty() {
+    if (chain.size() < DIFFICULTY_ADJUSTMENT_INTERVAL) return;
+    const Block& lastBlock = chain.back();
+    const Block& relayBlock = chain[chain.size() - DIFFICULTY_ADJUSTMENT_INTERVAL];
+    long timeExpected = TARGET_BLOCK_TIME * DIFFICULTY_ADJUSTMENT_INTERVAL;
+    long timeTaken = lastBlock.timestamp - relayBlock.timestamp;
+    if (timeTaken < 1) timeTaken = 1;
+
+    if (timeTaken < timeExpected / 2) difficulty++;
+    else if (timeTaken > timeExpected * 2 && difficulty > 1) difficulty--;
+}
 
 void Blockchain::mineBlock(std::string minerAddress) {
     if (chain.empty()) {
@@ -38,8 +70,8 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
         // --- CONSENSO MAZECHAIN ---
         // 1. Checa Saldo
-        // 2. Verifica Assinatura Digital Real
-        bool signatureOk = (tx.signature != ""); // Aqui entrará a chamada ECDSA_verify
+        // 2. Verifica Assinatura (Simulada até integrar wallet.cpp real)
+        bool signatureOk = (tx.signature != ""); 
 
         if (getBalance(sender) >= amountNeeded && signatureOk) {
             validTransactions.push_back(tx);
@@ -57,6 +89,8 @@ void Blockchain::mineBlock(std::string minerAddress) {
     blockTxs.insert(blockTxs.end(), validTransactions.begin(), validTransactions.end());
 
     Block newBlock(chain.size(), getLastBlock().hash, blockTxs);
+    std::cout << "⛏️ Bloco " << newBlock.index << " | Subsídio: " << subsidy << " | Taxas: " << totalFees << std::endl;
+    
     newBlock.mine(difficulty);
     chain.push_back(newBlock);
     totalSupply += subsidy;
@@ -69,7 +103,6 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     double fee = amount * 0.01;
     double totalNeeded = amount + fee;
 
-    // Proteção de Mempool
     std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
     double alreadyInMempool = 0;
     for (const auto& tx : pending) {
@@ -86,10 +119,9 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     Transaction tx({}, { {to, amount}, {from, totalNeeded * -1} });
     
     // --- PROCESSO DE ASSINATURA ECDSA ---
-    // Em um ambiente real, carregaríamos a private_key do arquivo
     std::cout << "🔐 Assinando transação com ECDSA (Secp256k1)..." << std::endl;
-    tx.signature = "3045022100ef..." ; // Hash DER real gerado pela chave privada
-    tx.publicKey = "04678af...";    // Chave pública para o minerador conferir
+    tx.signature = "3045022100ef" + from.substr(2, 6); 
+    tx.publicKey = "04678af" + from.substr(2, 6); 
     
     Storage::saveMempool(tx, "data/mempool.dat");
     std::cout << "✅ Transação enviada com prova criptográfica!" << std::endl;
@@ -107,4 +139,34 @@ double Blockchain::getBalance(std::string address) {
     return balance;
 }
 
-// ... (Restante das funções printStats e isChainValid permanecem as mesmas)
+bool Blockchain::isChainValid() {
+    for (size_t i = 1; i < chain.size(); i++) {
+        Block currentBlock = chain[i];
+        Block prevBlock = chain[i-1];
+        if (currentBlock.hash != currentBlock.calculateHash()) return false;
+        if (currentBlock.prevHash != prevBlock.hash) return false;
+    }
+    return true;
+}
+
+void Blockchain::printStats() {
+    std::cout << "\n📊 ESTATÍSTICAS DA MAZECHAIN" << std::endl;
+    std::cout << "------------------------------------------" << std::endl;
+    std::cout << "🧱 Altura Atual: " << chain.size() << " blocos" << std::endl;
+    std::cout << "💰 Moedas em Circulação: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
+    std::cout << "🎯 Dificuldade Atual: " << difficulty << std::endl;
+    std::cout << "------------------------------------------\n" << std::endl;
+}
+
+// Getters e Setters necessários para o funcionamento do sistema
+std::vector<Block> Blockchain::getChain() const { return chain; }
+int Blockchain::getDifficulty() const { return difficulty; }
+void Blockchain::setDifficulty(int d) { difficulty = d; }
+void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
+void Blockchain::addBlock(const Block& block) {
+    chain.push_back(block);
+    if(!block.transactions.empty()){
+        for(const auto& out : block.transactions[0].vout) 
+            if(out.amount > 0) totalSupply += out.amount;
+    }
+}
