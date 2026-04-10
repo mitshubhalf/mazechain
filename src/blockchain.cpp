@@ -48,19 +48,40 @@ void Blockchain::mineBlock(std::string minerAddress) {
     }
     if (chain.size() % DIFFICULTY_ADJUSTMENT_INTERVAL == 0) adjustDifficulty();
 
+    // --- LOGICA DE PROTEÇÃO E LIMPEZA DA MEMPOOL ---
     std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
+    std::vector<Transaction> validTransactions; 
     double totalFees = 0;
+
     for (const auto& tx : pending) {
+        std::string sender = "";
+        double amountNeeded = 0;
+
+        // Identifica quem está enviando e quanto (valor negativo no seu modelo)
         for (const auto& out : tx.vout) {
-            if (out.amount > 0) totalFees += (out.amount * 0.01);
+            if (out.amount < 0) {
+                sender = out.address;
+                amountNeeded = std::abs(out.amount);
+            }
+        }
+
+        // VALIDAÇÃO REAL: O minerador checa o saldo atual antes de aceitar a TX
+        if (getBalance(sender) >= amountNeeded) {
+            validTransactions.push_back(tx);
+            // Taxa de 1% sobre o valor enviado (o valor total inclui a taxa)
+            // No seu modelo: totalNeeded = amount + fee, então a taxa é (totalNeeded / 1.01) * 0.01
+            totalFees += (amountNeeded / 1.01) * 0.01; 
+        } else {
+            std::cout << "🚫 TX Rejeitada! " << sender << " tentou gastar sem ter saldo." << std::endl;
         }
     }
+    // ----------------------------------------------
 
     double subsidy = getBlockReward(chain.size());
     Transaction coinbase({}, { {minerAddress, subsidy + totalFees} });
 
     std::vector<Transaction> blockTxs = {coinbase};
-    blockTxs.insert(blockTxs.end(), pending.begin(), pending.end());
+    blockTxs.insert(blockTxs.end(), validTransactions.begin(), validTransactions.end());
 
     Block newBlock(chain.size(), getLastBlock().hash, blockTxs);
     std::cout << "⛏️ Bloco " << newBlock.index << " | Subsídio: " << subsidy << " | Taxas: " << totalFees << std::endl;
@@ -70,7 +91,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
     totalSupply += subsidy;
 
     Storage::saveChain(*this, "data/blockchain.dat");
-    Storage::clearMempool("data/mempool.dat");
+    Storage::clearMempool("data/mempool.dat"); // Limpa tudo, as rejeitadas somem da rede
 }
 
 double Blockchain::getBalance(std::string address) {
@@ -87,11 +108,15 @@ double Blockchain::getBalance(std::string address) {
 
 void Blockchain::send(std::string from, std::string to, double amount) {
     double fee = amount * 0.01;
-    if (getBalance(from) < (amount + fee)) {
-        std::cout << "❌ Saldo insuficiente!" << std::endl;
+    double totalNeeded = amount + fee;
+
+    // Verificação preventiva básica
+    if (getBalance(from) < totalNeeded) {
+        std::cout << "❌ Erro: Saldo insuficiente!" << std::endl;
         return;
     }
-    Transaction tx({}, { {to, amount}, {from, (amount + fee) * -1} });
+
+    Transaction tx({}, { {to, amount}, {from, totalNeeded * -1} });
     Storage::saveMempool(tx, "data/mempool.dat");
     std::cout << "✅ Transação enviada para Mempool!" << std::endl;
 }
