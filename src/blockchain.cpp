@@ -34,12 +34,13 @@ Block::Block(int idx, std::string prev, std::vector<Transaction> txs) {
 
 std::string Block::calculateHash() const {
     std::stringstream ss;
+    // Adicionado fixed e setprecision para garantir que o timestamp e valores não variem no hash
     ss << index << timestamp << prevHash << nonce;
-    // RECOLOCADO: Detalhes das transações no hash para garantir que o verify funcione
     for (const auto& tx : transactions) {
         ss << tx.id;
         for (const auto& out : tx.vout) {
-            ss << out.address << out.amount;
+            // ESSENCIAL: Garante que 10.0 e 10.00000000 gerem o mesmo hash
+            ss << out.address << std::fixed << std::setprecision(8) << out.amount;
         }
     }
     return sha256_util(ss.str());
@@ -66,7 +67,7 @@ Block Blockchain::getLastBlock() {
 }
 
 double Blockchain::getBlockReward(int height) {
-    if (totalSupply >= 21000000) return 0; // Limite total
+    if (totalSupply >= 21000000) return 0;
     double reward = 250.0;
     int interval = 10; 
     int h = height;
@@ -100,8 +101,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
     std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
     std::vector<Transaction> validTransactions; 
     double totalFees = 0;
-
-    // RECOLOCADO: Proteção contra gasto duplo no mesmo bloco
     std::map<std::string, double> spendingInThisBlock;
 
     for (const auto& tx : pending) {
@@ -114,7 +113,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
             } 
         }
 
-        // Validação de saldo considerando o que já foi gasto neste bloco
         double currentBalance = getBalance(sender) - spendingInThisBlock[sender];
 
         if (currentBalance >= amountWithFee && !tx.signature.empty()) {
@@ -127,8 +125,8 @@ void Blockchain::mineBlock(std::string minerAddress) {
     }
 
     double subsidy = getBlockReward(chain.size());
-    
     Transaction coinbase;
+    // Adicionado minerAddress no ID para evitar colisões de hash
     coinbase.id = sha256_util("coinbase" + std::to_string(chain.size()) + minerAddress);
     coinbase.vout.push_back({minerAddress, subsidy + totalFees});
     coinbase.signature = "coinbase"; 
@@ -141,6 +139,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
     newBlock.mine(difficulty);
     
     chain.push_back(newBlock);
+    // Aqui somamos apenas o subsídio ao suprimento global
     totalSupply += subsidy;
 
     Storage::saveChain(*this, "data/blockchain.dat");
@@ -148,7 +147,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
 }
 
 void Blockchain::send(std::string from, std::string to, double amount) {
-    double totalNeeded = amount * 1.01; // 1% de taxa
+    double totalNeeded = amount * 1.01;
     if (getBalance(from) < totalNeeded) { 
         std::cout << "❌ Saldo insuficiente!" << std::endl; 
         return; 
@@ -175,7 +174,11 @@ double Blockchain::getBalance(std::string address) {
 
 bool Blockchain::isChainValid() {
     for (size_t i = 1; i < chain.size(); i++) {
-        if (chain[i].hash != chain[i].calculateHash()) return false;
+        // O calculateHash() agora é estável entre sessões
+        if (chain[i].hash != chain[i].calculateHash()) {
+             std::cout << "Debug: Bloco " << i << " hash corrompido." << std::endl;
+             return false;
+        }
         if (chain[i].prevHash != chain[i-1].hash) return false;
     }
     return true;
@@ -188,7 +191,6 @@ void Blockchain::printStats() {
     std::cout << "------------------------------------------\n" << std::endl;
 }
 
-// --- GETTERS E SETTERS PARA STORAGE ---
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
 void Blockchain::setDifficulty(int d) { difficulty = d; }
@@ -196,10 +198,9 @@ void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
 
 void Blockchain::addBlock(const Block& block) { 
     chain.push_back(block); 
+    // Correção na reconstrução do totalSupply para manter consistência no Halving
     if(!block.transactions.empty()) {
-        // Recalcula o supply baseado apenas nas recompensas de mineração (Coinbase)
-        for(auto& out : block.transactions[0].vout) {
-            if(out.amount > 0) totalSupply += out.amount;
-        }
+        double rewardCalculada = getBlockReward(block.index);
+        totalSupply += rewardCalculada;
     }
 }
