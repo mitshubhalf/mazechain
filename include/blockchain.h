@@ -63,7 +63,8 @@ public:
     // Funções de Mineração e Core
     void mineBlock(std::string minerAddress);
     double getBalance(std::string address);
-    void send(std::string from, std::string to, double amount);
+    // Alterado: seed agora é opcional para suportar API e Terminal
+    void send(std::string from, std::string to, double amount, std::string seed = "");
     
     // Funções de Validação e Segurança
     bool isChainValid();
@@ -74,7 +75,7 @@ public:
     double getBlockReward(int height);
     void adjustDifficulty();
     void printStats();
-    void printBlockDetails(int height); // Mantida conforme seu código original
+    void printBlockDetails(int height); 
     
     std::vector<Block> getChain() const;
     int getDifficulty() const;
@@ -85,6 +86,6 @@ public:
 
 // Utilitários globais
 std::string sha256_util(std::string str);
-std::string calculateMerkleRoot(const std::vector<Transaction>& txs); // Nova melhoria
+std::string calculateMerkleRoot(const std::vector<Transaction>& txs);
 
 #endif
