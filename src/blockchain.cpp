@@ -9,6 +9,7 @@
 #include <map>
 #include <ctime>
 
+// --- UTILITÁRIO SHA256 ---
 std::string sha256_util(std::string str) {
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_CTX sha256;
@@ -22,6 +23,7 @@ std::string sha256_util(std::string str) {
     return ss.str();
 }
 
+// --- IMPLEMENTAÇÃO DA CLASSE BLOCK ---
 Block::Block(int idx, std::string prev, std::vector<Transaction> txs) {
     index = idx;
     prevHash = prev;
@@ -35,7 +37,7 @@ std::string Block::calculateHash() const {
     std::stringstream ss;
     ss << index << (long long)timestamp << prevHash << nonce;
     for (const auto& tx : transactions) {
-        ss << tx.id; // O ID agora é carregado corretamente do disco
+        ss << tx.id; 
         for (const auto& out : tx.vout) {
             ss << out.address << std::fixed << std::setprecision(8) << out.amount;
         }
@@ -52,9 +54,30 @@ void Block::mine(int difficulty) {
     std::cout << "🎯 Bloco Minerado! Hash: " << hash << std::endl;
 }
 
+// --- IMPLEMENTAÇÃO DA CLASSE BLOCKCHAIN ---
 Blockchain::Blockchain() {
     difficulty = 5;
     totalSupply = 0;
+}
+
+// NOVA FUNÇÃO: VALIDAÇÃO DE IDENTIDADE DIGITAL
+bool Blockchain::verifyTransaction(const Transaction& tx) {
+    if (tx.signature == "coinbase") return true;
+    if (tx.signature.empty() || tx.publicKey.empty()) return false;
+
+    std::string senderAddress = "";
+    for (const auto& out : tx.vout) {
+        if (out.amount < 0) senderAddress = out.address;
+    }
+
+    // PROVA: O endereço MZ deve ser o Hash da PublicKey (Seed) fornecida
+    std::string expectedAddress = "MZ" + sha256_util(tx.publicKey).substr(0, 20);
+    
+    if (senderAddress != expectedAddress) {
+        std::cout << "🚫 ERRO: Chave pública não condiz com o endereço!" << std::endl;
+        return false;
+    }
+    return true;
 }
 
 Block Blockchain::getLastBlock() {
@@ -100,6 +123,9 @@ void Blockchain::mineBlock(std::string minerAddress) {
     std::map<std::string, double> spendingInThisBlock;
 
     for (const auto& tx : pending) {
+        // Verifica se a assinatura/seed é válida antes de processar
+        if (!verifyTransaction(tx)) continue;
+
         std::string sender = "";
         double amountWithFee = 0;
         for (const auto& out : tx.vout) { 
@@ -117,7 +143,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     double subsidy = getBlockReward(chain.size());
     Transaction coinbase;
-    // ID Fixo para a coinbase não mudar no Verify
     coinbase.id = "coinbase_" + std::to_string(chain.size());
     coinbase.vout.push_back({minerAddress, subsidy + totalFees});
     coinbase.signature = "coinbase"; 
@@ -142,14 +167,22 @@ void Blockchain::send(std::string from, std::string to, double amount) {
         return; 
     }
 
+    // SOLICITAÇÃO DE ASSINATURA REAL
+    std::cout << "🔒 Digite sua SEED (12 palavras) para assinar esta transação: ";
+    std::string seed;
+    std::getline(std::cin >> std::ws, seed);
+
     Transaction tx;
     tx.id = sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(0)));
     tx.vout.push_back({to, amount});
     tx.vout.push_back({from, totalNeeded * -1});
-    tx.signature = "SIG_AUTH_" + from.substr(2, 6); 
+    
+    // Anexa a Seed como chave pública para validação do endereço
+    tx.publicKey = seed; 
+    tx.signature = "SIG_" + sha256_util(seed).substr(0, 16); 
     
     Storage::saveMempool(tx, "data/mempool.dat");
-    std::cout << "✅ Transação enviada para Mempool!" << std::endl;
+    std::cout << "✅ Transação assinada e enviada para Mempool!" << std::endl;
 }
 
 double Blockchain::getBalance(std::string address) {
@@ -165,6 +198,11 @@ bool Blockchain::isChainValid() {
     for (size_t i = 1; i < chain.size(); i++) {
         if (chain[i].hash != chain[i].calculateHash()) return false;
         if (chain[i].prevHash != chain[i-1].hash) return false;
+        
+        // Verifica a legitimidade de cada transação salva no bloco
+        for (const auto& tx : chain[i].transactions) {
+            if (!verifyTransaction(tx)) return false;
+        }
     }
     return true;
 }
