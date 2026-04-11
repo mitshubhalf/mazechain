@@ -1,39 +1,28 @@
 #ifndef BLOCKCHAIN_H
 #define BLOCKCHAIN_H
 
-#include <vector>
 #include <string>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
+#include <vector>
+#include <ctime>
 
 struct TxOut {
     std::string address;
     double amount;
 };
 
-struct TxIn {
-    std::string prevTxId;
-    int outIndex;
-};
-
 struct Transaction {
     std::string id;
-    std::vector<TxIn> vin;
-    std::vector<TxOut> vout;
     std::string signature;
     std::string publicKey;
-
-    Transaction() {}
-    Transaction(std::vector<TxIn> in, std::vector<TxOut> out) : vin(in), vout(out) {}
+    std::vector<TxOut> vout;
 };
 
 class Block {
 public:
     int index;
     long long timestamp;
-    std::string prevHash;
     std::string hash;
+    std::string prevHash;
     int nonce;
     std::vector<Transaction> transactions;
 
@@ -47,31 +36,28 @@ private:
     std::vector<Block> chain;
     int difficulty;
     double totalSupply;
-    const int DIFFICULTY_ADJUSTMENT_INTERVAL = 10;
-    const int TARGET_BLOCK_TIME = 60;
 
 public:
     Blockchain();
     void mineBlock(std::string minerAddress);
-    double getBalance(std::string address);
-    void send(std::string from, std::string to, double amount, std::string seed = "");
-    bool isChainValid();
-    bool isChainValid(const std::vector<Block>& chainToValidate);
-    bool verifyTransaction(const Transaction& tx); 
-    Block getLastBlock();
-    double getBlockReward(int height);
-    void adjustDifficulty();
-    void printStats();
-    
-    // FUNÇÕES DE UTILIDADE E REDE
-    void clearChain(); // <--- ESSENCIAL: Resolve o erro do log
+    void addBlock(const Block& block);
     std::vector<Block> getChain() const;
     int getDifficulty() const;
     void setDifficulty(int d);
+    double getBalance(std::string address);
+    void send(std::string from, std::string to, double amount, std::string seed);
+    bool verifyTransaction(const Transaction& tx);
+    void adjustDifficulty();
+    double getBlockReward(int height);
+    Block getLastBlock();
+    void clearChain();
+    bool isChainValid();
+    bool isChainValid(const std::vector<Block>& chainToValidate);
     void replaceChain(const std::vector<Block>& newChain);
-    void addBlock(const Block& block);
+    void printStats();
 };
 
+// Funções utilitárias globais
 std::string sha256_util(std::string str);
 std::string calculateMerkleRoot(const std::vector<Transaction>& txs);
 
