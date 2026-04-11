@@ -183,7 +183,6 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
     }
 
     std::string finalSeed = seed;
-    // Se a seed estiver vazia, significa que o comando veio do terminal
     if (finalSeed.empty()) {
         std::cout << "🔒 Digite sua SEED (12 palavras) para assinar esta transação: ";
         std::getline(std::cin >> std::ws, finalSeed);
@@ -210,15 +209,34 @@ double Blockchain::getBalance(std::string address) {
     return balance;
 }
 
-bool Blockchain::isChainValid() {
-    for (size_t i = 1; i < chain.size(); i++) {
-        if (chain[i].hash != chain[i].calculateHash()) return false;
-        if (chain[i].prevHash != chain[i-1].hash) return false;
-        for (const auto& tx : chain[i].transactions) {
+// MELHORIA P2P: Validação de correntes externas
+bool Blockchain::isChainValid(const std::vector<Block>& chainToValidate) {
+    for (size_t i = 1; i < chainToValidate.size(); i++) {
+        const Block& currentBlock = chainToValidate[i];
+        const Block& prevBlock = chainToValidate[i-1];
+
+        if (currentBlock.hash != currentBlock.calculateHash()) return false;
+        if (currentBlock.prevHash != prevBlock.hash) return false;
+        
+        for (const auto& tx : currentBlock.transactions) {
             if (!verifyTransaction(tx)) return false;
         }
     }
     return true;
+}
+
+// Melhoria P2P: Validação da corrente interna
+bool Blockchain::isChainValid() {
+    return isChainValid(this->chain);
+}
+
+// Melhoria P2P: Função de substituição para consenso
+void Blockchain::replaceChain(const std::vector<Block>& newChain) {
+    if (newChain.size() > chain.size() && isChainValid(newChain)) {
+        chain = newChain;
+        std::cout << "✅ Sincronizado: Corrente local atualizada com a rede." << std::endl;
+        Storage::saveChain(*this, "data/blockchain.dat");
+    }
 }
 
 void Blockchain::printStats() {
@@ -231,5 +249,12 @@ void Blockchain::setDifficulty(int d) { difficulty = d; }
 void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
 void Blockchain::addBlock(const Block& block) { 
     chain.push_back(block); 
-    if(!block.transactions.empty()) totalSupply += getBlockReward(block.index);
+    if(!block.transactions.empty()) {
+        // Recalcula o supply ao adicionar blocos via rede
+        for(const auto& tx : block.transactions) {
+            if(tx.signature == "coinbase") {
+                for(const auto& out : tx.vout) totalSupply += out.amount;
+            }
+        }
+    }
 }
