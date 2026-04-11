@@ -5,178 +5,177 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAZECHAIN | Dashboard</title>
     <style>
-        /* Estilos baseados nas fotos enviadas */
         :root {
-            --azul-fundo: #f4f7fe;
-            --azul-texto: #1e3a8a;
-            --azul-brilhante: #3b82f6;
-            --branco: #ffffff;
-            --borda: #dbeafe;
+            --bg: #f4f7fe;
+            --navy: #1e3a8a;
+            --blue-light: #3b82f6;
+            --white: #ffffff;
+            --border: #dbeafe;
         }
 
         body { 
             margin: 0; padding: 0; 
-            font-family: 'Segoe UI', sans-serif; 
-            background-color: var(--azul-fundo); 
-            color: var(--azul-texto);
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background-color: var(--bg); 
+            color: var(--navy);
             display: flex; justify-content: center;
         }
 
-        .app-container { 
-            width: 100%; max-width: 480px; 
-            padding: 20px; padding-bottom: 100px; 
-        }
+        .container { width: 100%; max-width: 480px; padding: 20px; padding-bottom: 100px; }
 
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { font-size: 28px; letter-spacing: 4px; font-weight: 900; margin: 0; }
+        .header { text-align: center; margin: 20px 0 30px 0; }
+        .header h1 { font-size: 28px; letter-spacing: 5px; font-weight: 900; margin: 0; }
 
-        /* Estilo dos Cards das Fotos */
+        /* Cards Estilo WhatsApp/Web3 */
         .card { 
-            background: var(--branco); 
-            border-radius: 18px; 
-            padding: 20px; 
+            background: var(--white); 
+            border-radius: 20px; 
+            padding: 22px; 
             margin-bottom: 20px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            border: 1px solid var(--borda);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.04);
+            border: 1px solid var(--border);
         }
 
         .card h3 { 
-            margin: 0 0 15px 0; font-size: 14px; 
+            margin: 0 0 15px 0; font-size: 13px; 
             text-transform: uppercase; color: #64748b;
-            border-bottom: 1px solid var(--borda);
-            padding-bottom: 8px;
+            letter-spacing: 1px; border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
         }
 
-        .info-row { 
-            display: flex; justify-content: space-between; 
-            padding: 10px 0; border-bottom: 1px solid #f8fafc;
-        }
-
+        .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f8fafc; }
+        .row:last-child { border: none; }
         .label { color: #64748b; font-size: 14px; }
-        .value { font-weight: bold; color: var(--azul-texto); }
+        .val { font-weight: bold; color: var(--navy); }
 
-        /* Botão Tracejado das Imagens */
+        /* Botão Tracejado (Exatamente como na sua imagem) */
         .btn-action { 
-            width: 100%; padding: 15px; border-radius: 12px; 
-            border: 2px dashed var(--azul-brilhante); 
-            background-color: #eff6ff;
-            color: var(--azul-texto);
-            font-weight: bold; cursor: pointer;
-            transition: 0.3s; margin-top: 10px;
+            width: 100%; padding: 16px; border-radius: 14px; 
+            border: 2px dashed var(--blue-light); 
+            background-color: #f0f7ff;
+            color: var(--navy);
+            font-weight: 800; cursor: pointer;
+            transition: 0.3s ease; margin-top: 10px;
+            font-size: 14px;
         }
-        .btn-action:hover { background-color: var(--azul-brilhante); color: white; border-style: solid; }
+        .btn-action:hover { background-color: var(--blue-light); color: white; border-style: solid; }
 
-        /* Box da Seed */
         .seed-box {
-            background-color: #f8fafc; border-radius: 10px;
+            background-color: #f1f5f9; border-radius: 12px;
             padding: 15px; margin-top: 15px;
-            text-align: center; font-family: monospace;
-            border: 1px solid var(--borda); display: none;
+            text-align: center; font-family: 'Courier New', monospace;
+            border: 1px solid var(--border); display: none;
+            word-wrap: break-word; font-size: 13px;
         }
 
-        /* Menu Inferior das Imagens */
-        .bottom-nav { 
+        /* Menu Inferior Fixo */
+        .nav { 
             position: fixed; bottom: 0; width: 100%; max-width: 480px;
-            background: rgba(255, 255, 255, 0.9); 
+            background: rgba(255, 255, 255, 0.95); 
             display: flex; justify-content: space-around; 
-            padding: 15px 0; border-top: 1px solid var(--borda);
+            padding: 18px 0; border-top: 1px solid var(--border);
             backdrop-filter: blur(10px);
         }
 
-        .nav-link { text-align: center; font-size: 11px; font-weight: bold; color: #94a3b8; cursor: pointer; }
-        .nav-link.active { color: var(--azul-brilhante); }
-        .nav-icon { font-size: 20px; display: block; margin-bottom: 2px; }
+        .nav-item { text-align: center; font-size: 11px; font-weight: 700; color: #94a3b8; cursor: pointer; }
+        .nav-item.active { color: var(--blue-light); }
+        .icon { font-size: 22px; display: block; margin-bottom: 4px; }
     </style>
 </head>
 <body>
 
-    <div class="app-container">
+    <div class="container">
         <div class="header">
             <h1>MAZECHAIN</h1>
         </div>
 
         <div class="card">
-            <h3>🌐 Rede MazeChain</h3>
-            <div class="info-row">
-                <span class="label">Blocos Minerados:</span>
-                <span id="txt-blocos" class="value">0</span>
+            <h3>🌐 Network Status</h3>
+            <div class="row">
+                <span class="label">Total de Blocos:</span>
+                <span id="blocks" class="val">---</span>
             </div>
-            <div class="info-row">
+            <div class="row">
                 <span class="label">Dificuldade:</span>
-                <span id="txt-diff" class="value">0</span>
+                <span id="diff" class="val">---</span>
             </div>
         </div>
 
         <div class="card">
-            <h3>🔑 Minha Carteira</h3>
-            <div class="info-row">
-                <span class="label">Endereço:</span>
-                <span id="txt-addr" class="value" style="font-size: 11px;">Aguardando...</span>
+            <h3>🔑 Wallet Control</h3>
+            <div class="row">
+                <span class="label">Endereço MZ:</span>
+                <span id="addr" class="val" style="font-size: 10px;">Não gerado</span>
             </div>
-            <button class="btn-action" onclick="criarCarteira()">GERAR SEED DE 12 PALAVRAS</button>
+            <button class="btn-action" onclick="generateWallet()">GERAR SEED DE 12 PALAVRAS</button>
             <div id="seed-display" class="seed-box"></div>
         </div>
 
         <div class="card">
-            <h3>⛏️ Mineração</h3>
-            <button class="btn-action" style="border-color: #22c55e; background-color: #f0fdf4;" onclick="minerarBloco()">MINERAR AGORA</button>
+            <h3>⛏️ Minerador Ativo</h3>
+            <button id="mine-btn" class="btn-action" style="border-color: #10b981; background-color: #f0fdf4;" onclick="runMiner()">MINERAR PRÓXIMO BLOCO</button>
         </div>
     </div>
 
-    <div class="bottom-nav">
-        <div class="nav-link active"><span class="nav-icon">🏠</span>Início</div>
-        <div class="nav-link" onclick="alert('Em breve!')"><span class="nav-icon">📤</span>Enviar</div>
-        <div class="nav-link" onclick="alert('Em breve!')"><span class="nav-icon">📥</span>Receber</div>
-        <div class="nav-link" onclick="location.reload()"><span class="nav-icon">🔄</span>Atualizar</div>
+    <div class="nav">
+        <div class="nav-item active"><span class="icon">🏠</span>Início</div>
+        <div class="nav-item" onclick="alert('Explorador em breve')"><span class="icon">🔍</span>Explorar</div>
+        <div class="nav-item" onclick="location.reload()"><span class="icon">🔄</span>Sync</div>
     </div>
 
     <script>
-        // --- CONFIGURAÇÃO ---
-        const API_URL = "https://mazechain.onrender.com"; // VERIFIQUE SE ESTÁ CERTO
-        let carteiraAtual = "MZ8bfe04334439228bae98"; // Sua carteira padrão
+        // URL DO SEU BACKEND NO RENDER
+        const URL = "https://mazechain.onrender.com"; 
+        let currentWallet = "MZ8bfe04334439228bae98"; // Carteira temporária
 
-        // Função para atualizar os números na tela
-        async function atualizarDados() {
+        // Carrega dados iniciais
+        async function load() {
             try {
-                const res = await fetch(`${API_URL}/stats`);
-                const data = await res.json();
-                document.getElementById('txt-blocos').innerText = data.height;
-                document.getElementById('txt-diff').innerText = data.difficulty;
-            } catch (e) { console.log("Erro ao carregar stats"); }
+                const r = await fetch(`${URL}/stats`);
+                const d = await r.json();
+                document.getElementById('blocks').innerText = d.height;
+                document.getElementById('diff').innerText = d.difficulty;
+            } catch(e) { console.log("Erro ao conectar."); }
         }
 
-        // Função para Criar Carteira (conecta com sua API C++)
-        async function criarCarteira() {
+        // Gera Carteira via API C++
+        async function generateWallet() {
             try {
-                const res = await fetch(`${API_URL}/wallet/new`);
-                const text = await res.text();
+                const r = await fetch(`${URL}/wallet/new`);
+                const t = await r.text();
                 
-                const addr = text.match(/MZ[a-zA-Z0-9]+/)[0];
-                const seed = text.match(/>> (.*) <</)[1];
+                // Extrai dados do texto formatado do C++
+                const addr = t.match(/MZ[a-zA-Z0-9]+/)[0];
+                const seed = t.match(/>> (.*) <</)[1];
 
-                document.getElementById('txt-addr').innerText = addr;
-                carteiraAtual = addr;
+                document.getElementById('addr').innerText = addr;
+                currentWallet = addr;
                 
                 const box = document.getElementById('seed-display');
-                box.innerText = ">> " + seed + " <<";
+                box.innerText = "Sua Seed: " + seed;
                 box.style.display = "block";
-            } catch (e) { alert("Erro ao gerar carteira!"); }
+            } catch(e) { alert("Erro na API."); }
         }
 
-        // Função para Minerar (Usa a rota simples que te dei por último)
-        async function minerarBloco() {
-            alert("Mineração iniciada... Aguarde a confirmação.");
+        // Minera via API C++
+        async function runMiner() {
+            const btn = document.getElementById('mine-btn');
+            btn.innerText = "MINERANDO (PROVA DE TRABALHO)...";
+            btn.disabled = true;
+
             try {
-                const res = await fetch(`${API_URL}/minerar_agora/${carteiraAtual}`);
-                const data = await res.json();
-                alert("Sucesso! Bloco #" + data.blocos_agora + " minerado.");
-                atualizarDados();
-            } catch (e) { alert("Erro ao minerar. Verifique se o servidor está online."); }
+                const r = await fetch(`${URL}/minerar_agora/${currentWallet}`);
+                const d = await r.json();
+                alert("Bloco #" + d.blocos_agora + " aceito pela rede!");
+                load();
+            } catch(e) { alert("Falha na mineração."); }
+            
+            btn.innerText = "MINERAR PRÓXIMO BLOCO";
+            btn.disabled = false;
         }
 
-        // Inicia
-        atualizarDados();
-        setInterval(atualizarDados, 10000); // Atualiza a cada 10 seg
+        load();
+        setInterval(load, 15000); // Auto-update a cada 15s
     </script>
 </body>
 </html>
