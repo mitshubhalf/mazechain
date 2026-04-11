@@ -19,15 +19,15 @@ struct TxIn {
     int outIndex;
 };
 
-// Estrutura da Transação (Atualizada para Segurança Digital)
+// Estrutura da Transação
 struct Transaction {
     std::string id;
     std::vector<TxIn> vin;
     std::vector<TxOut> vout;
     
-    // CAMPOS CRÍTICOS PARA ASSINATURA ECDSA
-    std::string signature;  // O "carimbo" digital gerado pela chave privada
-    std::string publicKey;  // A chave pública para o minerador validar o carimbo
+    // CAMPOS PARA ASSINATURA E VALIDAÇÃO
+    std::string signature;  // O "carimbo" digital
+    std::string publicKey;  // A Seed/Chave para validar o carimbo
 
     Transaction() {}
     Transaction(std::vector<TxIn> in, std::vector<TxOut> out) : vin(in), vout(out) {}
@@ -48,7 +48,7 @@ public:
     void mine(int difficulty);
 };
 
-// Classe da Blockchain (Gerenciamento da Rede)
+// Classe da Blockchain
 class Blockchain {
 private:
     std::vector<Block> chain;
@@ -67,14 +67,14 @@ public:
     
     // Funções de Validação e Segurança
     bool isChainValid();
-    bool verifyTransaction(const Transaction& tx); // Nova função para validar assinaturas
+    bool verifyTransaction(const Transaction& tx); 
     
     // Getters e Utilidades
     Block getLastBlock();
     double getBlockReward(int height);
     void adjustDifficulty();
     void printStats();
-    void printBlockDetails(int height);
+    void printBlockDetails(int height); // Mantida conforme seu código original
     
     std::vector<Block> getChain() const;
     int getDifficulty() const;
@@ -83,7 +83,8 @@ public:
     void addBlock(const Block& block);
 };
 
-// Utilitário global para Hash
+// Utilitários globais
 std::string sha256_util(std::string str);
+std::string calculateMerkleRoot(const std::vector<Transaction>& txs); // Nova melhoria
 
 #endif
