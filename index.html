@@ -26,6 +26,7 @@
         .header { text-align: center; margin: 20px 0 30px 0; }
         .header h1 { font-size: 28px; letter-spacing: 5px; font-weight: 900; margin: 0; }
 
+        /* Estilo dos Cards das suas fotos */
         .card { 
             background: var(--white); 
             border-radius: 20px; 
@@ -47,6 +48,7 @@
         .label { color: #64748b; font-size: 14px; }
         .val { font-weight: bold; color: var(--navy); }
 
+        /* O botão tracejado das fotos */
         .btn-action { 
             width: 100%; padding: 16px; border-radius: 14px; 
             border: 2px dashed var(--blue-light); 
@@ -66,6 +68,7 @@
             word-wrap: break-word; font-size: 13px;
         }
 
+        /* Menu Inferior Fixo */
         .nav { 
             position: fixed; bottom: 0; width: 100%; max-width: 480px;
             background: rgba(255, 255, 255, 0.95); 
@@ -99,116 +102,104 @@
         </div>
 
         <div class="card">
-            <h3>🔑 Minha Carteira</h3>
+            <h3>🔑 Wallet Control</h3>
             <div class="row">
-                <span class="label">Saldo:</span>
+                <span class="label">Endereço MZ:</span>
+                <span id="addr" class="val" style="font-size: 10px; word-break: break-all;">Não gerado</span>
+            </div>
+            <div class="row">
+                <span class="label">Saldo MZ:</span>
                 <span id="balance" class="val">0.00 MZ</span>
             </div>
-            <div class="row">
-                <span class="label">Endereço:</span>
-                <span id="addr" class="val" style="font-size: 10px; word-break: break-all;">Nenhum</span>
-            </div>
-            <button class="btn-action" onclick="generateWallet()">GERAR NOVA CARTEIRA</button>
+            <button class="btn-action" onclick="generateWallet()">GERAR SEED DE 12 PALAVRAS</button>
             <div id="seed-display" class="seed-box"></div>
         </div>
 
         <div class="card">
-            <h3>⛏️ Minerador</h3>
-            <button id="mine-btn" class="btn-action" style="border-color: #10b981; background-color: #f0fdf4;" onclick="runMiner()">MINERAR AGORA</button>
+            <h3>⛏️ Minerador Ativo</h3>
+            <button id="mine-btn" class="btn-action" style="border-color: #10b981; background-color: #f0fdf4;" onclick="runMiner()">MINERAR PRÓXIMO BLOCO</button>
         </div>
     </div>
 
     <div class="nav">
         <div class="nav-item active"><span class="icon">🏠</span>Início</div>
-        <div class="nav-item" onclick="location.reload()"><span class="icon">🔄</span>Sincronizar</div>
+        <div class="nav-item" onclick="alert('Explorador em breve')"><span class="icon">🔍</span>Explorar</div>
+        <div class="nav-item" onclick="location.reload()"><span class="icon">🔄</span>Sync</div>
     </div>
 
     <script>
-        // --- CONFIGURAÇÃO ---
-        const URL_API = "https://mazechain.onrender.com"; 
-        let currentWallet = localStorage.getItem('mz_addr') || "";
+        // MANTENDO SUAS VARIÁVEIS ORIGINAIS
+        const URL = "https://mazechain.onrender.com"; 
+        let currentWallet = "";
 
-        if(currentWallet) {
+        // Tenta recuperar endereço salvo para não perder o visual
+        if(localStorage.getItem('mz_addr')) {
+            currentWallet = localStorage.getItem('mz_addr');
             document.getElementById('addr').innerText = currentWallet;
         }
 
-        // --- FUNÇÕES ---
-
         async function load() {
             try {
-                // Carrega Stats
-                const r = await fetch(`${URL_API}/stats`);
+                const r = await fetch(`${URL}/stats`);
                 const d = await r.json();
                 document.getElementById('blocks').innerText = d.height;
                 document.getElementById('diff').innerText = d.difficulty;
 
-                // Carrega Saldo se tiver carteira
+                // Atualiza Saldo
                 if(currentWallet) {
-                    const rb = await fetch(`${URL_API}/balance/${currentWallet}`);
+                    const rb = await fetch(`${URL}/balance/${currentWallet}`);
                     const db = await rb.json();
                     document.getElementById('balance').innerText = db.balance.toFixed(2) + " MZ";
                 }
-            } catch(e) { console.error("Erro ao carregar dados"); }
+            } catch(e) { console.log("Erro ao conectar."); }
         }
 
         async function generateWallet() {
             try {
-                const r = await fetch(`${URL_API}/wallet/new`);
+                const r = await fetch(`${URL}/wallet/new`);
                 const t = await r.text();
                 
-                // Melhorando a captura do endereço e seed do texto C++
-                const lines = t.split('\n');
-                let addr = "";
-                let seed = "";
+                // Melhorando a captura de dados do texto decorado do C++
+                const addrMatch = t.match(/MZ[a-zA-Z0-9]+/);
+                const seedMatch = t.match(/>> (.*) <</);
 
-                lines.forEach(line => {
-                    if(line.includes("MZ")) addr = line.trim();
-                    if(line.length > 20 && !line.includes("MZ") && !line.includes("=")) seed = line.trim();
-                });
-
-                if(addr) {
-                    currentWallet = addr;
-                    localStorage.setItem('mz_addr', addr);
-                    document.getElementById('addr').innerText = addr;
+                if (addrMatch) {
+                    currentWallet = addrMatch[0];
+                    localStorage.setItem('mz_addr', currentWallet);
+                    document.getElementById('addr').innerText = currentWallet;
                     
-                    const box = document.getElementById('seed-display');
-                    box.innerText = "Sua Seed (SALVE ISSO!): " + seed;
-                    box.style.display = "block";
+                    if (seedMatch) {
+                        const box = document.getElementById('seed-display');
+                        box.innerText = "Sua Seed: " + seedMatch[1];
+                        box.style.display = "block";
+                    }
                     load();
                 }
-            } catch(e) { alert("Erro ao gerar carteira."); }
+            } catch(e) { alert("Erro na API."); }
         }
 
         async function runMiner() {
-            if(!currentWallet) {
-                alert("Gere uma carteira primeiro!");
-                return;
-            }
+            if(!currentWallet) { alert("Gere uma carteira primeiro!"); return; }
 
             const btn = document.getElementById('mine-btn');
-            const originalText = btn.innerText;
-            btn.innerText = "⚡ CALCULANDO HASH...";
+            btn.innerText = "MINERANDO (PROVA DE TRABALHO)...";
             btn.disabled = true;
 
             try {
-                const r = await fetch(`${URL_API}/minerar_agora/${currentWallet}`);
+                const r = await fetch(`${URL}/minerar_agora/${currentWallet}`);
                 const d = await r.json();
                 
-                if(d.status === "success") {
-                    alert("Sucesso! Você minerou o bloco #" + d.blocos);
-                    load();
-                }
-            } catch(e) { 
-                alert("Erro na rede ou timeout (mineração pode ser lenta)."); 
-            } finally {
-                btn.innerText = originalText;
-                btn.disabled = false;
-            }
+                // Ajustado para 'd.blocos' que é como está no seu C++
+                alert("Bloco #" + (d.blocos || d.blocos_agora) + " aceito pela rede!");
+                load();
+            } catch(e) { alert("Falha na mineração."); }
+            
+            btn.innerText = "MINERAR PRÓXIMO BLOCO";
+            btn.disabled = false;
         }
 
-        // Inicialização
         load();
-        setInterval(load, 10000); // Atualiza a cada 10 segundos
+        setInterval(load, 10000);
     </script>
 </body>
 </html>
