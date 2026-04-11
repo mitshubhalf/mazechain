@@ -60,10 +60,15 @@ Blockchain::Blockchain() {
     totalSupply = 0;
 }
 
-// NOVA FUNÇÃO: VALIDAÇÃO DE IDENTIDADE DIGITAL
+// NOVA FUNÇÃO: VALIDAÇÃO DE IDENTIDADE DIGITAL (COM LIMPEZA DE SEED)
 bool Blockchain::verifyTransaction(const Transaction& tx) {
     if (tx.signature == "coinbase") return true;
     if (tx.signature.empty() || tx.publicKey.empty()) return false;
+
+    // LIMPEZA: Remove espaços extras que podem vir do terminal e causar erro de hash
+    std::string cleanKey = tx.publicKey;
+    cleanKey.erase(0, cleanKey.find_first_not_of(" \t\r\n"));
+    cleanKey.erase(cleanKey.find_last_not_of(" \t\r\n") + 1);
 
     std::string senderAddress = "";
     for (const auto& out : tx.vout) {
@@ -71,10 +76,10 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
     }
 
     // PROVA: O endereço MZ deve ser o Hash da PublicKey (Seed) fornecida
-    std::string expectedAddress = "MZ" + sha256_util(tx.publicKey).substr(0, 20);
+    std::string expectedAddress = "MZ" + sha256_util(cleanKey).substr(0, 20);
     
     if (senderAddress != expectedAddress) {
-        std::cout << "🚫 ERRO: Chave pública não condiz com o endereço!" << std::endl;
+        // Log de aviso silencioso para o minerador
         return false;
     }
     return true;
@@ -124,7 +129,10 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     for (const auto& tx : pending) {
         // Verifica se a assinatura/seed é válida antes de processar
-        if (!verifyTransaction(tx)) continue;
+        if (!verifyTransaction(tx)) {
+            std::cout << "⚠️ Transação ignorada: Assinatura inválida para o endereço de origem." << std::endl;
+            continue;
+        }
 
         std::string sender = "";
         double amountWithFee = 0;
@@ -196,12 +204,21 @@ double Blockchain::getBalance(std::string address) {
 
 bool Blockchain::isChainValid() {
     for (size_t i = 1; i < chain.size(); i++) {
-        if (chain[i].hash != chain[i].calculateHash()) return false;
-        if (chain[i].prevHash != chain[i-1].hash) return false;
+        if (chain[i].hash != chain[i].calculateHash()) {
+            std::cout << "🚨 Erro de Hash no Bloco #" << i << std::endl;
+            return false;
+        }
+        if (chain[i].prevHash != chain[i-1].hash) {
+            std::cout << "🚨 Erro de continuidade no Bloco #" << i << std::endl;
+            return false;
+        }
         
         // Verifica a legitimidade de cada transação salva no bloco
         for (const auto& tx : chain[i].transactions) {
-            if (!verifyTransaction(tx)) return false;
+            if (!verifyTransaction(tx)) {
+                std::cout << "🚨 Fraude: Transação inválida encontrada no Bloco #" << i << std::endl;
+                return false;
+            }
         }
     }
     return true;
