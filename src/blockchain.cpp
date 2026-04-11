@@ -9,7 +9,7 @@
 #include <map>
 #include <ctime>
 
-// --- UTILITÁRIO SHA256 ---
+// --- UTILITÁRIOS ---
 std::string sha256_util(std::string str) {
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_CTX sha256;
@@ -21,6 +21,28 @@ std::string sha256_util(std::string str) {
         ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
     }
     return ss.str();
+}
+
+// Implementação da Merkle Tree (Pirâmide de Hashes)
+std::string calculateMerkleRoot(const std::vector<Transaction>& txs) {
+    if (txs.empty()) return sha256_util("empty");
+    
+    std::vector<std::string> tree;
+    for (const auto& tx : txs) {
+        tree.push_back(tx.id);
+    }
+    
+    while (tree.size() > 1) {
+        if (tree.size() % 2 != 0) {
+            tree.push_back(tree.back());
+        }
+        std::vector<std::string> newLevel;
+        for (size_t i = 0; i < tree.size(); i += 2) {
+            newLevel.push_back(sha256_util(tree[i] + tree[i+1]));
+        }
+        tree = newLevel;
+    }
+    return tree[0];
 }
 
 // --- IMPLEMENTAÇÃO DA CLASSE BLOCK ---
@@ -35,13 +57,9 @@ Block::Block(int idx, std::string prev, std::vector<Transaction> txs) {
 
 std::string Block::calculateHash() const {
     std::stringstream ss;
-    ss << index << (long long)timestamp << prevHash << nonce;
-    for (const auto& tx : transactions) {
-        ss << tx.id; 
-        for (const auto& out : tx.vout) {
-            ss << out.address << std::fixed << std::setprecision(8) << out.amount;
-        }
-    }
+    // Agora o bloco usa o Merkle Root em vez de iterar todas as TXs aqui
+    std::string root = calculateMerkleRoot(this->transactions);
+    ss << index << (long long)timestamp << prevHash << nonce << root;
     return sha256_util(ss.str());
 }
 
@@ -60,12 +78,10 @@ Blockchain::Blockchain() {
     totalSupply = 0;
 }
 
-// NOVA FUNÇÃO: VALIDAÇÃO DE IDENTIDADE DIGITAL (COM LIMPEZA DE SEED)
 bool Blockchain::verifyTransaction(const Transaction& tx) {
     if (tx.signature == "coinbase") return true;
     if (tx.signature.empty() || tx.publicKey.empty()) return false;
 
-    // LIMPEZA: Remove espaços extras que podem vir do terminal e causar erro de hash
     std::string cleanKey = tx.publicKey;
     cleanKey.erase(0, cleanKey.find_first_not_of(" \t\r\n"));
     cleanKey.erase(cleanKey.find_last_not_of(" \t\r\n") + 1);
@@ -75,14 +91,8 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
         if (out.amount < 0) senderAddress = out.address;
     }
 
-    // PROVA: O endereço MZ deve ser o Hash da PublicKey (Seed) fornecida
     std::string expectedAddress = "MZ" + sha256_util(cleanKey).substr(0, 20);
-    
-    if (senderAddress != expectedAddress) {
-        // Log de aviso silencioso para o minerador
-        return false;
-    }
-    return true;
+    return (senderAddress == expectedAddress);
 }
 
 Block Blockchain::getLastBlock() {
@@ -128,9 +138,8 @@ void Blockchain::mineBlock(std::string minerAddress) {
     std::map<std::string, double> spendingInThisBlock;
 
     for (const auto& tx : pending) {
-        // Verifica se a assinatura/seed é válida antes de processar
         if (!verifyTransaction(tx)) {
-            std::cout << "⚠️ Transação ignorada: Assinatura inválida para o endereço de origem." << std::endl;
+            std::cout << "⚠️ Transação ignorada: Assinatura inválida." << std::endl;
             continue;
         }
 
@@ -175,7 +184,6 @@ void Blockchain::send(std::string from, std::string to, double amount) {
         return; 
     }
 
-    // SOLICITAÇÃO DE ASSINATURA REAL
     std::cout << "🔒 Digite sua SEED (12 palavras) para assinar esta transação: ";
     std::string seed;
     std::getline(std::cin >> std::ws, seed);
@@ -185,7 +193,6 @@ void Blockchain::send(std::string from, std::string to, double amount) {
     tx.vout.push_back({to, amount});
     tx.vout.push_back({from, totalNeeded * -1});
     
-    // Anexa a Seed como chave pública para validação do endereço
     tx.publicKey = seed; 
     tx.signature = "SIG_" + sha256_util(seed).substr(0, 16); 
     
@@ -212,11 +219,9 @@ bool Blockchain::isChainValid() {
             std::cout << "🚨 Erro de continuidade no Bloco #" << i << std::endl;
             return false;
         }
-        
-        // Verifica a legitimidade de cada transação salva no bloco
         for (const auto& tx : chain[i].transactions) {
             if (!verifyTransaction(tx)) {
-                std::cout << "🚨 Fraude: Transação inválida encontrada no Bloco #" << i << std::endl;
+                std::cout << "🚨 Fraude: Transação inválida no Bloco #" << i << std::endl;
                 return false;
             }
         }
@@ -232,10 +237,7 @@ std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
 void Blockchain::setDifficulty(int d) { difficulty = d; }
 void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
-
 void Blockchain::addBlock(const Block& block) { 
     chain.push_back(block); 
-    if(!block.transactions.empty()) {
-        totalSupply += getBlockReward(block.index);
-    }
+    if(!block.transactions.empty()) totalSupply += getBlockReward(block.index);
 }
