@@ -63,6 +63,8 @@ public:
     void adjustDifficulty();
     void printStats();
     
+    // FUNÇÕES DE UTILIDADE E REDE
+    void clearChain(); // <--- ESSENCIAL: Resolve o erro do log
     std::vector<Block> getChain() const;
     int getDifficulty() const;
     void setDifficulty(int d);
