@@ -57,12 +57,14 @@ Block::Block(int idx, std::string prev, std::vector<Transaction> txs) {
 std::string Block::calculateHash() const {
     std::stringstream ss;
     std::string root = calculateMerkleRoot(this->transactions);
+    // Inclui timestamp e root para garantir unicidade do hash
     ss << index << (long long)timestamp << prevHash << nonce << root;
     return sha256_util(ss.str());
 }
 
 void Block::mine(int difficulty) {
     std::string target(difficulty, '0');
+    // Loop de mineração (Proof of Work)
     while (hash.substr(0, difficulty) != target) {
         nonce++;
         hash = calculateHash();
@@ -72,8 +74,15 @@ void Block::mine(int difficulty) {
 
 // --- IMPLEMENTAÇÃO DA CLASSE BLOCKCHAIN ---
 Blockchain::Blockchain() {
-    difficulty = 5;
+    difficulty = 4; // Dificuldade padrão
     totalSupply = 0;
+    
+    // Cria bloco gênese se a corrente estiver vazia
+    if (chain.empty()) {
+        Block genesis(0, "0", {});
+        genesis.mine(difficulty);
+        chain.push_back(genesis);
+    }
 }
 
 bool Blockchain::verifyTransaction(const Transaction& tx) {
@@ -123,11 +132,6 @@ void Blockchain::adjustDifficulty() {
 }
 
 void Blockchain::mineBlock(std::string minerAddress) {
-    if (chain.empty()) {
-        Block genesis(0, "0", {});
-        genesis.mine(difficulty);
-        chain.push_back(genesis);
-    }
     adjustDifficulty();
 
     std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
@@ -171,6 +175,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
     chain.push_back(newBlock);
     totalSupply += subsidy;
 
+    // Salva automaticamente após minerar
     Storage::saveChain(*this, "data/blockchain.dat");
     Storage::clearMempool("data/mempool.dat"); 
 }
@@ -209,7 +214,6 @@ double Blockchain::getBalance(std::string address) {
     return balance;
 }
 
-// MELHORIA P2P: Validação de correntes externas
 bool Blockchain::isChainValid(const std::vector<Block>& chainToValidate) {
     for (size_t i = 1; i < chainToValidate.size(); i++) {
         const Block& currentBlock = chainToValidate[i];
@@ -225,12 +229,10 @@ bool Blockchain::isChainValid(const std::vector<Block>& chainToValidate) {
     return true;
 }
 
-// Melhoria P2P: Validação da corrente interna
 bool Blockchain::isChainValid() {
     return isChainValid(this->chain);
 }
 
-// Melhoria P2P: Função de substituição para consenso
 void Blockchain::replaceChain(const std::vector<Block>& newChain) {
     if (newChain.size() > chain.size() && isChainValid(newChain)) {
         chain = newChain;
@@ -250,7 +252,6 @@ void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
 void Blockchain::addBlock(const Block& block) { 
     chain.push_back(block); 
     if(!block.transactions.empty()) {
-        // Recalcula o supply ao adicionar blocos via rede
         for(const auto& tx : block.transactions) {
             if(tx.signature == "coinbase") {
                 for(const auto& out : tx.vout) totalSupply += out.amount;
