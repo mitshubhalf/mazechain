@@ -23,7 +23,6 @@ std::string sha256_util(std::string str) {
     return ss.str();
 }
 
-// Implementação da Merkle Tree (Pirâmide de Hashes)
 std::string calculateMerkleRoot(const std::vector<Transaction>& txs) {
     if (txs.empty()) return sha256_util("empty");
     
@@ -57,7 +56,6 @@ Block::Block(int idx, std::string prev, std::vector<Transaction> txs) {
 
 std::string Block::calculateHash() const {
     std::stringstream ss;
-    // Agora o bloco usa o Merkle Root em vez de iterar todas as TXs aqui
     std::string root = calculateMerkleRoot(this->transactions);
     ss << index << (long long)timestamp << prevHash << nonce << root;
     return sha256_util(ss.str());
@@ -177,24 +175,27 @@ void Blockchain::mineBlock(std::string minerAddress) {
     Storage::clearMempool("data/mempool.dat"); 
 }
 
-void Blockchain::send(std::string from, std::string to, double amount) {
+void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
     double totalNeeded = amount * 1.01;
     if (getBalance(from) < totalNeeded) { 
         std::cout << "❌ Saldo insuficiente!" << std::endl; 
         return; 
     }
 
-    std::cout << "🔒 Digite sua SEED (12 palavras) para assinar esta transação: ";
-    std::string seed;
-    std::getline(std::cin >> std::ws, seed);
+    std::string finalSeed = seed;
+    // Se a seed estiver vazia, significa que o comando veio do terminal
+    if (finalSeed.empty()) {
+        std::cout << "🔒 Digite sua SEED (12 palavras) para assinar esta transação: ";
+        std::getline(std::cin >> std::ws, finalSeed);
+    }
 
     Transaction tx;
     tx.id = sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(0)));
     tx.vout.push_back({to, amount});
     tx.vout.push_back({from, totalNeeded * -1});
     
-    tx.publicKey = seed; 
-    tx.signature = "SIG_" + sha256_util(seed).substr(0, 16); 
+    tx.publicKey = finalSeed; 
+    tx.signature = "SIG_" + sha256_util(finalSeed).substr(0, 16); 
     
     Storage::saveMempool(tx, "data/mempool.dat");
     std::cout << "✅ Transação assinada e enviada para Mempool!" << std::endl;
@@ -211,19 +212,10 @@ double Blockchain::getBalance(std::string address) {
 
 bool Blockchain::isChainValid() {
     for (size_t i = 1; i < chain.size(); i++) {
-        if (chain[i].hash != chain[i].calculateHash()) {
-            std::cout << "🚨 Erro de Hash no Bloco #" << i << std::endl;
-            return false;
-        }
-        if (chain[i].prevHash != chain[i-1].hash) {
-            std::cout << "🚨 Erro de continuidade no Bloco #" << i << std::endl;
-            return false;
-        }
+        if (chain[i].hash != chain[i].calculateHash()) return false;
+        if (chain[i].prevHash != chain[i-1].hash) return false;
         for (const auto& tx : chain[i].transactions) {
-            if (!verifyTransaction(tx)) {
-                std::cout << "🚨 Fraude: Transação inválida no Bloco #" << i << std::endl;
-                return false;
-            }
+            if (!verifyTransaction(tx)) return false;
         }
     }
     return true;
