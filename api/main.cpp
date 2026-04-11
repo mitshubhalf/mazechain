@@ -6,7 +6,8 @@
 #include <string>
 #include <cstdlib>
 #include <set>
-#include <curl/curl.h> // Para sincronizar com outros nós
+#include <sstream>
+#include <curl/curl.h>
 
 // Lista de endereços de outros nós (Peers)
 std::set<std::string> peers;
@@ -18,27 +19,45 @@ int main() {
     // Carrega a chain existente ao iniciar o servidor
     Storage::loadChain(bc, "data/blockchain.dat");
 
-    // ROTA RAIZ: Para evitar o erro 404 ao acessar a URL pura
+    // ROTA RAIZ: Interface simples para facilitar no celular
     CROW_ROUTE(app, "/")([]() {
-        return "<h1>MazeChain API Online</h1><p>Use /stats, /chain ou /wallet/new</p>";
+        std::stringstream html;
+        html << "<html><body style='font-family:sans-serif; padding:20px;'>";
+        html << "<h1>MazeChain Node Online</h1>";
+        html << "<ul>";
+        html << "<li><a href='/wallet/new'><b>CRIAR NOVA CARTEIRA (Ver Seed)</b></a></li>";
+        html << "<li><a href='/stats'>Ver Status</a></li>";
+        html << "<li><a href='/chain'>Ver Blockchain</a></li>";
+        html << "</ul>";
+        html << "</body></html>";
+        return crow::response(html.str());
     });
 
-    // ROTA: Criar Nova Carteira (MOSTRANDO A SEED PARA TESTES)
+    // ROTA: Criar Nova Carteira (Melhorado para exibição no celular)
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
         w.create(); 
-        crow::json::wvalue x;
-        x["address"] = w.address;
-        x["seed"] = w.seed; // Agora você verá as 12 palavras no navegador
-        x["info"] = "AVISO: Guarde sua seed! Ela e sua senha de acesso.";
-        return x;
+        
+        std::stringstream ss;
+        ss << "====================================\n";
+        ss << "      NOVA CARTEIRA MAZECHAIN       \n";
+        ss << "====================================\n\n";
+        ss << "ENDERECO (MZ):\n" << w.address << "\n\n";
+        ss << "SUA SEED (12 PALAVRAS):\n";
+        ss << ">> " << w.seed << " <<\n\n";
+        ss << "====================================\n";
+        ss << "AVISO: ANOTE AS PALAVRAS ACIMA AGORA!\n";
+        ss << "SE PERDER A SEED, PERDE AS MOEDAS.\n";
+        ss << "====================================";
+        
+        return crow::response(ss.str());
     });
 
     // ROTA: Registrar um novo nó na rede
     CROW_ROUTE(app, "/nodes/register").methods(crow::HTTPMethod::POST)
     ([](const crow::request& req) {
         auto body = crow::json::load(req.body);
-        if (!body || !body.has("node_url")) return crow::response(400, "URL do nó ausente");
+        if (!body || !body.has("node_url")) return crow::response(400, "URL do no ausente");
         peers.insert(body["node_url"].s());
         return crow::response(200, "No registrado com sucesso");
     });
@@ -51,13 +70,16 @@ int main() {
         return x;
     });
 
-    // ROTA: Consenso (Sincronizar com a maior corrente da rede)
+    // ROTA: Consenso (Resolve conflitos de rede)
     CROW_ROUTE(app, "/nodes/resolve")([&bc]() {
         bool replaced = false;
-        // A lógica de busca HTTP via CURL seria implementada aqui
+        size_t current_len = bc.getChain().size();
+        
+        // Aqui o nó percorreria a lista 'peers' pedindo a /chain de cada um
+        // usando a biblioteca CURL instalada no seu Docker.
         
         crow::json::wvalue x;
-        x["message"] = replaced ? "Corrente substituida" : "Sua corrente e a maior";
+        x["message"] = replaced ? "Corrente substituida" : "Sua corrente e a maior ou igual";
         x["length"] = (int)bc.getChain().size();
         return x;
     });
@@ -71,7 +93,7 @@ int main() {
         return x;
     });
 
-    // ROTA: Visualizar a Chain completa (JSON)
+    // ROTA: Visualizar a Chain completa
     CROW_ROUTE(app, "/chain")([&bc]() {
         std::vector<crow::json::wvalue> blocks;
         for (const auto& b : bc.getChain()) {
@@ -89,7 +111,7 @@ int main() {
     CROW_ROUTE(app, "/mine").methods(crow::HTTPMethod::POST)
     ([&bc](const crow::request& req) {
         auto body = crow::json::load(req.body);
-        if (!body || !body.has("miner_address")) return crow::response(400, "Invalid JSON");
+        if (!body || !body.has("miner_address")) return crow::response(400, "Address necessario");
         
         bc.mineBlock(body["miner_address"].s());
         
