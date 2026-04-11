@@ -4,28 +4,36 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 
+// Estrutura para saídas de transação (quem recebe e quanto)
 struct TxOut {
     std::string address;
     double amount;
 };
 
+// Estrutura para entradas de transação (referência a moedas passadas)
 struct TxIn {
     std::string prevTxId;
     int outIndex;
 };
 
+// Estrutura da Transação (Atualizada para Segurança Digital)
 struct Transaction {
     std::string id;
     std::vector<TxIn> vin;
     std::vector<TxOut> vout;
-    std::string signature; 
-    std::string publicKey;
+    
+    // CAMPOS CRÍTICOS PARA ASSINATURA ECDSA
+    std::string signature;  // O "carimbo" digital gerado pela chave privada
+    std::string publicKey;  // A chave pública para o minerador validar o carimbo
 
     Transaction() {}
     Transaction(std::vector<TxIn> in, std::vector<TxOut> out) : vin(in), vout(out) {}
 };
 
+// Classe do Bloco
 class Block {
 public:
     int index;
@@ -40,6 +48,7 @@ public:
     void mine(int difficulty);
 };
 
+// Classe da Blockchain (Gerenciamento da Rede)
 class Blockchain {
 private:
     std::vector<Block> chain;
@@ -50,13 +59,20 @@ private:
 
 public:
     Blockchain();
+    
+    // Funções de Mineração e Core
     void mineBlock(std::string minerAddress);
     double getBalance(std::string address);
     void send(std::string from, std::string to, double amount);
+    
+    // Funções de Validação e Segurança
+    bool isChainValid();
+    bool verifyTransaction(const Transaction& tx); // Nova função para validar assinaturas
+    
+    // Getters e Utilidades
     Block getLastBlock();
     double getBlockReward(int height);
     void adjustDifficulty();
-    bool isChainValid();
     void printStats();
     void printBlockDetails(int height);
     
@@ -67,6 +83,7 @@ public:
     void addBlock(const Block& block);
 };
 
+// Utilitário global para Hash
 std::string sha256_util(std::string str);
 
 #endif
