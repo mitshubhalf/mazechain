@@ -3,16 +3,27 @@
 #include <fstream>
 #include <iostream>
 
-// Salva a transação na Mempool
+// Salva a transação na Mempool (Agora salva assinaturas)
 void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     std::ofstream file(filename, std::ios::binary | std::ios::app);
     if (!file.is_open()) return;
 
-    // Salva o ID da TX
+    // ID
     int idSize = tx.id.size();
     file.write((char*)&idSize, sizeof(int));
     file.write(tx.id.c_str(), idSize);
 
+    // Signature
+    int sigSize = tx.signature.size();
+    file.write((char*)&sigSize, sizeof(int));
+    file.write(tx.signature.c_str(), sigSize);
+
+    // Public Key (Seed)
+    int pubSize = tx.publicKey.size();
+    file.write((char*)&pubSize, sizeof(int));
+    file.write(tx.publicKey.c_str(), pubSize);
+
+    // Saídas
     int vCount = tx.vout.size();
     file.write((char*)&vCount, sizeof(int));
     for (const auto& out : tx.vout) {
@@ -24,7 +35,6 @@ void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     file.close();
 }
 
-// Carrega a Mempool
 std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
     std::vector<Transaction> txs;
     std::ifstream file(filename, std::ios::binary);
@@ -36,9 +46,14 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
         std::string id(idSize, ' ');
         file.read(&id[0], idSize);
 
+        int sigSize; file.read((char*)&sigSize, sizeof(int));
+        std::string sig(sigSize, ' '); file.read(&sig[0], sigSize);
+
+        int pubSize; file.read((char*)&pubSize, sizeof(int));
+        std::string pub(pubSize, ' '); file.read(&pub[0], pubSize);
+
         int vCount;
         file.read((char*)&vCount, sizeof(int));
-        
         std::vector<TxOut> vouts;
         for (int k = 0; k < vCount; k++) {
             int aSize;
@@ -51,8 +66,9 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
         }
         Transaction t;
         t.id = id;
+        t.signature = sig;
+        t.publicKey = pub;
         t.vout = vouts;
-        t.signature = "SIG"; 
         txs.push_back(t);
     }
     file.close();
@@ -64,7 +80,6 @@ void Storage::clearMempool(const std::string& filename) {
     file.close();
 }
 
-// Salva a Blockchain (Agora com IDs de transação)
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) return;
@@ -86,16 +101,22 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
         file.write((char*)&phSize, sizeof(int));
         file.write(block.prevHash.c_str(), phSize);
         
-        int n = block.nonce;
-        file.write((char*)&n, sizeof(int));
+        file.write((char*)&block.nonce, sizeof(int));
         
         int txCount = block.transactions.size();
         file.write((char*)&txCount, sizeof(int));
         for (const auto& tx : block.transactions) {
-            // SALVA ID DA TX
             int idS = tx.id.size();
             file.write((char*)&idS, sizeof(int));
             file.write(tx.id.c_str(), idS);
+
+            int sS = tx.signature.size();
+            file.write((char*)&sS, sizeof(int));
+            file.write(tx.signature.c_str(), sS);
+
+            int pS = tx.publicKey.size();
+            file.write((char*)&pS, sizeof(int));
+            file.write(tx.publicKey.c_str(), pS);
 
             int vCount = tx.vout.size();
             file.write((char*)&vCount, sizeof(int));
@@ -110,7 +131,6 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     file.close();
 }
 
-// Carrega a Blockchain (Recuperando IDs de transação)
 void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) return;
@@ -135,9 +155,14 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
         int txCount; file.read((char*)&txCount, sizeof(int));
         std::vector<Transaction> txs;
         for (int j = 0; j < txCount; j++) {
-            // LE ID DA TX
             int idS; file.read((char*)&idS, sizeof(int));
             std::string id(idS, ' '); file.read(&id[0], idS);
+
+            int sS; file.read((char*)&sS, sizeof(int));
+            std::string sig(sS, ' '); file.read(&sig[0], sS);
+
+            int pS; file.read((char*)&pS, sizeof(int));
+            std::string pub(pS, ' '); file.read(&pub[0], pS);
 
             int vCount; file.read((char*)&vCount, sizeof(int));
             std::vector<TxOut> vouts;
@@ -148,15 +173,11 @@ void Storage::loadChain(Blockchain& bc, const std::string& filename) {
                 vouts.push_back({a, amt});
             }
             Transaction t; 
-            t.id = id;
-            t.vout = vouts;
+            t.id = id; t.signature = sig; t.publicKey = pub; t.vout = vouts;
             txs.push_back(t);
         }
-        // Usamos um bloco temporário para carregar os dados exatos
         Block b(index, ph, txs);
-        b.hash = h;
-        b.timestamp = timestamp;
-        b.nonce = nonce;
+        b.hash = h; b.timestamp = timestamp; b.nonce = nonce;
         bc.addBlock(b);
     }
     file.close();
