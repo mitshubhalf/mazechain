@@ -4,6 +4,7 @@
 #include "../include/wallet.h"
 #include <vector>
 #include <string>
+#include <cstdlib> // Necessário para std::getenv
 
 int main() {
     crow::SimpleApp app;
@@ -46,7 +47,7 @@ int main() {
     // ROTA: Criar Nova Carteira (via API)
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
-        w.create(); // Isso imprime no console, mas para a API vamos precisar capturar
+        w.create(); 
         crow::json::wvalue x;
         x["address"] = w.address;
         x["info"] = "Check server console for mnemonic seed (security reasons)";
@@ -77,14 +78,16 @@ int main() {
         std::string from = body["from"].s();
         std::string to = body["to"].s();
         double amount = body["amount"].d();
-        std::string seed = body["seed"].s();
-
-        // IMPORTANTE: Aqui precisamos simular o comportamento do 'send' 
-        // mas sem o 'std::cin' para não travar o servidor.
-        bc.send(from, to, amount); // Note: ajuste sua bc.send para aceitar a seed como param opcional se quiser automatizar 100%
         
+        bc.send(from, to, amount); 
         return crow::response(200, "Transaction pushed to mempool");
     });
 
-    app.port(8080).multithreaded().run();
+    // --- AJUSTE PARA O RENDER ---
+    // Ele tenta ler a porta que o Render mandar. Se não tiver nenhuma, usa a 10000.
+    const char* port_ptr = std::getenv("PORT");
+    int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 10000;
+    
+    std::cout << "Servidor iniciando na porta " << port << std::endl;
+    app.port(port).multithreaded().run();
 }
