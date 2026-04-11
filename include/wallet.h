@@ -7,8 +7,8 @@
 class Wallet {
 public:
     std::string address;
-    
-    // Esta função gera a seed de 2048 palavras e o endereço
+    std::string seed; // <--- ADICIONADO: Permite que a API acesse a seed
+
     void create(); 
 };
 
