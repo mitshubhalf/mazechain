@@ -79,7 +79,7 @@ int main() {
 
     // ROTA: EXPLORADOR DE BLOCOS (JSON)
     CROW_ROUTE(app, "/chain")([&bc]() {
-        std::vector<crow::json::wvalue> blocks;
+        std::vector<crow::json::wvalue> blocks_json;
         for (const auto& b : bc.getChain()) {
             crow::json::wvalue block;
             block["index"] = b.index;
@@ -87,10 +87,13 @@ int main() {
             block["prevHash"] = b.prevHash;
             block["timestamp"] = (long long)b.timestamp;
             block["nonce"] = b.nonce;
-            blocks.push_back(block);
+            blocks_json.push_back(std::move(block));
         }
-        crow::response res(crow::json::wvalue(blocks));
+        
+        // CORREÇÃO: Usar { } impede que o compilador confunda o objeto com uma função
+        crow::response res{crow::json::wvalue(blocks_json)}; 
         res.add_header("Access-Control-Allow-Origin", "*");
+        res.add_header("Content-Type", "application/json");
         return res;
     });
 
