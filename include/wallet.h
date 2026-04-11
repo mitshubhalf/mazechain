@@ -2,12 +2,11 @@
 #define WALLET_H
 
 #include <string>
-#include <vector>
 
 class Wallet {
 public:
     std::string address;
-    std::string seed; // <--- ADICIONADO: Permite que a API acesse a seed
+    std::string seed; // Onde as 12 palavras ficam guardadas
 
     void create(); 
 };
