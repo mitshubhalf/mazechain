@@ -26,7 +26,17 @@ int main() {
         return "MAZECHAIN NODE v1.1 - STATUS: ONLINE";
     });
 
-    // ROTA DE ENVIO (Adicionada para resolver o 404)
+    // 1. ADICIONADO: ROTA OPTIONS PARA O NAVEGADOR
+    // Sem isso, o frontend dá "Erro de Conexão" por causa do CORS
+    CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::OPTIONS)([]() {
+        crow::response res(204);
+        res.add_header("Access-Control-Allow-Origin", "*");
+        res.add_header("Access-Control-Allow-Methods", "POST, OPTIONS");
+        res.add_header("Access-Control-Allow-Headers", "Content-Type");
+        return res;
+    });
+
+    // ROTA DE ENVIO
     CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST)([&bc](const crow::request& req) {
         auto x = crow::json::load(req.body);
         crow::json::wvalue result;
@@ -40,6 +50,11 @@ int main() {
         }
 
         try {
+            // 2. MELHORIA: Verificação de existência das chaves no JSON para evitar crash
+            if (!x.has("from") || !x.has("to") || !x.has("amount") || !x.has("seed")) {
+                throw std::runtime_error("Campos obrigatorios ausentes no JSON");
+            }
+
             std::string from = x["from"].s();
             std::string to = x["to"].s();
             double amount = x["amount"].d();
@@ -56,7 +71,7 @@ int main() {
         } catch (const std::exception& e) {
             result["status"] = "error";
             result["message"] = e.what();
-            crow::response res(500, result);
+            crow::response res(400, result); // 400 é mais apropriado para erro de lógica/saldo
             add_cors(res);
             return res;
         }
@@ -74,11 +89,8 @@ int main() {
 
     CROW_ROUTE(app, "/balance/<string>")([&bc](std::string endereco) {
         double saldo = bc.getBalance(endereco);
-        if (saldo <= 0) {
-            crow::response res(404, "Carteira nao registrada ou sem saldo.");
-            add_cors(res);
-            return res;
-        }
+        // Removido o erro 404 para carteiras zeradas, 
+        // agora retorna saldo 0.0 (melhor para o frontend não bugar)
         crow::json::wvalue x;
         x["address"] = endereco;
         x["balance"] = saldo;
