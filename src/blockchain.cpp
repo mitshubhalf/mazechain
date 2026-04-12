@@ -110,8 +110,8 @@ Block Blockchain::getLastBlock() {
 }
 
 double Blockchain::getBlockReward(int height) {
-    if (totalSupply >= 21000000) return 0;
-    double reward = 250.0;
+    if (totalSupply >= 20000000) return 0;
+    double reward = 1000.0;
     int interval = 10; 
     int h = height;
     while (h >= interval) {
