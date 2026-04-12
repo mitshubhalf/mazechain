@@ -200,7 +200,6 @@
 
   function confirmSave() { loadDashboard(); }
 
-  // NOVA FUNÇÃO DE IMPORTAÇÃO COM VERIFICAÇÃO NO BACKEND
   async function importWallet() {
     const seedInput = document.getElementById('seedInput').value.trim();
     const pass = document.getElementById('importPass').value;
@@ -215,23 +214,19 @@
     btn.disabled = true; btn.innerText = "VERIFICANDO NO NÓ...";
 
     try {
-      // Tentamos buscar o saldo do endereço calculado. 
-      // Se o backend retornar erro ou saldo não inicializado, assumimos que a seed é inválida/aleatória.
+      // Sincronização: Tenta obter o saldo. Se o nó responder, a carteira é válida para o sistema.
       const response = await fetch(`${API}/balance/${addr}`);
-      const data = await response.json();
-
-      // Dependendo de como seu C++ responde para contas inexistentes.
-      // Se ele retorna um erro ou saldo null/undefined, bloqueamos.
+      
       if (response.ok) {
         localStorage.setItem('mz_vault', encrypt(seed, pass));
         localStorage.setItem('mz_addr', addr);
         sessionSeed = seed;
         loadDashboard();
       } else {
-        alert("ERRO: Esta frase de recuperação não corresponde a nenhuma carteira ativa na MazeChain.");
+        alert("ERRO: O nó recusou esta carteira ou ela ainda não foi registrada na rede.");
       }
     } catch (e) {
-      alert("Falha ao validar: O nó não reconhece esta carteira ou está offline.");
+      alert("Falha de conexão: O nó oficial está offline ou inacessível.");
     } finally {
       btn.disabled = false; btn.innerText = "VALIDAR E ENTRAR";
     }
