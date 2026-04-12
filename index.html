@@ -3,34 +3,206 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MAZECHAIN | Encrypted Node</title>
+  <title>MAZEWALLET | Ultra Secure Portal</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <style>
     :root {
-      --bg: #0b0b0b; --card: #111; --accent: #f5c542;
-      --accent-dark: #d4a735; --accent-light: #fff3d6; --text: #aaa;
+      --bg: #0b0b0b; 
+      --card: #111; 
+      --accent: #f5c542;
+      --accent-dark: #d4a735; 
+      --accent-light: #fff3d6; 
+      --text: #aaa;
     }
-    body { margin:0; font-family: 'Segoe UI', monospace; background: var(--bg); color:#fff; display: flex; justify-content: center; overflow-x: hidden; }
-    .container { width: 100%; max-width: 450px; min-height: 100vh; position: relative; }
-    .screen { display:none; padding:25px; box-sizing: border-box; min-height: 100vh; width: 100%; }
-    .active { display:block !important; animation: fadeIn 0.4s; }
+
+    body { 
+      margin: 0; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      background: var(--bg); 
+      color: #fff; 
+      display: flex; 
+      justify-content: center; 
+      overflow-x: hidden; 
+    }
+
+    .container { 
+      width: 100%; 
+      max-width: 450px; 
+      min-height: 100vh; 
+      position: relative; 
+    }
     
-    /* CUBO CSS */
-    .cube-wrapper { width: 60px; height: 60px; margin: 0 auto 20px; perspective: 1000px; position: relative; }
-    .cube { width: 30px; height: 30px; position: absolute; top:15px; left:15px; transform-style: preserve-3d; transform: rotateX(-20deg) rotateY(45deg); }
-    .face { position: absolute; width: 30px; height: 30px; border: 1px solid rgba(0,0,0,0.1); }
+    .screen { 
+      display: none; 
+      padding: 25px; 
+      box-sizing: border-box; 
+      min-height: 100vh; 
+      width: 100%; 
+    }
+
+    .active { 
+      display: block !important; 
+      animation: fadeIn 0.4s ease; 
+    }
+    
+    /* ANIMAÇÃO DO CUBO MAZECHAIN */
+    .cube-wrapper { 
+      width: 60px; 
+      height: 60px; 
+      margin: 0 auto 20px; 
+      perspective: 1000px; 
+      position: relative; 
+    }
+
+    .cube { 
+      width: 30px; 
+      height: 30px; 
+      position: absolute; 
+      top: 15px; 
+      left: 15px; 
+      transform-style: preserve-3d; 
+      transform: rotateX(-20deg) rotateY(45deg); 
+      animation: rotateCube 10s infinite linear; 
+    }
+
+    @keyframes rotateCube { 
+      from { transform: rotateX(-20deg) rotateY(0); } 
+      to { transform: rotateX(-20deg) rotateY(360deg); } 
+    }
+
+    .face { 
+      position: absolute; 
+      width: 30px; 
+      height: 30px; 
+      border: 1px solid rgba(255,255,255,0.1); 
+    }
+
     .top { background: var(--accent-light); transform: rotateX(90deg) translateZ(15px); }
     .right { background: var(--accent-dark); transform: rotateY(90deg) translateZ(15px); }
     .front { background: var(--accent); transform: translateZ(15px); }
     
-    h1 { text-align: center; letter-spacing: 4px; font-size: 22px; margin: 10px 0; }
-    .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #222; margin-bottom: 20px; }
-    button { padding:16px; margin-top:12px; width:100%; background: var(--accent); border:none; cursor:pointer; font-weight: bold; border-radius: 8px; text-transform: uppercase; color: #000; }
-    button.secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
-    input { width:100%; padding:14px; margin-top:10px; background:#000; border:1px solid #333; color: var(--accent); border-radius: 8px; box-sizing: border-box; }
-    .seed-box { background: #000; padding: 20px; border: 1px dashed var(--accent); margin: 15px 0; border-radius: 8px; text-align: center; font-size: 13px; color: #fff; }
-    .nav { display:flex; justify-content: space-between; align-items: center; padding:15px; background: #000; border-bottom: 1px solid #222; }
-    .terminal { background: #000; color: #0f0; padding: 12px; font-size: 11px; height: 100px; overflow-y: auto; border: 1px solid #222; border-radius: 6px; font-family: monospace; }
+    h1 { 
+      text-align: center; 
+      letter-spacing: 5px; 
+      font-size: 24px; 
+      margin: 10px 0; 
+      font-weight: 900; 
+      text-transform: uppercase;
+    }
+
+    h2 { 
+      color: var(--accent); 
+      text-align: center; 
+      font-size: 18px; 
+      margin-bottom: 20px; 
+    }
+
+    .card { 
+      background: var(--card); 
+      padding: 20px; 
+      border-radius: 12px; 
+      border: 1px solid #222; 
+      margin-bottom: 20px; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+    }
+    
+    button { 
+      padding: 16px; 
+      margin-top: 12px; 
+      width: 100%; 
+      background: var(--accent); 
+      border: none; 
+      cursor: pointer; 
+      font-weight: bold; 
+      border-radius: 8px; 
+      text-transform: uppercase;
+      color: #000; 
+      transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    button:hover { 
+      background: var(--accent-light); 
+      transform: translateY(-3px); 
+    }
+
+    button:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    button.secondary { 
+      background: transparent; 
+      border: 1px solid var(--accent); 
+      color: var(--accent); 
+    }
+    
+    input { 
+      width: 100%; 
+      padding: 14px; 
+      margin-top: 10px; 
+      background: #000; 
+      border: 1px solid #333; 
+      color: var(--accent); 
+      border-radius: 8px; 
+      box-sizing: border-box;
+      font-size: 14px; 
+      outline: none;
+      transition: 0.2s;
+    }
+
+    input:focus { 
+      border-color: var(--accent); 
+      box-shadow: 0 0 10px rgba(245, 197, 66, 0.2);
+    }
+    
+    .seed-box { 
+      background: #050505; 
+      padding: 25px; 
+      border: 1px dashed var(--accent); 
+      margin: 15px 0; 
+      border-radius: 8px; 
+      text-align: center; 
+      font-size: 14px; 
+      color: #fff;
+      line-height: 1.8; 
+      word-spacing: 6px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .nav { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding: 15px 20px; 
+      background: #000; 
+      border-bottom: 1px solid #222; 
+    }
+
+    .terminal { 
+      background: #000; 
+      color: #0f0; 
+      padding: 15px; 
+      font-size: 11px; 
+      height: 120px; 
+      overflow-y: auto; 
+      border: 1px solid #222; 
+      border-radius: 6px; 
+      font-family: 'Courier New', monospace; 
+      margin-top: 10px;
+    }
+
+    .status-dot {
+      height: 8px;
+      width: 8px;
+      background-color: #0f0;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+      box-shadow: 0 0 8px #0f0;
+    }
+
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
 </head>
@@ -38,138 +210,237 @@
 
 <div class="container">
   <div id="home" class="screen active">
-    <div style="margin-top: 60px; text-align: center;">
+    <div style="margin-top: 80px; text-align: center;">
       <div class="cube-wrapper">
-        <div class="cube"><div class="face top"></div><div class="face front"></div><div class="face right"></div></div>
+        <div class="cube">
+          <div class="face top"></div>
+          <div class="face front"></div>
+          <div class="face right"></div>
+        </div>
       </div>
-      <h1>MAZECHAIN</h1>
-      <p style="color:var(--text)">Distributed Secure Network</p>
+      <h1>MAZEWALLET</h1>
+      <p style="color:var(--text); font-size: 12px; letter-spacing: 1px;">Decentralized Node Interface</p>
     </div>
-    <div style="margin-top: 40px;">
-      <button onclick="go('create')">CRIAR NOVA WALLET</button>
-      <button class="secondary" onclick="go('import')">IMPORTAR VIA SEED</button>
-      <div id="unlockArea" style="display:none; margin-top:30px; border-top:1px solid #222; padding-top:20px;">
-        <input type="password" id="unlockPass" placeholder="Sua Senha de Desbloqueio">
+
+    <div style="margin-top: 60px;">
+      <button onclick="go('create')">GERAR NOVA CARTEIRA</button>
+      <button class="secondary" onclick="go('import')">IMPORTAR POR SEED</button>
+      
+      <div id="unlockArea" style="display:none; margin-top:40px; border-top:1px solid #222; padding-top:20px;">
+        <p style="font-size:11px; color:var(--accent); text-align:center; text-transform: uppercase; letter-spacing: 1px;">Cofre detectado no dispositivo</p>
+        <input type="password" id="unlockPass" placeholder="Insira sua Senha Mestra">
         <button onclick="unlockWallet()">DESBLOQUEAR ACESSO</button>
       </div>
     </div>
   </div>
 
   <div id="create" class="screen">
-    <h2>Backup Phrase</h2>
-    <div id="seedBox" class="seed-box">Gerando segredos...</div>
-    <input type="password" id="newPass" placeholder="Crie uma Senha">
-    <button id="genBtn" onclick="generateWallet()">GERAR SEED PROTEGIDA</button>
-    <button id="confirmBtn" class="secondary" onclick="go('dashboard')" style="display:none">JÁ ANOTEI (ENTRAR)</button>
+    <h2>Segurança de Backup</h2>
+    <p style="color:var(--text); font-size:11px; text-align:center;">Estas 12 palavras são a chave para o seu dinheiro. Se perdê-las, perderá o acesso para sempre.</p>
+    <div id="seedBox" class="seed-box">Iniciando protocolo de entropia...</div>
+    <input type="password" id="newPass" placeholder="Crie uma Senha Forte de Acesso">
+    <button id="genBtn" onclick="generateWallet()">GERAR SEED CRIPTOGRAFADA</button>
+    <button id="confirmBtn" class="secondary" onclick="loadDashboard()" style="display:none">CONFIRMO QUE ANOTEI TUDO</button>
+    <button class="secondary" onclick="go('home')" style="border:none; color:#555; font-size: 12px;">Cancelar</button>
   </div>
 
   <div id="import" class="screen">
-    <h2>Recuperar Conta</h2>
-    <input id="seedInput" placeholder="apple book cat dog...">
-    <input type="password" id="importPass" placeholder="Senha para este dispositivo">
-    <button onclick="importWallet()">VALIDAR E ENTRAR</button>
+    <h2>Recuperar Wallet</h2>
+    <p style="color:var(--text); font-size:11px; text-align:center;">Digite as 12 palavras da sua Seed na ordem correta.</p>
+    <input id="seedInput" placeholder="ex: apple book cat dog...">
+    <input type="password" id="importPass" placeholder="Defina uma Senha para este dispositivo">
+    <button onclick="importWallet()">SINCRONIZAR E ENTRAR</button>
+    <button class="secondary" onclick="go('home')" style="border:none; color:#555; font-size: 12px;">Voltar</button>
   </div>
 
   <div id="dashboard" class="screen" style="padding:0">
     <div class="nav">
-      <b style="color:var(--accent)">MAZECHAIN CORE</b> 
-      <span onclick="logout()" style="cursor:pointer; font-size:11px; color:var(--text)">[SAIR]</span>
+      <div>
+        <span class="status-dot"></span>
+        <b style="color:var(--accent); font-size: 14px;">MAZECHAIN LIVE</b>
+      </div>
+      <span onclick="logout()" style="cursor:pointer; font-size:10px; color:var(--text); font-weight: bold;">[LOCK]</span>
     </div>
+
     <div style="padding:20px">
       <div class="card">
-        <small style="color:var(--text)">ENDEREÇO PÚBLICO</small>
-        <p id="addrDisp" style="font-size:10px; color:var(--accent); word-break:break-all; font-family:monospace;"></p>
-        <small style="color:var(--text)">SALDO</small>
-        <p id="balDisp" style="font-size:28px; font-weight:bold;">0.00 MZ</p>
+        <small style="color:var(--text); font-size:10px; letter-spacing:1px; text-transform: uppercase;">Endereço da Carteira</small>
+        <p id="addrDisp" style="font-size:11px; color:var(--accent); word-break:break-all; margin:12px 0 25px 0; font-family:monospace; background: #000; padding: 10px; border-radius: 5px;"></p>
+        
+        <small style="color:var(--text); font-size:10px; letter-spacing:1px; text-transform: uppercase;">Saldo de Mineração</small>
+        <p id="balDisp" style="font-size:36px; font-weight:900; margin:10px 0; color: #fff;">0.00 MZ</p>
       </div>
-      <button id="mineBtn" onclick="runMiner()">MINERAR PRÓXIMO BLOCO</button>
-      <div class="terminal" id="log">> Sessão Criptografada Ativa.</div>
+
+      <button id="mineBtn" onclick="runMiner()">INICIAR MINERAÇÃO (PoW)</button>
+      
+      <div class="terminal" id="log">
+        > Conexão estabelecida com sucesso.<br>
+        > Aguardando instruções do nó...
+      </div>
     </div>
   </div>
 </div>
 
 <script>
+  // URL do seu Backend no Render
   const API = "https://mazechain.onrender.com";
   let sessionSeed = null;
 
   function go(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
   }
 
-  function deriveAddress(seed) {
-    const hash = CryptoJS.SHA256(seed.trim()).toString();
+  // --- LÓGICA DE DERIVAÇÃO DE ENDEREÇO (ESPELHO DO C++) ---
+  function calculateMZAddress(seed) {
+    const cleanSeed = seed.trim();
+    const hash = CryptoJS.SHA256(cleanSeed).toString();
+    // Gera o endereço MZ prefixado + os primeiros 20 caracteres do hash
     return "MZ" + hash.substring(0, 20);
   }
 
-  function encrypt(text, pass) { return CryptoJS.AES.encrypt(text, pass).toString(); }
+  // --- MOTORES DE CRIPTOGRAFIA ---
+  function encrypt(text, pass) {
+    return CryptoJS.AES.encrypt(text, pass).toString();
+  }
+
   function decrypt(cipher, pass) {
     try {
       const bytes = CryptoJS.AES.decrypt(cipher, pass);
-      return bytes.toString(CryptoJS.enc.Utf8) || null;
-    } catch(e) { return null; }
+      const originalText = bytes.toString(CryptoJS.enc.Utf8);
+      return originalText || null;
+    } catch(e) {
+      return null;
+    }
   }
 
+  // --- FUNÇÕES DE CARTEIRA ---
   async function generateWallet() {
     const pass = document.getElementById('newPass').value;
-    if(pass.length < 4) return alert("Senha curta!");
+    if(pass.length < 4) return alert("A senha deve ter pelo menos 4 caracteres!");
+    
+    const genBtn = document.getElementById('genBtn');
+    genBtn.innerText = "CONTATANDO NÓ...";
+    genBtn.disabled = true;
+
     try {
-      const r = await fetch(`${API}/wallet/new`);
-      const t = await r.text();
-      const seed = t.match(/>> (.*) <</)[1];
-      const addr = deriveAddress(seed);
+      const response = await fetch(`${API}/wallet/new`);
+      const dataText = await response.text();
+      
+      // Captura a seed formatada do backend C++ ( >> seed << )
+      const match = dataText.match(/>> (.*) <</);
+      if(!match) throw new Error("Formato de Seed inválido.");
+      
+      const seed = match[1];
+      const addr = calculateMZAddress(seed);
+
       document.getElementById('seedBox').innerText = seed;
+      
+      // Salva no LocalStorage Criptografado
       localStorage.setItem('mz_vault', encrypt(seed, pass));
       localStorage.setItem('mz_addr', addr);
-      document.getElementById('genBtn').style.display = "none";
+      
+      sessionSeed = seed;
+      genBtn.style.display = "none";
       document.getElementById('confirmBtn').style.display = "block";
-    } catch(e) { alert("Erro de conexão."); }
+    } catch(e) {
+      alert("Falha na rede. Verifique se o seu backend C++ está online.");
+      genBtn.innerText = "GERAR SEED CRIPTOGRAFADA";
+      genBtn.disabled = false;
+    }
   }
 
   function importWallet() {
     const seed = document.getElementById('seedInput').value.trim();
     const pass = document.getElementById('importPass').value;
-    if(seed.split(/\s+/).length < 12 || pass.length < 4) return alert("Dados inválidos.");
-    const addr = deriveAddress(seed);
+    
+    if(seed.split(/\s+/).length < 12) return alert("A seed deve conter as 12 palavras!");
+    if(pass.length < 4) return alert("Defina uma senha de acesso!");
+
+    const addr = calculateMZAddress(seed);
+    
     localStorage.setItem('mz_vault', encrypt(seed, pass));
     localStorage.setItem('mz_addr', addr);
-    go('dashboard');
-    updateStats();
+    
+    sessionSeed = seed;
+    loadDashboard();
   }
 
   function unlockWallet() {
     const pass = document.getElementById('unlockPass').value;
-    const decrypted = decrypt(localStorage.getItem('mz_vault'), pass);
-    if(decrypted) { go('dashboard'); updateStats(); } else { alert("Senha incorreta!"); }
+    const vault = localStorage.getItem('mz_vault');
+    const seed = decrypt(vault, pass);
+
+    if(seed && seed.split(/\s+/).length === 12) {
+      sessionSeed = seed;
+      loadDashboard();
+    } else {
+      alert("Senha Incorreta ou Vault corrompido.");
+    }
   }
 
-  async function updateStats() {
+  function loadDashboard() {
+    go('dashboard');
+    document.getElementById('addrDisp').innerText = localStorage.getItem('mz_addr');
+    updateBalance();
+    
+    // Auto-update do saldo a cada 30 segundos
+    setInterval(updateBalance, 30000);
+  }
+
+  async function updateBalance() {
     const addr = localStorage.getItem('mz_addr');
-    document.getElementById('addrDisp').innerText = addr;
+    if(!addr) return;
     try {
-      const r = await fetch(`${API}/balance/${addr}`);
-      const d = await r.json();
-      document.getElementById('balDisp').innerText = d.balance.toFixed(2) + " MZ";
-    } catch(e) {}
+      const res = await fetch(`${API}/balance/${addr}`);
+      const data = await res.json();
+      document.getElementById('balDisp').innerText = data.balance.toFixed(2) + " MZ";
+    } catch(e) {
+      console.log("Erro ao atualizar saldo.");
+    }
   }
 
   async function runMiner() {
     const addr = localStorage.getItem('mz_addr');
+    const btn = document.getElementById('mineBtn');
     const log = document.getElementById('log');
-    log.innerHTML += `<br>> Minerando...`;
+    
+    btn.disabled = true;
+    btn.innerText = "TRABALHANDO...";
+    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Iniciando Proof-of-Work...`;
+    
     try {
-      const r = await fetch(`${API}/minerar_agora/${addr}`);
-      const d = await r.json();
-      log.innerHTML += `<br>> Sucesso! Bloco #${d.blocos}`;
-      updateStats();
-    } catch(e) { log.innerHTML += `<br>> Erro na rede.`; }
+      const res = await fetch(`${API}/minerar_agora/${addr}`);
+      const data = await res.json();
+      
+      if(data.status === "success") {
+        log.innerHTML += `<br><span style="color:#0f0">> Bloco #${data.blocos} minerado! Recompensa creditada.</span>`;
+        updateBalance();
+      } else {
+        log.innerHTML += `<br><span style="color:#f00">> Erro: ${data.message}</span>`;
+      }
+    } catch(e) {
+      log.innerHTML += `<br><span style="color:#f00">> Falha de conexão com o nó minerador.</span>`;
+    }
+    
+    btn.disabled = false;
+    btn.innerText = "MINERAR PRÓXIMO BLOCO";
+    log.scrollTop = log.scrollHeight;
   }
 
-  function logout() { localStorage.removeItem('mz_vault'); location.reload(); }
+  function logout() {
+    sessionSeed = null;
+    // Recarrega a página para limpar a memória, mas mantém o Vault no LocalStorage
+    location.reload();
+  }
 
+  // Verifica se o usuário já tem uma carteira salva ao abrir o site
   window.onload = () => {
-    if(localStorage.getItem('mz_vault')) document.getElementById('unlockArea').style.display = "block";
-  }
+    if(localStorage.getItem('mz_vault')) {
+      document.getElementById('unlockArea').style.display = "block";
+    }
+  };
 </script>
 </body>
 </html>
