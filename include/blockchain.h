@@ -49,6 +49,10 @@ public:
     bool verifyTransaction(const Transaction& tx);
     void adjustDifficulty();
     double getBlockReward(int height);
+    
+    // --- FUNÇÃO ADICIONADA PARA SINCRONIZAR COM O CPP ---
+    int getCurrentCycle(int height); 
+    
     Block getLastBlock();
     void clearChain();
     bool isChainValid();
