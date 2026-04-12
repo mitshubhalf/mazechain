@@ -3,35 +3,40 @@
 #include <fstream>
 #include <iostream>
 
-// Salva a transação na Mempool (Agora salva assinaturas)
+// Salva a transação na Mempool (Garante escrita física no disco)
 void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     std::ofstream file(filename, std::ios::binary | std::ios::app);
-    if (!file.is_open()) return;
+    if (!file.is_open()) {
+        std::cerr << "Erro crítico: Não foi possível abrir " << filename << " para escrita." << std::endl;
+        return;
+    }
 
     // ID
-    int idSize = tx.id.size();
-    file.write((char*)&idSize, sizeof(int));
+    int idSize = static_cast<int>(tx.id.size());
+    file.write(reinterpret_cast<const char*>(&idSize), sizeof(int));
     file.write(tx.id.c_str(), idSize);
 
     // Signature
-    int sigSize = tx.signature.size();
-    file.write((char*)&sigSize, sizeof(int));
+    int sigSize = static_cast<int>(tx.signature.size());
+    file.write(reinterpret_cast<const char*>(&sigSize), sizeof(int));
     file.write(tx.signature.c_str(), sigSize);
 
     // Public Key (Seed)
-    int pubSize = tx.publicKey.size();
-    file.write((char*)&pubSize, sizeof(int));
+    int pubSize = static_cast<int>(tx.publicKey.size());
+    file.write(reinterpret_cast<const char*>(&pubSize), sizeof(int));
     file.write(tx.publicKey.c_str(), pubSize);
 
     // Saídas
-    int vCount = tx.vout.size();
-    file.write((char*)&vCount, sizeof(int));
+    int vCount = static_cast<int>(tx.vout.size());
+    file.write(reinterpret_cast<const char*>(&vCount), sizeof(int));
     for (const auto& out : tx.vout) {
-        int aSize = out.address.size();
-        file.write((char*)&aSize, sizeof(int));
+        int aSize = static_cast<int>(out.address.size());
+        file.write(reinterpret_cast<const char*>(&aSize), sizeof(int));
         file.write(out.address.c_str(), aSize);
-        file.write((char*)&out.amount, sizeof(double));
+        file.write(reinterpret_cast<const char*>(&out.amount), sizeof(double));
     }
+
+    file.flush(); // Força a gravação dos buffers para o SO
     file.close();
 }
 
@@ -42,26 +47,30 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
 
     while (file.peek() != EOF) {
         int idSize;
-        if (!file.read((char*)&idSize, sizeof(int))) break;
+        if (!file.read(reinterpret_cast<char*>(&idSize), sizeof(int))) break;
         std::string id(idSize, ' ');
         file.read(&id[0], idSize);
 
-        int sigSize; file.read((char*)&sigSize, sizeof(int));
-        std::string sig(sigSize, ' '); file.read(&sig[0], sigSize);
+        int sigSize; 
+        if (!file.read(reinterpret_cast<char*>(&sigSize), sizeof(int))) break;
+        std::string sig(sigSize, ' '); 
+        file.read(&sig[0], sigSize);
 
-        int pubSize; file.read((char*)&pubSize, sizeof(int));
-        std::string pub(pubSize, ' '); file.read(&pub[0], pubSize);
+        int pubSize; 
+        if (!file.read(reinterpret_cast<char*>(&pubSize), sizeof(int))) break;
+        std::string pub(pubSize, ' '); 
+        file.read(&pub[0], pubSize);
 
         int vCount;
-        file.read((char*)&vCount, sizeof(int));
+        if (!file.read(reinterpret_cast<char*>(&vCount), sizeof(int))) break;
         std::vector<TxOut> vouts;
         for (int k = 0; k < vCount; k++) {
             int aSize;
-            file.read((char*)&aSize, sizeof(int));
+            file.read(reinterpret_cast<char*>(&aSize), sizeof(int));
             std::string a(aSize, ' ');
             file.read(&a[0], aSize);
             double amt;
-            file.read((char*)&amt, sizeof(double));
+            file.read(reinterpret_cast<char*>(&amt), sizeof(double));
             vouts.push_back({a, amt});
         }
         Transaction t;
@@ -76,100 +85,109 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
 }
 
 void Storage::clearMempool(const std::string& filename) {
-    std::ofstream file(filename, std::ios::trunc);
-    file.close();
+    std::ofstream file(filename, std::ios::trunc); // Abre truncando (limpando tudo)
+    if (file.is_open()) {
+        file.close();
+    }
 }
 
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
-    std::ofstream file(filename, std::ios::binary);
-    if (!file.is_open()) return;
+    std::ofstream file(filename, std::ios::binary | std::ios::trunc);
+    if (!file.is_open()) {
+        std::cerr << "Falha ao salvar a Blockchain em " << filename << std::endl;
+        return;
+    }
 
     std::vector<Block> chain = bc.getChain();
-    int chainSize = chain.size();
-    file.write((char*)&chainSize, sizeof(int));
+    int chainSize = static_cast<int>(chain.size());
+    file.write(reinterpret_cast<const char*>(&chainSize), sizeof(int));
 
     for (const auto& block : chain) {
-        file.write((char*)&block.index, sizeof(int));
+        file.write(reinterpret_cast<const char*>(&block.index), sizeof(int));
         long long ts = block.timestamp;
-        file.write((char*)&ts, sizeof(long long));
+        file.write(reinterpret_cast<const char*>(&ts), sizeof(long long));
         
-        int hSize = block.hash.size();
-        file.write((char*)&hSize, sizeof(int));
+        int hSize = static_cast<int>(block.hash.size());
+        file.write(reinterpret_cast<const char*>(&hSize), sizeof(int));
         file.write(block.hash.c_str(), hSize);
         
-        int phSize = block.prevHash.size();
-        file.write((char*)&phSize, sizeof(int));
+        int phSize = static_cast<int>(block.prevHash.size());
+        file.write(reinterpret_cast<const char*>(&phSize), sizeof(int));
         file.write(block.prevHash.c_str(), phSize);
         
-        file.write((char*)&block.nonce, sizeof(int));
+        file.write(reinterpret_cast<const char*>(&block.nonce), sizeof(int));
         
-        int txCount = block.transactions.size();
-        file.write((char*)&txCount, sizeof(int));
+        int txCount = static_cast<int>(block.transactions.size());
+        file.write(reinterpret_cast<const char*>(&txCount), sizeof(int));
         for (const auto& tx : block.transactions) {
-            int idS = tx.id.size();
-            file.write((char*)&idS, sizeof(int));
+            int idS = static_cast<int>(tx.id.size());
+            file.write(reinterpret_cast<const char*>(&idS), sizeof(int));
             file.write(tx.id.c_str(), idS);
 
-            int sS = tx.signature.size();
-            file.write((char*)&sS, sizeof(int));
+            int sS = static_cast<int>(tx.signature.size());
+            file.write(reinterpret_cast<const char*>(&sS), sizeof(int));
             file.write(tx.signature.c_str(), sS);
 
-            int pS = tx.publicKey.size();
-            file.write((char*)&pS, sizeof(int));
+            int pS = static_cast<int>(tx.publicKey.size());
+            file.write(reinterpret_cast<const char*>(&pS), sizeof(int));
             file.write(tx.publicKey.c_str(), pS);
 
-            int vCount = tx.vout.size();
-            file.write((char*)&vCount, sizeof(int));
+            int outCount = static_cast<int>(tx.vout.size());
+            file.write(reinterpret_cast<const char*>(&outCount), sizeof(int));
             for (const auto& out : tx.vout) {
-                int aSize = out.address.size();
-                file.write((char*)&aSize, sizeof(int));
+                int aSize = static_cast<int>(out.address.size());
+                file.write(reinterpret_cast<const char*>(&aSize), sizeof(int));
                 file.write(out.address.c_str(), aSize);
-                file.write((char*)&out.amount, sizeof(double));
+                file.write(reinterpret_cast<const char*>(&out.amount), sizeof(double));
             }
         }
     }
+    file.flush();
     file.close();
 }
 
 void Storage::loadChain(Blockchain& bc, const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
-    if (!file.is_open()) return;
+    if (!file.is_open()) {
+        std::cout << "Aviso: Arquivo de blockchain não encontrado. Iniciando nova chain." << std::endl;
+        return;
+    }
 
     int chainSize;
-    if (!file.read((char*)&chainSize, sizeof(int))) return;
+    if (!file.read(reinterpret_cast<char*>(&chainSize), sizeof(int))) return;
 
     bc.clearChain();
     for (int i = 0; i < chainSize; i++) {
         int index; long long timestamp; int nonce;
-        file.read((char*)&index, sizeof(int));
-        file.read((char*)&timestamp, sizeof(long long));
+        if (!file.read(reinterpret_cast<char*>(&index), sizeof(int))) break;
+        file.read(reinterpret_cast<char*>(&timestamp), sizeof(long long));
         
-        int hSize; file.read((char*)&hSize, sizeof(int));
+        int hSize; file.read(reinterpret_cast<char*>(&hSize), sizeof(int));
         std::string h(hSize, ' '); file.read(&h[0], hSize);
         
-        int phSize; file.read((char*)&phSize, sizeof(int));
+        int phSize; file.read(reinterpret_cast<char*>(&phSize, sizeof(int));
         std::string ph(phSize, ' '); file.read(&ph[0], phSize);
         
-        file.read((char*)&nonce, sizeof(int));
+        file.read(reinterpret_cast<char*>(&nonce), sizeof(int));
         
-        int txCount; file.read((char*)&txCount, sizeof(int));
+        int txCount; file.read(reinterpret_cast<char*>(&txCount), sizeof(int));
         std::vector<Transaction> txs;
         for (int j = 0; j < txCount; j++) {
-            int idS; file.read((char*)&idS, sizeof(int));
+            int idS; file.read(reinterpret_cast<char*>(&idS), sizeof(int));
             std::string id(idS, ' '); file.read(&id[0], idS);
 
-            int sS; file.read((char*)&sS, sizeof(int));
+            int sS; file.read(reinterpret_cast<char*>(&sS), sizeof(int));
             std::string sig(sS, ' '); file.read(&sig[0], sS);
 
-            int pS; file.read((char*)&pS, sizeof(int));
+            int pS; file.read(reinterpret_cast<char*>(&pS), sizeof(int));
             std::string pub(pS, ' '); file.read(&pub[0], pS);
 
-            int vCount; file.read((char*)&vCount, sizeof(int));
+            int outCount; file.read(reinterpret_cast<char*>(&outCount), sizeof(int));
             std::vector<TxOut> vouts;
-            for (int k = 0; k < vCount; k++) {
-                int aSize; file.read((char*)&aSize, sizeof(int));
+            for (int k = 0; k < outCount; k++) {
+                int aSize; file.read(reinterpret_cast<char*>(&aSize), sizeof(int));
                 std::string a(aSize, ' '); file.read(&a[0], aSize);
-                double amt; file.read((char*)&amt, sizeof(double));
+                double amt; file.read(reinterpret_cast<char*>(&amt), sizeof(double));
                 vouts.push_back({a, amt});
             }
             Transaction t; 
