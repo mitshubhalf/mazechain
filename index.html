@@ -157,6 +157,7 @@
       box-shadow: 0 0 10px rgba(245, 197, 66, 0.2);
     }
     
+    /* CAMADA DE PROTEÇÃO CHAOS MASKING NO SEED BOX */
     .seed-box { 
       background: #050505; 
       padding: 25px; 
@@ -164,11 +165,18 @@
       margin: 15px 0; 
       border-radius: 8px; 
       text-align: center; 
-      font-size: 14px; 
-      color: #fff;
+      font-size: 13px; 
+      color: #444; /* Palavras falsas ficam foscas */
       line-height: 1.8; 
-      word-spacing: 6px;
+      word-spacing: 4px;
       font-family: 'Courier New', monospace;
+      user-select: none; /* Impede cópia simples por bots */
+    }
+
+    .seed-box b {
+      color: #fff; /* Palavras REAIS ficam brancas */
+      font-size: 15px;
+      text-shadow: 0 0 5px rgba(255,255,255,0.2);
     }
     
     .nav { 
@@ -235,12 +243,12 @@
   </div>
 
   <div id="create" class="screen">
-    <h2>Segurança de Backup</h2>
-    <p style="color:var(--text); font-size:11px; text-align:center;">Estas 12 palavras são a chave para o seu dinheiro. Se perdê-las, perderá o acesso para sempre.</p>
+    <h2>Chaos Masking Backup</h2>
+    <p style="color:var(--text); font-size:11px; text-align:center;">As palavras REAIS estão em <b>BRANCO</b>. Os símbolos cinzas são ruído de proteção contra malwares de tela.</p>
     <div id="seedBox" class="seed-box">Iniciando protocolo de entropia...</div>
     <input type="password" id="newPass" placeholder="Crie uma Senha Forte de Acesso">
-    <button id="genBtn" onclick="generateWallet()">GERAR SEED CRIPTOGRAFADA</button>
-    <button id="confirmBtn" class="secondary" onclick="loadDashboard()" style="display:none">CONFIRMO QUE ANOTEI TUDO</button>
+    <button id="genBtn" onclick="generateWallet()">GERAR SEED PROTEGIDA</button>
+    <button id="confirmBtn" class="secondary" onclick="loadDashboard()" style="display:none">ANOTEI AS PALAVRAS EM DESTAQUE</button>
     <button class="secondary" onclick="go('home')" style="border:none; color:#555; font-size: 12px;">Cancelar</button>
   </div>
 
@@ -275,7 +283,7 @@
       
       <div class="terminal" id="log">
         > Conexão estabelecida com sucesso.<br>
-        > Aguardando instruções do nó...
+        > Camada de ofuscação ativa.
       </div>
     </div>
   </div>
@@ -292,15 +300,29 @@
     window.scrollTo(0, 0);
   }
 
-  // --- LÓGICA DE DERIVAÇÃO DE ENDEREÇO (ESPELHO DO C++) ---
+  // APLICA O CHAOS MASKING (SÍMBOLOS ALEATÓRIOS)
+  function applyChaosMask(seed) {
+    const symbols = ["#", "!", "7", "x", "&", "$", "0", "1", "9", "z", "%"];
+    const words = seed.split(" ");
+    let html = "";
+    words.forEach(word => {
+      const r1 = symbols[Math.floor(Math.random() * symbols.length)];
+      const r2 = symbols[Math.floor(Math.random() * symbols.length)];
+      html += `${r1}${r2}<b>${word}</b>${r2}${r1} `;
+    });
+    return html;
+  }
+
+  // LÓGICA DE DERIVAÇÃO DE ENDEREÇO (CORRIGIDA PARA IMPORT)
   function calculateMZAddress(seed) {
-    const cleanSeed = seed.trim();
+    // Normalização extrema para evitar erros de importação:
+    // Remove espaços extras, converte para minúsculas e remove quebras de linha.
+    const cleanSeed = seed.trim().toLowerCase().replace(/\s+/g, ' ');
     const hash = CryptoJS.SHA256(cleanSeed).toString();
-    // Gera o endereço MZ prefixado + os primeiros 20 caracteres do hash
     return "MZ" + hash.substring(0, 20);
   }
 
-  // --- MOTORES DE CRIPTOGRAFIA ---
+  // MOTORES DE CRIPTOGRAFIA
   function encrypt(text, pass) {
     return CryptoJS.AES.encrypt(text, pass).toString();
   }
@@ -315,7 +337,7 @@
     }
   }
 
-  // --- FUNÇÕES DE CARTEIRA ---
+  // FUNÇÕES DE CARTEIRA
   async function generateWallet() {
     const pass = document.getElementById('newPass').value;
     if(pass.length < 4) return alert("A senha deve ter pelo menos 4 caracteres!");
@@ -328,16 +350,15 @@
       const response = await fetch(`${API}/wallet/new`);
       const dataText = await response.text();
       
-      // Captura a seed formatada do backend C++ ( >> seed << )
       const match = dataText.match(/>> (.*) <</);
       if(!match) throw new Error("Formato de Seed inválido.");
       
       const seed = match[1];
       const addr = calculateMZAddress(seed);
 
-      document.getElementById('seedBox').innerText = seed;
+      // Exibe com Máscara de símbolos
+      document.getElementById('seedBox').innerHTML = applyChaosMask(seed);
       
-      // Salva no LocalStorage Criptografado
       localStorage.setItem('mz_vault', encrypt(seed, pass));
       localStorage.setItem('mz_addr', addr);
       
@@ -346,16 +367,19 @@
       document.getElementById('confirmBtn').style.display = "block";
     } catch(e) {
       alert("Falha na rede. Verifique se o seu backend C++ está online.");
-      genBtn.innerText = "GERAR SEED CRIPTOGRAFADA";
+      genBtn.innerText = "GERAR SEED PROTEGIDA";
       genBtn.disabled = false;
     }
   }
 
   function importWallet() {
-    const seed = document.getElementById('seedInput').value.trim();
+    const seedRaw = document.getElementById('seedInput').value;
     const pass = document.getElementById('importPass').value;
     
-    if(seed.split(/\s+/).length < 12) return alert("A seed deve conter as 12 palavras!");
+    // Limpa a seed para contar as palavras corretamente
+    const seed = seedRaw.trim().toLowerCase().replace(/\s+/g, ' ');
+    
+    if(seed.split(' ').length < 12) return alert("A seed deve conter as 12 palavras!");
     if(pass.length < 4) return alert("Defina uma senha de acesso!");
 
     const addr = calculateMZAddress(seed);
@@ -372,7 +396,7 @@
     const vault = localStorage.getItem('mz_vault');
     const seed = decrypt(vault, pass);
 
-    if(seed && seed.split(/\s+/).length === 12) {
+    if(seed && seed.split(' ').length === 12) {
       sessionSeed = seed;
       loadDashboard();
     } else {
@@ -384,8 +408,6 @@
     go('dashboard');
     document.getElementById('addrDisp').innerText = localStorage.getItem('mz_addr');
     updateBalance();
-    
-    // Auto-update do saldo a cada 30 segundos
     setInterval(updateBalance, 30000);
   }
 
@@ -408,20 +430,20 @@
     
     btn.disabled = true;
     btn.innerText = "TRABALHANDO...";
-    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Iniciando Proof-of-Work...`;
+    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] PoW Iniciado...`;
     
     try {
       const res = await fetch(`${API}/minerar_agora/${addr}`);
       const data = await res.json();
       
       if(data.status === "success") {
-        log.innerHTML += `<br><span style="color:#0f0">> Bloco #${data.blocos} minerado! Recompensa creditada.</span>`;
+        log.innerHTML += `<br><span style="color:#0f0">> Bloco #${data.blocos} minerado!</span>`;
         updateBalance();
       } else {
         log.innerHTML += `<br><span style="color:#f00">> Erro: ${data.message}</span>`;
       }
     } catch(e) {
-      log.innerHTML += `<br><span style="color:#f00">> Falha de conexão com o nó minerador.</span>`;
+      log.innerHTML += `<br><span style="color:#f00">> Falha de conexão.</span>`;
     }
     
     btn.disabled = false;
@@ -431,11 +453,9 @@
 
   function logout() {
     sessionSeed = null;
-    // Recarrega a página para limpar a memória, mas mantém o Vault no LocalStorage
     location.reload();
   }
 
-  // Verifica se o usuário já tem uma carteira salva ao abrir o site
   window.onload = () => {
     if(localStorage.getItem('mz_vault')) {
       document.getElementById('unlockArea').style.display = "block";
