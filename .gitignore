@@ -1,7 +1,4 @@
-
-Conteúdo:
-
-```gitignore
 mazechain
 *.o
-chain.txt
+*.dat
+data/
