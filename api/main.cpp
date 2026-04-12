@@ -18,18 +18,18 @@ int main() {
     crow::SimpleApp app;
     Blockchain bc;
     
-    // Tenta carregar a chain existente
+    // Tenta carregar a chain existente do disco
     Storage::loadChain(bc, "data/blockchain.dat");
 
     CROW_ROUTE(app, "/")([]() {
-        return "MAZECHAIN NODE v1.0 - STATUS: ONLINE";
+        return "MAZECHAIN NODE v1.1 - STATUS: ONLINE";
     });
 
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
         w.create();
         std::stringstream ss;
-        // Mantendo o formato que seu script regex no HTML procura: >> SEED <<
+        // Mantém o formato esperado pelo Regex do Frontend
         ss << "ENDERECO (MZ):\n" << w.address << "\n\nSEED:\n>> " << w.seed << " <<";
         crow::response res(ss.str());
         add_cors(res);
@@ -37,9 +37,20 @@ int main() {
     });
 
     CROW_ROUTE(app, "/balance/<string>")([&bc](std::string endereco) {
+        double saldo = bc.getBalance(endereco);
+        
+        // BLOQUEIO DE SEGURANÇA:
+        // Se o endereço não tem saldo (0) e a chain não o reconhece, 
+        // retorna 404 para impedir login de seeds falsas no frontend.
+        if (saldo <= 0) {
+            crow::response res(404, "Carteira nao registrada ou sem saldo.");
+            add_cors(res);
+            return res;
+        }
+
         crow::json::wvalue x;
         x["address"] = endereco;
-        x["balance"] = bc.getBalance(endereco);
+        x["balance"] = saldo;
         crow::response res{x};
         add_cors(res);
         return res;
@@ -56,7 +67,7 @@ int main() {
         }
 
         bc.mineBlock(endereco);
-        // Salva imediatamente após minerar
+        // Salva a blockchain no disco imediatamente
         Storage::saveChain(bc, "data/blockchain.dat");
 
         x["status"] = "success";
