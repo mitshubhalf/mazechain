@@ -286,3 +286,8 @@ void Blockchain::addBlock(const Block& block) {
         }
     }
 }
+
+// --- FUNÇÃO ADICIONADA PARA RESOLVER O ERRO DE UNDEFINED REFERENCE ---
+std::vector<Transaction> Blockchain::getMempool() const {
+    return Storage::loadMempool("data/mempool.dat");
+}
