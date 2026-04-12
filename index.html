@@ -3,235 +3,173 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MAZECHAIN | Distributed Network</title>
+  <title>MAZECHAIN | Encrypted Node</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <style>
     :root {
-      --bg-black: #0b0b0b;
-      --card-bg: #111111;
-      --accent: #f5c542; /* Amarelo Ouro */
-      --text-gray: #aaa;
-      --terminal-green: #0f0;
-      --border: #222;
+      --bg: #0b0b0b; --card: #111; --accent: #f5c542;
+      --accent-dark: #d4a735; --accent-light: #fff3d6; --text: #aaa;
     }
-
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', monospace;
-      background: var(--bg-black);
-      color: #fff;
-      display: flex;
-      justify-content: center;
-    }
-
-    .container { width: 100%; max-width: 500px; padding: 20px; padding-bottom: 100px; }
-
-    header {
-      display: flex;
-      align-items: center;
-      padding: 15px 0;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 20px;
-    }
-
-    .logo { width: 30px; height: 30px; background: var(--accent); margin-right: 15px; border-radius: 4px; }
-    header h1 { font-size: 18px; letter-spacing: 2px; margin: 0; color: var(--accent); }
-
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      padding: 20px;
-      margin-bottom: 20px;
-      border-radius: 10px;
-    }
-
-    .card h3 { margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase; color: var(--accent); letter-spacing: 1px; }
-
-    .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1a1a1a; }
-    .label { color: var(--text-gray); font-size: 14px; }
-    .val { font-weight: bold; color: #fff; }
-
-    input {
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      background: #000;
-      border: 1px solid #333;
-      color: var(--accent);
-      border-radius: 5px;
-      box-sizing: border-box;
-    }
-
-    .btn-main {
-      display: block;
-      width: 100%;
-      margin-top: 15px;
-      padding: 15px;
-      text-align: center;
-      border: 2px solid var(--accent);
-      color: var(--accent);
-      background: transparent;
-      font-weight: bold;
-      cursor: pointer;
-      border-radius: 8px;
-      text-transform: uppercase;
-      transition: 0.3s;
-    }
-
-    .btn-main:hover { background: var(--accent); color: #000; }
-
-    .terminal {
-      background: #000;
-      border: 1px solid #333;
-      padding: 15px;
-      margin-top: 10px;
-      font-family: 'Courier New', monospace;
-      color: var(--terminal-green);
-      height: 120px;
-      overflow-y: auto;
-      font-size: 12px;
-      border-radius: 5px;
-    }
-
-    .nav-bar {
-      position: fixed;
-      bottom: 0;
-      width: 100%;
-      max-width: 500px;
-      background: #000;
-      display: flex;
-      justify-content: space-around;
-      padding: 15px 0;
-      border-top: 1px solid var(--border);
-    }
-
-    .nav-item { color: var(--text-gray); font-size: 12px; cursor: pointer; text-align: center; }
-    .nav-item.active { color: var(--accent); }
+    body { margin:0; font-family: 'Segoe UI', monospace; background: var(--bg); color:#fff; display: flex; justify-content: center; overflow-x: hidden; }
+    .container { width: 100%; max-width: 450px; min-height: 100vh; position: relative; }
+    .screen { display:none; padding:25px; box-sizing: border-box; min-height: 100vh; width: 100%; }
+    .active { display:block !important; animation: fadeIn 0.4s; }
+    
+    /* CUBO CSS */
+    .cube-wrapper { width: 60px; height: 60px; margin: 0 auto 20px; perspective: 1000px; position: relative; }
+    .cube { width: 30px; height: 30px; position: absolute; top:15px; left:15px; transform-style: preserve-3d; transform: rotateX(-20deg) rotateY(45deg); }
+    .face { position: absolute; width: 30px; height: 30px; border: 1px solid rgba(0,0,0,0.1); }
+    .top { background: var(--accent-light); transform: rotateX(90deg) translateZ(15px); }
+    .right { background: var(--accent-dark); transform: rotateY(90deg) translateZ(15px); }
+    .front { background: var(--accent); transform: translateZ(15px); }
+    
+    h1 { text-align: center; letter-spacing: 4px; font-size: 22px; margin: 10px 0; }
+    .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #222; margin-bottom: 20px; }
+    button { padding:16px; margin-top:12px; width:100%; background: var(--accent); border:none; cursor:pointer; font-weight: bold; border-radius: 8px; text-transform: uppercase; color: #000; }
+    button.secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+    input { width:100%; padding:14px; margin-top:10px; background:#000; border:1px solid #333; color: var(--accent); border-radius: 8px; box-sizing: border-box; }
+    .seed-box { background: #000; padding: 20px; border: 1px dashed var(--accent); margin: 15px 0; border-radius: 8px; text-align: center; font-size: 13px; color: #fff; }
+    .nav { display:flex; justify-content: space-between; align-items: center; padding:15px; background: #000; border-bottom: 1px solid #222; }
+    .terminal { background: #000; color: #0f0; padding: 12px; font-size: 11px; height: 100px; overflow-y: auto; border: 1px solid #222; border-radius: 6px; font-family: monospace; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <header>
-    <div class="logo"></div>
-    <h1>MAZECHAIN CORE</h1>
-  </header>
-
-  <div class="card">
-    <h3>🌐 Network Status</h3>
-    <div class="row"><span class="label">Block Height:</span><span id="blocks" class="val">---</span></div>
-    <div class="row"><span class="label">Difficulty:</span><span id="diff" class="val">---</span></div>
-    <div class="row"><span class="label">Nodes Online:</span><span class="val" style="color:var(--terminal-green)">1 (Main)</span></div>
+  <div id="home" class="screen active">
+    <div style="margin-top: 60px; text-align: center;">
+      <div class="cube-wrapper">
+        <div class="cube"><div class="face top"></div><div class="face front"></div><div class="face right"></div></div>
+      </div>
+      <h1>MAZECHAIN</h1>
+      <p style="color:var(--text)">Distributed Secure Network</p>
+    </div>
+    <div style="margin-top: 40px;">
+      <button onclick="go('create')">CRIAR NOVA WALLET</button>
+      <button class="secondary" onclick="go('import')">IMPORTAR VIA SEED</button>
+      <div id="unlockArea" style="display:none; margin-top:30px; border-top:1px solid #222; padding-top:20px;">
+        <input type="password" id="unlockPass" placeholder="Sua Senha de Desbloqueio">
+        <button onclick="unlockWallet()">DESBLOQUEAR ACESSO</button>
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <h3>🔑 Wallet Access</h3>
-    <div class="row"><span class="label">Address:</span><span id="addr" class="val" style="font-size: 10px;">None</span></div>
-    <div class="row"><span class="label">Balance:</span><span id="balance" class="val" style="color:var(--accent)">0.00 MZ</span></div>
-    
-    <input type="text" id="import-addr" placeholder="Paste MZ Address to Access...">
-    <button class="btn-main" onclick="accessWallet()" style="padding: 10px; font-size: 12px; border-style: dotted;">Access Wallet</button>
-    <button class="btn-main" onclick="generateWallet()">Generate New Seed</button>
-    
-    <div id="seed-display" class="terminal" style="display:none; height: auto; color: #fff; border-color: var(--accent);"></div>
+  <div id="create" class="screen">
+    <h2>Backup Phrase</h2>
+    <div id="seedBox" class="seed-box">Gerando segredos...</div>
+    <input type="password" id="newPass" placeholder="Crie uma Senha">
+    <button id="genBtn" onclick="generateWallet()">GERAR SEED PROTEGIDA</button>
+    <button id="confirmBtn" class="secondary" onclick="go('dashboard')" style="display:none">JÁ ANOTEI (ENTRAR)</button>
   </div>
 
-  <div class="card">
-    <h3>⛏️ Mining Interface</h3>
-    <button id="mine-btn" class="btn-main" onclick="runMiner()">Start Mining Operation</button>
-    <div class="terminal" id="log">
-      > System Idle...<br>
-      > Connect wallet to begin hashing.
+  <div id="import" class="screen">
+    <h2>Recuperar Conta</h2>
+    <input id="seedInput" placeholder="apple book cat dog...">
+    <input type="password" id="importPass" placeholder="Senha para este dispositivo">
+    <button onclick="importWallet()">VALIDAR E ENTRAR</button>
+  </div>
+
+  <div id="dashboard" class="screen" style="padding:0">
+    <div class="nav">
+      <b style="color:var(--accent)">MAZECHAIN CORE</b> 
+      <span onclick="logout()" style="cursor:pointer; font-size:11px; color:var(--text)">[SAIR]</span>
+    </div>
+    <div style="padding:20px">
+      <div class="card">
+        <small style="color:var(--text)">ENDEREÇO PÚBLICO</small>
+        <p id="addrDisp" style="font-size:10px; color:var(--accent); word-break:break-all; font-family:monospace;"></p>
+        <small style="color:var(--text)">SALDO</small>
+        <p id="balDisp" style="font-size:28px; font-weight:bold;">0.00 MZ</p>
+      </div>
+      <button id="mineBtn" onclick="runMiner()">MINERAR PRÓXIMO BLOCO</button>
+      <div class="terminal" id="log">> Sessão Criptografada Ativa.</div>
     </div>
   </div>
 </div>
 
-<div class="nav-bar">
-  <div class="nav-item active">Dashboard</div>
-  <div class="nav-item" onclick="location.reload()">Sync</div>
-  <div class="nav-item" onclick="alert('Explorer in dev')">Explorer</div>
-</div>
-
 <script>
-  const API_URL = "https://mazechain.onrender.com"; 
-  let currentWallet = localStorage.getItem('mz_addr') || "";
+  const API = "https://mazechain.onrender.com";
+  let sessionSeed = null;
 
-  function log(msg) {
-    const l = document.getElementById('log');
-    l.innerHTML += `<br>> ${msg}`;
-    l.scrollTop = l.scrollHeight;
+  function go(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
   }
 
-  async function load() {
+  function deriveAddress(seed) {
+    const hash = CryptoJS.SHA256(seed.trim()).toString();
+    return "MZ" + hash.substring(0, 20);
+  }
+
+  function encrypt(text, pass) { return CryptoJS.AES.encrypt(text, pass).toString(); }
+  function decrypt(cipher, pass) {
     try {
-      const r = await fetch(`${API_URL}/stats`);
-      const d = await r.json();
-      document.getElementById('blocks').innerText = d.height;
-      document.getElementById('diff').innerText = d.difficulty;
-
-      if(currentWallet) {
-        document.getElementById('addr').innerText = currentWallet;
-        const rb = await fetch(`${API_URL}/balance/${currentWallet}`);
-        const db = await rb.json();
-        document.getElementById('balance').innerText = db.balance.toFixed(4) + " MZ";
-      }
-    } catch(e) { log("Connection Error to Node."); }
-  }
-
-  function accessWallet() {
-    const addr = document.getElementById('import-addr').value.trim();
-    if(addr.startsWith("MZ")) {
-      currentWallet = addr;
-      localStorage.setItem('mz_addr', addr);
-      document.getElementById('addr').innerText = addr;
-      log("Wallet accessed: " + addr);
-      load();
-    } else {
-      alert("Invalid MZ Address");
-    }
+      const bytes = CryptoJS.AES.decrypt(cipher, pass);
+      return bytes.toString(CryptoJS.enc.Utf8) || null;
+    } catch(e) { return null; }
   }
 
   async function generateWallet() {
-    log("Requesting new identity...");
+    const pass = document.getElementById('newPass').value;
+    if(pass.length < 4) return alert("Senha curta!");
     try {
-      const r = await fetch(`${API_URL}/wallet/new`);
+      const r = await fetch(`${API}/wallet/new`);
       const t = await r.text();
-      const addr = t.match(/MZ[a-zA-Z0-9]+/)[0];
       const seed = t.match(/>> (.*) <</)[1];
-
-      currentWallet = addr;
+      const addr = deriveAddress(seed);
+      document.getElementById('seedBox').innerText = seed;
+      localStorage.setItem('mz_vault', encrypt(seed, pass));
       localStorage.setItem('mz_addr', addr);
-      document.getElementById('addr').innerText = addr;
-      
-      const box = document.getElementById('seed-display');
-      box.innerHTML = "<strong>SAVE YOUR SEED:</strong><br>" + seed;
-      box.style.display = "block";
-      log("New identity generated.");
-      load();
-    } catch(e) { log("API Error."); }
+      document.getElementById('genBtn').style.display = "none";
+      document.getElementById('confirmBtn').style.display = "block";
+    } catch(e) { alert("Erro de conexão."); }
+  }
+
+  function importWallet() {
+    const seed = document.getElementById('seedInput').value.trim();
+    const pass = document.getElementById('importPass').value;
+    if(seed.split(/\s+/).length < 12 || pass.length < 4) return alert("Dados inválidos.");
+    const addr = deriveAddress(seed);
+    localStorage.setItem('mz_vault', encrypt(seed, pass));
+    localStorage.setItem('mz_addr', addr);
+    go('dashboard');
+    updateStats();
+  }
+
+  function unlockWallet() {
+    const pass = document.getElementById('unlockPass').value;
+    const decrypted = decrypt(localStorage.getItem('mz_vault'), pass);
+    if(decrypted) { go('dashboard'); updateStats(); } else { alert("Senha incorreta!"); }
+  }
+
+  async function updateStats() {
+    const addr = localStorage.getItem('mz_addr');
+    document.getElementById('addrDisp').innerText = addr;
+    try {
+      const r = await fetch(`${API}/balance/${addr}`);
+      const d = await r.json();
+      document.getElementById('balDisp').innerText = d.balance.toFixed(2) + " MZ";
+    } catch(e) {}
   }
 
   async function runMiner() {
-    if(!currentWallet) { log("ERROR: No wallet selected."); return; }
-    
-    const btn = document.getElementById('mine-btn');
-    btn.innerText = "HASHING...";
-    btn.disabled = true;
-    log("Mining block using PoW...");
-
+    const addr = localStorage.getItem('mz_addr');
+    const log = document.getElementById('log');
+    log.innerHTML += `<br>> Minerando...`;
     try {
-      const r = await fetch(`${API_URL}/minerar_agora/${currentWallet}`);
+      const r = await fetch(`${API}/minerar_agora/${addr}`);
       const d = await r.json();
-      log("Success! Block #" + d.blocos + " accepted.");
-      load();
-    } catch(e) { log("Mining timeout/failure."); }
-    
-    btn.innerText = "Start Mining Operation";
-    btn.disabled = false;
+      log.innerHTML += `<br>> Sucesso! Bloco #${d.blocos}`;
+      updateStats();
+    } catch(e) { log.innerHTML += `<br>> Erro na rede.`; }
   }
 
-  load();
-  setInterval(load, 15000);
-</script>
+  function logout() { localStorage.removeItem('mz_vault'); location.reload(); }
 
+  window.onload = () => {
+    if(localStorage.getItem('mz_vault')) document.getElementById('unlockArea').style.display = "block";
+  }
+</script>
 </body>
 </html>
