@@ -125,7 +125,7 @@ int main() {
             block["index"] = b.index;
             block["hash"] = b.hash;
             block["prevHash"] = b.prevHash;
-            block["timestamp"] = b.timestamp;
+            block["timestamp"] = (long long)b.timestamp;
             blocks_json.push_back(std::move(block));
         }
         crow::response res{crow::json::wvalue(blocks_json)};
@@ -138,11 +138,15 @@ int main() {
     // ROTA PARA VER TRANSAÇÕES PENDENTES (MEMPOOL)
     CROW_ROUTE(app, "/mempool")([&bc]() {
         std::vector<crow::json::wvalue> txs_json;
-        for (const auto& tx : bc.getMempool()) { 
+        auto pending = bc.getMempool();
+        for (const auto& tx : pending) { 
             crow::json::wvalue j_tx;
-            j_tx["from"] = tx.from;
-            j_tx["to"] = tx.to;
-            j_tx["amount"] = tx.amount;
+            j_tx["id"] = tx.id;
+            // Como Transaction usa o vetor vout, pegamos os dados de lá para o JSON
+            if (!tx.vout.empty()) {
+                j_tx["to"] = tx.vout[0].address;
+                j_tx["amount"] = tx.vout[0].amount;
+            }
             txs_json.push_back(std::move(j_tx));
         }
         crow::response res{crow::json::wvalue(txs_json)};
@@ -157,6 +161,7 @@ int main() {
         x["simbolo"] = "MZ";
         x["total_blocos"] = (int)bc.getChain().size();
         x["mempool_size"] = (int)bc.getMempool().size();
+        x["supply"] = bc.getTotalSupply();
         x["uptime"] = "ONLINE";
         
         crow::response res(x);
