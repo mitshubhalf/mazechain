@@ -9,7 +9,7 @@
 #include <map>
 #include <ctime>
 
-// --- UTILITÁRIOS ---
+// --- UTILITÁRIOS MANTIDOS ---
 std::string sha256_util(std::string str) {
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_CTX sha256;
@@ -25,16 +25,10 @@ std::string sha256_util(std::string str) {
 
 std::string calculateMerkleRoot(const std::vector<Transaction>& txs) {
     if (txs.empty()) return sha256_util("empty");
-    
     std::vector<std::string> tree;
-    for (const auto& tx : txs) {
-        tree.push_back(tx.id);
-    }
-    
+    for (const auto& tx : txs) tree.push_back(tx.id);
     while (tree.size() > 1) {
-        if (tree.size() % 2 != 0) {
-            tree.push_back(tree.back());
-        }
+        if (tree.size() % 2 != 0) tree.push_back(tree.back());
         std::vector<std::string> newLevel;
         for (size_t i = 0; i < tree.size(); i += 2) {
             newLevel.push_back(sha256_util(tree[i] + tree[i+1]));
@@ -44,12 +38,12 @@ std::string calculateMerkleRoot(const std::vector<Transaction>& txs) {
     return tree[0];
 }
 
-// --- IMPLEMENTAÇÃO DA CLASSE BLOCK ---
+// --- CLASSE BLOCK MANTIDA ---
 Block::Block(int idx, std::string prev, std::vector<Transaction> txs) {
     index = idx;
     prevHash = prev;
     transactions = txs;
-    timestamp = std::time(0); 
+    timestamp = std::time(0);
     nonce = 0;
     hash = calculateHash();
 }
@@ -63,7 +57,6 @@ std::string Block::calculateHash() const {
 
 void Block::mine(int difficulty) {
     std::string target(difficulty, '0');
-    // Proof of Work robusto
     while (hash.substr(0, difficulty) != target) {
         nonce++;
         hash = calculateHash();
@@ -71,11 +64,10 @@ void Block::mine(int difficulty) {
     std::cout << "🎯 Bloco Minerado! Hash: " << hash << std::endl;
 }
 
-// --- IMPLEMENTAÇÃO DA CLASSE BLOCKCHAIN ---
+// --- CLASSE BLOCKCHAIN INTEGRADA ---
 Blockchain::Blockchain() {
-    difficulty = 4; 
+    difficulty = 4;
     totalSupply = 0;
-    
     if (chain.empty()) {
         Block genesis(0, "0", {});
         genesis.mine(difficulty);
@@ -83,24 +75,40 @@ Blockchain::Blockchain() {
     }
 }
 
-// MELHORIA DE SEGURANÇA: Validação rigorosa de identidade sem expor segredos
+// SINCRONIZADO: Verificação com Regra de Maturidade (100 blocos)
 bool Blockchain::verifyTransaction(const Transaction& tx) {
     if (tx.signature == "coinbase") return true;
     if (tx.signature.empty() || tx.publicKey.empty()) return false;
 
-    // Limpeza de espaços para evitar erros de parsing do frontend
-    std::string cleanKey = tx.publicKey;
-    cleanKey.erase(0, cleanKey.find_first_not_of(" \t\r\n"));
-    cleanKey.erase(cleanKey.find_last_not_of(" \t\r\n") + 1);
-
+    // Identifica o remetente
     std::string senderAddress = "";
     for (const auto& out : tx.vout) {
         if (out.amount < 0) senderAddress = out.address;
     }
 
-    // O endereço deve obrigatoriamente derivar do hash da chave pública (Seed)
-    // Isso garante que ninguém gaste MZ de uma carteira que não possui a Seed.
+    // REGRA DE MATURIDADE: Se os fundos vêm de uma coinbase, verifica a distância de 100 blocos
+    int currentHeight = chain.size();
+    for (const auto& block : chain) {
+        for (const auto& blockTx : block.transactions) {
+            if (blockTx.signature == "coinbase") {
+                for (const auto& out : blockTx.vout) {
+                    if (out.address == senderAddress) {
+                        if (currentHeight - block.index < 100) {
+                            std::cout << "⚠️ Bloqueio Coinbase Maturity: Aguarde 100 confirmações." << std::endl;
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Verificação de Identidade (Padrão MazeChain)
+    std::string cleanKey = tx.publicKey;
+    cleanKey.erase(0, cleanKey.find_first_not_of(" \t\r\n"));
+    cleanKey.erase(cleanKey.find_last_not_of(" \t\r\n") + 1);
     std::string expectedAddress = "MZ" + sha256_util(cleanKey).substr(0, 20);
+    
     return (senderAddress == expectedAddress);
 }
 
@@ -109,63 +117,77 @@ Block Blockchain::getLastBlock() {
     return chain.back();
 }
 
+// SINCRONIZADO: Halving Progressivo (Dobro de blocos, metade da recompensa)
 double Blockchain::getBlockReward(int height) {
-    if (totalSupply >= 20000000) return 0;
+    if (totalSupply >= 20000000) return 0; // Cap final opcional
+
     double reward = 1000.0;
-    int interval = 10; 
+    long interval = 1000; // Ciclo 0
     int h = height;
+
     while (h >= interval) {
-        reward /= 2.0;
-        h -= interval;
-        interval *= 2; 
+        reward /= 2.0;       // Metade da recompensa
+        h -= interval;       // Passa para o próximo ciclo
+        interval *= 2;       // Dobra os blocos necessários
+        if (reward < 0.000001) return 0;
     }
-    return (reward < 0.000001) ? 0 : reward;
+    return reward;
 }
 
+// SINCRONIZADO: Dificuldade (Tempo livre até o 5º Halving, depois 10 min alvo)
 void Blockchain::adjustDifficulty() {
-    if (chain.size() < 10) return;
+    int height = chain.size();
+    
+    // Cálculo do ciclo atual para saber se já passou do 5º halving
+    int n = 0;
+    long tempInterval = 1000;
+    int tempHeight = height;
+    while(tempHeight >= tempInterval) {
+        tempHeight -= tempInterval;
+        tempInterval *= 2;
+        n++;
+    }
+
+    // Antes do 5º Halving: Rede livre. Após o 5º: Alvo de 10 min.
+    if (n < 5) return; 
+
+    if (height < 10) return;
     const Block& lastBlock = chain.back();
-    const Block& relayBlock = chain[chain.size() - 10];
-    long timeExpected = 60 * 10;
+    const Block& relayBlock = chain[height - 10];
+
+    long timeTarget = 6000; // 10 blocos * 10 minutos (600 segundos cada)
     long timeTaken = lastBlock.timestamp - relayBlock.timestamp;
+
     if (timeTaken < 1) timeTaken = 1;
-    if (timeTaken < timeExpected / 2) difficulty++;
-    else if (timeTaken > timeExpected * 2 && difficulty > 1) difficulty--;
+
+    // nova_dificuldade = dificuldade_atual * (tempo_alvo / tempo_real)
+    if (timeTaken < timeTarget / 2) difficulty++;
+    else if (timeTaken > timeTarget * 2 && difficulty > 1) difficulty--;
 }
 
-// MANTIDA INTEGRALMENTE: Lógica de mineração com proteção de Mempool
 void Blockchain::mineBlock(std::string minerAddress) {
-    // 1. Bloqueio de endereços inválidos antes de processar
-    if (minerAddress.substr(0, 2) != "MZ") {
-        std::cout << "❌ Erro: Endereço de minerador inválido." << std::endl;
-        return;
-    }
+    if (minerAddress.substr(0, 2) != "MZ") return;
 
     adjustDifficulty();
 
     std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
-    std::vector<Transaction> validTransactions; 
+    std::vector<Transaction> validTransactions;
     double totalFees = 0;
     std::map<std::string, double> spendingInThisBlock;
 
     for (const auto& tx : pending) {
-        if (!verifyTransaction(tx)) {
-            std::cout << "⚠️ Transação ignorada: Assinatura/Seed inválida." << std::endl;
-            continue;
-        }
+        if (!verifyTransaction(tx)) continue;
 
         std::string sender = "";
         double amountWithFee = 0;
-        for (const auto& out : tx.vout) { 
-            if (out.amount < 0) { sender = out.address; amountWithFee = std::abs(out.amount); } 
+        for (const auto& out : tx.vout) {
+            if (out.amount < 0) { sender = out.address; amountWithFee = std::abs(out.amount); }
         }
 
-        double currentBalance = getBalance(sender) - spendingInThisBlock[sender];
-
-        if (currentBalance >= amountWithFee) {
+        if (getBalance(sender) - spendingInThisBlock[sender] >= amountWithFee) {
             validTransactions.push_back(tx);
             spendingInThisBlock[sender] += amountWithFee;
-            totalFees += (amountWithFee / 1.01) * 0.01; 
+            totalFees += (amountWithFee / 1.01) * 0.01;
         }
     }
 
@@ -173,7 +195,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
     Transaction coinbase;
     coinbase.id = "coinbase_" + std::to_string(chain.size());
     coinbase.vout.push_back({minerAddress, subsidy + totalFees});
-    coinbase.signature = "coinbase"; 
+    coinbase.signature = "coinbase";
 
     std::vector<Transaction> blockTxs = {coinbase};
     for(const auto& t : validTransactions) blockTxs.push_back(t);
@@ -185,31 +207,22 @@ void Blockchain::mineBlock(std::string minerAddress) {
     totalSupply += subsidy;
 
     Storage::saveChain(*this, "data/blockchain.dat");
-    Storage::clearMempool("data/mempool.dat"); 
+    Storage::clearMempool("data/mempool.dat");
 }
 
-// MANTIDA INTEGRALMENTE: Lógica de envio com Assinatura via Seed
 void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
     double totalNeeded = amount * 1.01;
-    if (getBalance(from) < totalNeeded) { 
-        std::cout << "❌ Saldo insuficiente!" << std::endl; 
-        return; 
-    }
-
-    std::string finalSeed = seed;
-    if (finalSeed.empty()) {
-        std::cout << "🔒 Digite sua SEED (12 palavras) para assinar esta transação: ";
-        std::getline(std::cin >> std::ws, finalSeed);
+    if (getBalance(from) < totalNeeded) {
+        std::cout << "❌ Saldo insuficiente!" << std::endl;
+        return;
     }
 
     Transaction tx;
     tx.id = sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(0)));
     tx.vout.push_back({to, amount});
     tx.vout.push_back({from, totalNeeded * -1});
-    
-    // Armazena a prova de posse (Padrão MazeChain de segurança de ponta)
-    tx.publicKey = finalSeed; 
-    tx.signature = "SIG_" + sha256_util(finalSeed).substr(0, 16); 
+    tx.publicKey = seed;
+    tx.signature = "SIG_" + sha256_util(seed).substr(0, 16);
     
     Storage::saveMempool(tx, "data/mempool.dat");
     std::cout << "✅ Transação enviada para Mempool!" << std::endl;
@@ -217,22 +230,19 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 
 double Blockchain::getBalance(std::string address) {
     double balance = 0;
-    for (const auto &block : chain) 
-        for (const auto &tx : block.transactions) 
-            for (const auto &out : tx.vout) 
+    for (const auto &block : chain)
+        for (const auto &tx : block.transactions)
+            for (const auto &out : tx.vout)
                 if (out.address == address) balance += out.amount;
     return balance;
 }
 
-// Validação profunda da integridade da corrente
-bool Blockchain::isChainValid(const std::vector<Block>& chainToValidate) {
-    for (size_t i = 1; i < chainToValidate.size(); i++) {
-        const Block& currentBlock = chainToValidate[i];
-        const Block& prevBlock = chainToValidate[i-1];
-
+bool Blockchain::isChainValid() {
+    for (size_t i = 1; i < chain.size(); i++) {
+        const Block& currentBlock = chain[i];
+        const Block& prevBlock = chain[i-1];
         if (currentBlock.hash != currentBlock.calculateHash()) return false;
         if (currentBlock.prevHash != prevBlock.hash) return false;
-        
         for (const auto& tx : currentBlock.transactions) {
             if (!verifyTransaction(tx)) return false;
         }
@@ -240,34 +250,18 @@ bool Blockchain::isChainValid(const std::vector<Block>& chainToValidate) {
     return true;
 }
 
-bool Blockchain::isChainValid() {
-    return isChainValid(this->chain);
-}
-
-void Blockchain::replaceChain(const std::vector<Block>& newChain) {
-    if (newChain.size() > chain.size() && isChainValid(newChain)) {
-        chain = newChain;
-        std::cout << "✅ Sincronizado com a rede externa." << std::endl;
-        Storage::saveChain(*this, "data/blockchain.dat");
-    }
-}
-
 void Blockchain::printStats() {
-    std::cout << "\n📊 Altura: " << chain.size() << " | 💰 Circulação: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
+    int height = chain.size();
+    // Cálculo do Halving para o print
+    int n = 0; long tempInterval = 1000; int tempHeight = height;
+    while(tempHeight >= tempInterval) { tempHeight -= tempInterval; tempInterval *= 2; n++; }
+
+    std::cout << "\n📊 Altura: " << height 
+              << " | Ciclo Halving: " << n 
+              << " | Dificuldade: " << difficulty 
+              << " | Recompensa: " << getBlockReward(height) << " MZ"
+              << " | Circulação: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
 }
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
-void Blockchain::setDifficulty(int d) { difficulty = d; }
-void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
-
-void Blockchain::addBlock(const Block& block) { 
-    chain.push_back(block); 
-    if(!block.transactions.empty()) {
-        for(const auto& tx : block.transactions) {
-            if(tx.signature == "coinbase") {
-                for(const auto& out : tx.vout) totalSupply += out.amount;
-            }
-        }
-    }
-}
