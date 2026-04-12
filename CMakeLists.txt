@@ -3,22 +3,28 @@ project(MazeChain)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Procura a OpenSSL para os cálculos de SHA256
+# 1. Procura a OpenSSL (Crucial para o SHA256)
 find_package(OpenSSL REQUIRED)
 
-# Configura diretórios de inclusão
+# 2. Configura diretórios de inclusão
 include_directories(include)
 include_directories(${OPENSSL_INCLUDE_DIR})
 
-# Lista de todos os seus arquivos fonte
+# 3. Lista de arquivos fonte (ADICIONADO src/crypto.cpp)
 set(SOURCES 
     api/main.cpp 
     src/blockchain.cpp 
     src/storage.cpp 
     src/wallet.cpp
+    src/crypto.cpp  # <-- Faltava este arquivo para o SHA256 funcionar
 )
 
 add_executable(mazechain_node ${SOURCES})
 
-# Liga as bibliotecas necessárias
-target_link_libraries(mazechain_node ${OPENSSL_LIBRARIES} pthread)
+# 4. Liga as bibliotecas (Adicionado OpenSSL::Crypto explicitamente)
+target_link_libraries(mazechain_node 
+    PRIVATE 
+    ${OPENSSL_LIBRARIES} 
+    OpenSSL::Crypto 
+    pthread
+)
