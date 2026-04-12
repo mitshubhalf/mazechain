@@ -214,7 +214,7 @@
     btn.disabled = true; btn.innerText = "VERIFICANDO NO NÓ...";
 
     try {
-      // Sincronização: Tenta obter o saldo. Se o nó responder, a carteira é válida para o sistema.
+      // Validação Real: Tenta buscar saldo. Se o servidor retornar 404, a seed é inválida.
       const response = await fetch(`${API}/balance/${addr}`);
       
       if (response.ok) {
@@ -223,7 +223,7 @@
         sessionSeed = seed;
         loadDashboard();
       } else {
-        alert("ERRO: O nó recusou esta carteira ou ela ainda não foi registrada na rede.");
+        alert("ACESSO NEGADO: Esta seed não existe na rede ou nunca foi ativada.");
       }
     } catch (e) {
       alert("Falha de conexão: O nó oficial está offline ou inacessível.");
