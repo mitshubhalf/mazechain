@@ -3,11 +3,11 @@ FROM ubuntu:22.04
 # Evita perguntas interativas durante a instalação
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala as dependências:
-# Adicionamos libcurl4-openssl-dev para a comunicação entre nós
+# Instala as dependências necessárias, incluindo CMake
 RUN apt-get update && apt-get install -y \
     g++ \
     make \
+    cmake \
     wget \
     libssl-dev \
     libboost-all-dev \
@@ -21,15 +21,21 @@ COPY . .
 RUN mkdir -p include
 RUN wget https://github.com/CrowCpp/Crow/releases/download/v1.0+5/crow_all.h -O include/crow_all.h
 
-# Cria a pasta data para salvar a blockchain e o mempool
+# Cria a pasta data para salvar a blockchain
 RUN mkdir -p data
 
-# Compila a API com suporte a todas as bibliotecas necessárias
-# Adicionamos -lcurl no final para o sistema de nós
-RUN g++ src/blockchain.cpp src/storage.cpp src/wallet.cpp api/main.cpp \
-    -Iinclude -lssl -lcrypto -lpthread -lcurl -o mazechain_api
+# COMPILAÇÃO: Agora incluímos o src/crypto.cpp que estava faltando
+# E garantimos a ordem correta das bibliotecas
+RUN g++ src/blockchain.cpp \
+        src/storage.cpp \
+        src/wallet.cpp \
+        src/crypto.cpp \
+        api/main.cpp \
+    -Iinclude \
+    -lssl -lcrypto -lpthread -lcurl \
+    -o mazechain_api
 
-# Define a porta do Render
+# Define a porta padrão
 ENV PORT=10000
 EXPOSE 10000
 
