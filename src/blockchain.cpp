@@ -139,14 +139,7 @@ void Blockchain::adjustDifficulty() {
     int height = chain.size();
     
     // Cálculo do ciclo atual para saber se já passou do 5º halving
-    int n = 0;
-    long tempInterval = 1000;
-    int tempHeight = height;
-    while(tempHeight >= tempInterval) {
-        tempHeight -= tempInterval;
-        tempInterval *= 2;
-        n++;
-    }
+    int n = getCurrentCycle(height);
 
     // Antes do 5º Halving: Rede livre. Após o 5º: Alvo de 10 min.
     if (n < 5) return; 
@@ -252,9 +245,7 @@ bool Blockchain::isChainValid() {
 
 void Blockchain::printStats() {
     int height = chain.size();
-    // Cálculo do Halving para o print
-    int n = 0; long tempInterval = 1000; int tempHeight = height;
-    while(tempHeight >= tempInterval) { tempHeight -= tempInterval; tempInterval *= 2; n++; }
+    int n = getCurrentCycle(height);
 
     std::cout << "\n📊 Altura: " << height 
               << " | Ciclo Halving: " << n 
@@ -265,3 +256,33 @@ void Blockchain::printStats() {
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
+
+// --- FUNÇÕES FALTANTES ADICIONADAS PARA CONSERTO DO BUILD ---
+
+int Blockchain::getCurrentCycle(int height) {
+    int n = 0;
+    long tempInterval = 1000;
+    int tempHeight = height;
+    while(tempHeight >= tempInterval) {
+        tempHeight -= tempInterval;
+        tempInterval *= 2;
+        n++;
+    }
+    return n;
+}
+
+void Blockchain::clearChain() {
+    chain.clear();
+    totalSupply = 0;
+}
+
+void Blockchain::addBlock(const Block& block) {
+    chain.push_back(block);
+    if(!block.transactions.empty()) {
+        for(const auto& tx : block.transactions) {
+            if(tx.signature == "coinbase") {
+                for(const auto& out : tx.vout) totalSupply += out.amount;
+            }
+        }
+    }
+}
