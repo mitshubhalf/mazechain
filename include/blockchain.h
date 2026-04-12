@@ -5,11 +5,13 @@
 #include <vector>
 #include <ctime>
 
+// Estrutura de saída de transação
 struct TxOut {
     std::string address;
     double amount;
 };
 
+// Estrutura de transação
 struct Transaction {
     std::string id;
     std::string signature;
@@ -17,6 +19,7 @@ struct Transaction {
     std::vector<TxOut> vout;
 };
 
+// Classe do Bloco
 class Block {
 public:
     int index;
@@ -31,6 +34,7 @@ public:
     void mine(int difficulty);
 };
 
+// Classe da Blockchain
 class Blockchain {
 private:
     std::vector<Block> chain;
@@ -39,25 +43,39 @@ private:
 
 public:
     Blockchain();
+    
+    // Funções de Mineração e Blocos
     void mineBlock(std::string minerAddress);
     void addBlock(const Block& block);
+    Block getLastBlock();
+    void clearChain();
+    
+    // Getters
     std::vector<Block> getChain() const;
     int getDifficulty() const;
     void setDifficulty(int d);
+    double getTotalSupply() const { return totalSupply; }
+    
+    // --- CORREÇÃO: Função necessária para o main.cpp ---
+    // Esta função busca as transações pendentes para a API
+    std::vector<Transaction> getMempool() const; 
+
+    // Lógica Financeira e Regras
     double getBalance(std::string address);
     void send(std::string from, std::string to, double amount, std::string seed);
     bool verifyTransaction(const Transaction& tx);
-    void adjustDifficulty();
     double getBlockReward(int height);
     
-    // --- FUNÇÃO ADICIONADA PARA SINCRONIZAR COM O CPP ---
+    // Ajustes de Rede
+    void adjustDifficulty();
     int getCurrentCycle(int height); 
     
-    Block getLastBlock();
-    void clearChain();
+    // Validação
     bool isChainValid();
     bool isChainValid(const std::vector<Block>& chainToValidate);
     void replaceChain(const std::vector<Block>& newChain);
+    
+    // Estatísticas
     void printStats();
 };
 
