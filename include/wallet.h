@@ -9,6 +9,8 @@ public:
     std::string seed;
 
     void create(); 
+    // Novo método para evitar o erro de compilação
+    void fromSeed(const std::string& existingSeed); 
 };
 
 #endif
