@@ -146,8 +146,8 @@
 </div>
 
 <script>
-  // ATENÇÃO: Substitua pelo link gerado pelo seu tunnel (localtunnel/ngrok)
-  const API = "http://localhost:10000"; 
+  // CORREÇÃO AQUI: Link direto para o seu servidor no Render
+  const API = "https://mazechain.onrender.com"; 
   let sessionSeed = null;
 
   function go(id) {
@@ -188,7 +188,7 @@
     
     try {
       const r = await fetch(`${API}/wallet/new`);
-      const data = await r.json(); // Backend retorna JSON { "address": "...", "seed": "..." }
+      const data = await r.json(); 
       
       const seed = data.seed;
       const addr = data.address;
@@ -201,7 +201,7 @@
       btn.style.display = "none";
       document.getElementById('confirmBtn').style.display = "block";
     } catch(e) { 
-      alert("Erro de conexão com o Node. Verifique o link da API."); 
+      alert("Erro de conexão com o Node. Verifique se o servidor no Render está rodando."); 
       btn.disabled = false; 
       btn.innerText = "GERAR SEED PROTEGIDA"; 
     }
@@ -222,7 +222,6 @@
     btn.disabled = true; btn.innerText = "IMPORTANDO...";
 
     try {
-      // Para importar, pedimos ao servidor o endereço dessa seed
       const response = await fetch(`${API}/wallet/import`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -239,7 +238,7 @@
         alert("Seed inválida.");
       }
     } catch (e) {
-      alert("Falha de conexão.");
+      alert("Falha de conexão com o servidor.");
     } finally {
       btn.disabled = false; btn.innerText = "VALIDAR E ENTRAR";
     }
@@ -267,7 +266,6 @@
     try {
       const rb = await fetch(`${API}/balance/${addr}`);
       const db = await rb.json();
-      // Ajuste para ler 'balance' do seu JSON C++
       const val = db.balance !== undefined ? db.balance : 0;
       document.getElementById('balDisp').innerText = parseFloat(val).toFixed(2) + " MZ";
     } catch(e) {}
@@ -343,7 +341,7 @@
   window.onload = () => {
     if(localStorage.getItem('mz_vault')) document.getElementById('unlockArea').style.display = "block";
   };
-  setInterval(updateStats, 10000); // Atualiza a cada 10s
+  setInterval(updateStats, 10000); 
 </script>
 </body>
 </html>
