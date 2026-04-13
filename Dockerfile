@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 # Evita perguntas interativas durante a instalação
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala as dependências necessárias, incluindo CMake
+# Instala as dependências necessárias
 RUN apt-get update && apt-get install -y \
     g++ \
     make \
@@ -24,15 +24,18 @@ RUN wget https://github.com/CrowCpp/Crow/releases/download/v1.0+5/crow_all.h -O 
 # Cria a pasta data para salvar a blockchain
 RUN mkdir -p data
 
-# COMPILAÇÃO: Agora incluímos o src/crypto.cpp que estava faltando
-# E garantimos a ordem correta das bibliotecas
+# COMPILAÇÃO CORRIGIDA:
+# Incluímos todos os arquivos .cpp necessários para resolver as referências
 RUN g++ src/blockchain.cpp \
+        src/block.cpp \
+        src/transaction.cpp \
+        src/utxo.cpp \
         src/storage.cpp \
         src/wallet.cpp \
         src/crypto.cpp \
         api/main.cpp \
     -Iinclude \
-    -lssl -lcrypto -lpthread -lcurl \
+    -lssl -lcrypto -lpthread -lboost_system -lboost_thread -lcurl \
     -o mazechain_api
 
 # Define a porta padrão
