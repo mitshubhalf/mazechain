@@ -146,7 +146,8 @@
 </div>
 
 <script>
-  const API = "https://mazechain.onrender.com";
+  // ATENÇÃO: Substitua pelo link gerado pelo seu tunnel (localtunnel/ngrok)
+  const API = "http://localhost:10000"; 
   let sessionSeed = null;
 
   function go(id) {
@@ -168,12 +169,6 @@
     return html;
   }
 
-  function calculateMZAddress(seed) {
-    const cleanSeed = seed.trim().toLowerCase().replace(/\s+/g, ' ');
-    const hash = CryptoJS.SHA256(cleanSeed).toString();
-    return "MZ" + hash.substring(0, 20);
-  }
-
   function encrypt(text, password) {
     return CryptoJS.AES.encrypt(text, password).toString();
   }
@@ -190,20 +185,26 @@
     if(pass.length < 4) return alert("Defina uma senha de ao menos 4 dígitos!");
     const btn = document.getElementById('genBtn');
     btn.disabled = true; btn.innerText = "CONTATANDO NÓ...";
+    
     try {
       const r = await fetch(`${API}/wallet/new`);
-      const t = await r.text();
-      const seedMatch = t.match(/>> (.*) <</);
-      if(!seedMatch) throw new Error("Erro na resposta");
-      const seed = seedMatch[1];
-      const addr = calculateMZAddress(seed);
+      const data = await r.json(); // Backend retorna JSON { "address": "...", "seed": "..." }
+      
+      const seed = data.seed;
+      const addr = data.address;
+      
       document.getElementById('seedBox').innerHTML = applyChaosMask(seed);
       localStorage.setItem('mz_vault', encrypt(seed, pass));
       localStorage.setItem('mz_addr', addr);
       sessionSeed = seed; 
+      
       btn.style.display = "none";
       document.getElementById('confirmBtn').style.display = "block";
-    } catch(e) { alert("Erro de conexão."); btn.disabled = false; btn.innerText = "GERAR SEED PROTEGIDA"; }
+    } catch(e) { 
+      alert("Erro de conexão com o Node. Verifique o link da API."); 
+      btn.disabled = false; 
+      btn.innerText = "GERAR SEED PROTEGIDA"; 
+    }
   }
 
   function confirmSave() { loadDashboard(); }
@@ -213,26 +214,32 @@
     const pass = document.getElementById('importPass').value;
     const btn = document.getElementById('importBtn');
 
-    if(seedInput.split(/\s+/).length < 12) return alert("Insira as 12 palavras!");
+    const seedWords = seedInput.split(/\s+/);
+    if(seedWords.length < 12) return alert("Insira as 12 palavras!");
     if(pass.length < 4) return alert("Senha muito curta!");
 
     const seed = seedInput.toLowerCase().replace(/\s+/g, ' ');
-    const addr = calculateMZAddress(seed);
-
-    btn.disabled = true; btn.innerText = "VERIFICANDO NO NÓ...";
+    btn.disabled = true; btn.innerText = "IMPORTANDO...";
 
     try {
-      const response = await fetch(`${API}/balance/${addr}`);
-      if (response.ok) {
+      // Para importar, pedimos ao servidor o endereço dessa seed
+      const response = await fetch(`${API}/wallet/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seed: seed })
+      });
+      const data = await response.json();
+
+      if (data.address) {
         localStorage.setItem('mz_vault', encrypt(seed, pass));
-        localStorage.setItem('mz_addr', addr);
+        localStorage.setItem('mz_addr', data.address);
         sessionSeed = seed;
         loadDashboard();
       } else {
-        alert("ACESSO NEGADO: Esta seed não existe na rede ou nunca foi ativada.");
+        alert("Seed inválida.");
       }
     } catch (e) {
-      alert("Falha de conexão: O nó oficial está offline ou inacessível.");
+      alert("Falha de conexão.");
     } finally {
       btn.disabled = false; btn.innerText = "VALIDAR E ENTRAR";
     }
@@ -243,7 +250,8 @@
     const vault = localStorage.getItem('mz_vault');
     const decrypted = decrypt(vault, pass);
     if(decrypted && decrypted.trim().split(/\s+/).length >= 12) {
-      sessionSeed = decrypted; loadDashboard();
+      sessionSeed = decrypted; 
+      loadDashboard();
     } else { alert("Senha Incorreta!"); }
   }
 
@@ -259,11 +267,12 @@
     try {
       const rb = await fetch(`${API}/balance/${addr}`);
       const db = await rb.json();
-      document.getElementById('balDisp').innerText = db.balance.toFixed(2) + " MZ";
+      // Ajuste para ler 'balance' do seu JSON C++
+      const val = db.balance !== undefined ? db.balance : 0;
+      document.getElementById('balDisp').innerText = parseFloat(val).toFixed(2) + " MZ";
     } catch(e) {}
   }
 
-  // NOVA FUNÇÃO: TRANSFERIR MOEDAS
   async function transferCoins() {
     const to = document.getElementById('sendTo').value.trim();
     const amount = parseFloat(document.getElementById('sendAmount').value);
@@ -272,14 +281,14 @@
     const log = document.getElementById('log');
 
     if (!to.startsWith("MZ") || isNaN(amount) || amount <= 0) {
-      return alert("Dados inválidos. Verifique o endereço e o valor.");
+      return alert("Verifique o endereço de destino e o valor.");
     }
 
-    if (!sessionSeed) return alert("Erro de sessão. Faça login novamente.");
+    if (!sessionSeed) return alert("Sessão expirada. Relogue.");
 
     btn.disabled = true;
     btn.innerText = "ENVIANDO...";
-    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Iniciando transferência...`;
+    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Assinando transação...`;
 
     try {
       const response = await fetch(`${API}/send`, {
@@ -295,14 +304,13 @@
 
       const data = await response.json();
       if (data.status === "success") {
-        log.innerHTML += `<br><span style="color:#0f0">> Transação aceita! Minere um bloco para confirmar.</span>`;
-        alert("Transação enviada para a Mempool! Agora você precisa minerar um bloco para que o saldo seja atualizado.");
+        log.innerHTML += `<br><span style="color:#0f0">> OK: Transação em Mempool.</span>`;
+        alert("Enviado! Minere um bloco para confirmar o saldo.");
       } else {
-        log.innerHTML += `<br><span style="color:red">> Falha: ${data.message}</span>`;
-        alert("Erro no servidor: " + data.message);
+        log.innerHTML += `<br><span style="color:red">> Erro: ${data.message}</span>`;
       }
     } catch (e) {
-      log.innerHTML += `<br><span style="color:red">> Erro de conexão com o servidor.</span>`;
+      log.innerHTML += `<br><span style="color:red">> Erro de conexão.</span>`;
     } finally {
       btn.disabled = false;
       btn.innerText = "ENVIAR AGORA";
@@ -315,12 +323,12 @@
     const btn = document.getElementById('mineBtn');
     const log = document.getElementById('log');
     btn.disabled = true;
-    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] PoW Iniciado...`;
+    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Minerando bloco...`;
     try {
       const r = await fetch(`${API}/minerar_agora/${addr}`);
       const d = await r.json();
       if(d.status === "success") {
-        log.innerHTML += `<br><span style="color:#0f0">> Bloco #${d.blocos} Aceito!</span>`;
+        log.innerHTML += `<br><span style="color:#0f0">> Sucesso! Novo saldo disponível.</span>`;
         updateStats();
       } else {
         log.innerHTML += `<br><span style="color:red">> Erro: ${d.message}</span>`;
@@ -335,7 +343,7 @@
   window.onload = () => {
     if(localStorage.getItem('mz_vault')) document.getElementById('unlockArea').style.display = "block";
   };
-  setInterval(updateStats, 30000);
+  setInterval(updateStats, 10000); // Atualiza a cada 10s
 </script>
 </body>
 </html>
