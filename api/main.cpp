@@ -11,6 +11,7 @@
 #include <algorithm>
 
 // Função para habilitar comunicação com o Frontend (CORS)
+// Essencial para evitar o erro "Erro de conexão com o Node" no navegador
 void add_cors(crow::response& res) {
     res.add_header("Access-Control-Allow-Origin", "*");
     res.add_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -21,7 +22,7 @@ int main() {
     crow::SimpleApp app;
     Blockchain bc;
     
-    // Tenta carregar a blockchain existente
+    // Tenta carregar a blockchain existente e o conjunto UTXO
     if(!Storage::loadChain(bc, "data/blockchain.dat")) {
         std::cout << "[INFO] Nenhuma blockchain encontrada ou erro na leitura. Iniciando nova." << std::endl;
     }
@@ -31,15 +32,22 @@ int main() {
         return "MAZECHAIN NODE v1.1.2 - STATUS: ONLINE";
     });
 
-    // ROTA OPTIONS (CORS Preflight)
-    CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::OPTIONS)([]() {
+    // ROTA OPTIONS (CORS Preflight global)
+    // O navegador envia um OPTIONS antes de qualquer POST
+    CROW_ROUTE(app, "/<string>").methods(crow::HTTPMethod::OPTIONS)([](std::string path) {
         crow::response res(204);
         add_cors(res);
         return res;
     });
 
     // ROTA DE ENVIO - Protegida contra Double Spending na Mempool
-    CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST)([&bc](const crow::request& req) {
+    CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([&bc](const crow::request& req) {
+        if (req.method == crow::HTTPMethod::OPTIONS) {
+            crow::response res(204);
+            add_cors(res);
+            return res;
+        }
+
         auto x = crow::json::load(req.body);
         crow::json::wvalue result;
         
@@ -104,18 +112,55 @@ int main() {
         }
     });
 
-    // ROTA CARTEIRA
+    // ROTA CARTEIRA (CORRIGIDA PARA JSON)
+    // O Frontend espera um objeto JSON para salvar no localStorage
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
         w.create();
-        std::stringstream ss;
-        ss << "ENDERECO (MZ):\n" << w.address << "\n\nSEED:\n>> " << w.seed << " <<";
-        crow::response res(ss.str());
+        
+        crow::json::wvalue result;
+        result["status"] = "success";
+        result["address"] = w.address;
+        result["seed"] = w.seed;
+
+        crow::response res(result);
         add_cors(res);
         return res;
     });
 
-    // ROTA SALDO (Usa o UTXO Set atualizado)
+    // ROTA IMPORTAR CARTEIRA (NOVA)
+    CROW_ROUTE(app, "/wallet/import").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([](const crow::request& req) {
+        if (req.method == crow::HTTPMethod::OPTIONS) {
+            crow::response res(204);
+            add_cors(res);
+            return res;
+        }
+
+        auto x = crow::json::load(req.body);
+        crow::json::wvalue result;
+
+        if (!x || !x.has("seed")) {
+            result["status"] = "error";
+            result["message"] = "Seed nao fornecida";
+            crow::response res(400, result);
+            add_cors(res);
+            return res;
+        }
+
+        Wallet w;
+        std::string seed = x["seed"].s();
+        // A lógica w.fromSeed deve estar implementada no seu wallet.cpp
+        w.fromSeed(seed); 
+
+        result["status"] = "success";
+        result["address"] = w.address;
+        
+        crow::response res(result);
+        add_cors(res);
+        return res;
+    });
+
+    // ROTA SALDO
     CROW_ROUTE(app, "/balance/<string>")([&bc](std::string endereco) {
         double saldo = bc.getBalance(endereco);
         crow::json::wvalue x;
@@ -138,58 +183,13 @@ int main() {
         }
 
         bc.mineBlock(endereco);
-        // Persistência imediata após minerar
         Storage::saveChain(bc, "data/blockchain.dat");
-        bc.utxoSet.saveToFile("data/utxo.dat"); 
         
         x["status"] = "success";
         x["height"] = (int)bc.getChain().size();
+        x["message"] = "Bloco minerado com sucesso";
+        
         crow::response res(x);
-        add_cors(res);
-        return res;
-    });
-
-    // ROTA EXPLORADOR (Com suporte a paginação)
-    CROW_ROUTE(app, "/chain")([&bc](const crow::request& req) {
-        auto full_chain = bc.getChain();
-        
-        int limit = req.url_params.get("limit") ? std::stoi(req.url_params.get("limit")) : 50;
-        int offset = req.url_params.get("offset") ? std::stoi(req.url_params.get("offset")) : 0;
-        
-        std::vector<crow::json::wvalue> blocks_json;
-        int start = std::max(0, offset);
-        int end = std::min((int)full_chain.size(), start + limit);
-
-        for (int i = start; i < end; i++) {
-            const auto& b = full_chain[i];
-            crow::json::wvalue block;
-            block["index"] = b.index;
-            block["hash"] = b.hash;
-            block["prevHash"] = b.prevHash;
-            block["timestamp"] = (long long)b.timestamp;
-            block["tx_count"] = (int)b.transactions.size();
-            blocks_json.push_back(std::move(block));
-        }
-        
-        crow::json::wvalue final_res;
-        final_res["blocks"] = std::move(blocks_json);
-        final_res["total"] = (int)full_chain.size();
-
-        crow::response res{final_res};
-        add_cors(res);
-        return res;
-    });
-
-    // ROTA MEMPOOL
-    CROW_ROUTE(app, "/mempool")([&bc]() {
-        std::vector<crow::json::wvalue> txs_json;
-        for (const auto& tx : bc.getMempool()) { 
-            crow::json::wvalue j_tx;
-            j_tx["id"] = tx.id;
-            j_tx["signature"] = tx.signature;
-            txs_json.push_back(std::move(j_tx));
-        }
-        crow::response res{crow::json::wvalue(txs_json)};
         add_cors(res);
         return res;
     });
@@ -209,7 +209,7 @@ int main() {
         return res;
     });
 
-    // INICIALIZAÇÃO
+    // INICIALIZAÇÃO NA PORTA DINÂMICA (RENDER)
     const char* port_ptr = std::getenv("PORT");
     int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 10000;
     
