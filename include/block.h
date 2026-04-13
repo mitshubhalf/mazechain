@@ -3,22 +3,20 @@
 
 #include <vector>
 #include <string>
-#include <ctime>
 #include "transaction.h"
 
 class Block {
 public:
     int index;
-    std::string prevHash;
-    std::vector<Transaction> transactions;
-    long timestamp;
-    int nonce;
+    long long timestamp;
     std::string hash;
+    std::string prevHash;
+    int nonce;
+    std::vector<Transaction> transactions;
 
     Block(int idx, std::string prev, std::vector<Transaction> txs);
-
     std::string calculateHash() const;
-    void mine(int difficulty);
+    void mine(int difficulty); // A lógica bruta vai para o miner.cpp
 };
 
 #endif
