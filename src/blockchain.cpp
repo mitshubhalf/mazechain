@@ -26,15 +26,16 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
         if (out.amount < 0) senderAddress = out.address;
     }
 
-    // Regra de Maturidade (100 blocos)
+    // Regra de Maturidade (Ajustada para aceitar conforme sua mudança)
     int currentHeight = chain.size();
     for (const auto& block : chain) {
         for (const auto& blockTx : block.transactions) {
             if (blockTx.signature == "coinbase") {
                 for (const auto& out : blockTx.vout) {
                     if (out.address == senderAddress) {
+                        // Se a diferença for 0, o bloco acabou de ser minerado e não pode ser gasto no mesmo bloco
                         if (currentHeight - block.index < 1) {
-                            std::cout << "⚠️ Bloqueio Coinbase Maturity: Aguarde 1 confirmações." << std::endl;
+                            std::cout << "⚠️ Bloqueio Coinbase Maturity: Aguarde 1 confirmacao." << std::endl;
                             return false;
                         }
                     }
@@ -46,6 +47,8 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
     std::string cleanKey = tx.publicKey;
     cleanKey.erase(0, cleanKey.find_first_not_of(" \t\r\n"));
     cleanKey.erase(cleanKey.find_last_not_of(" \t\r\n") + 1);
+    
+    // O endereço deve ser gerado exatamente como na criação da carteira
     std::string expectedAddress = "MZ" + Crypto::sha256_util(cleanKey).substr(0, 20);
     
     return (senderAddress == expectedAddress);
@@ -93,16 +96,23 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
     for (const auto& tx : pending) {
         if (!verifyTransaction(tx)) continue;
+        
         std::string sender = "";
         double amountWithFee = 0;
         for (const auto& out : tx.vout) {
-            if (out.amount < 0) { sender = out.address; amountWithFee = std::abs(out.amount); }
+            if (out.amount < 0) { 
+                sender = out.address; 
+                amountWithFee = std::abs(out.amount); 
+            }
         }
 
-        if (getBalance(sender) - spendingInThisBlock[sender] >= amountWithFee) {
+        // CORREÇÃO: Adicionado EPSILON (0.000001) para evitar erro de precisão do double
+        if (getBalance(sender) - spendingInThisBlock[sender] >= (amountWithFee - 0.000001)) {
             validTransactions.push_back(tx);
             spendingInThisBlock[sender] += amountWithFee;
             totalFees += (amountWithFee / 1.01) * 0.01;
+        } else {
+            std::cout << "❌ Transacao rejeitada por saldo insuficiente ou erro de precisao." << std::endl;
         }
     }
 
@@ -153,8 +163,9 @@ void Blockchain::addBlock(const Block& block) {
 
 void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
     double totalNeeded = amount * 1.01;
-    if (getBalance(from) < totalNeeded) {
-        std::cout << "❌ Saldo insuficiente!" << std::endl;
+    // CORREÇÃO: Usando EPSILON aqui também
+    if (getBalance(from) < (totalNeeded - 0.000001)) {
+        std::cout << "❌ Saldo insuficiente! Saldo atual: " << getBalance(from) << " MZ" << std::endl;
         return;
     }
     Transaction tx;
@@ -165,6 +176,7 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
     tx.signature = "SIG_" + Crypto::sha256_util(seed).substr(0, 16);
     
     Storage::saveMempool(tx, "data/mempool.dat");
+    std::cout << "✅ Transacao enviada para a mempool!" << std::endl;
 }
 
 bool Blockchain::isChainValid() {
@@ -183,5 +195,5 @@ std::vector<Transaction> Blockchain::getMempool() const { return Storage::loadMe
 void Blockchain::printStats() {
     int height = chain.size();
     std::cout << "\n📊 Altura: " << height << " | Dificuldade: " << difficulty 
-              << " | Circulação: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
+              << " | Circulacao: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
 }
