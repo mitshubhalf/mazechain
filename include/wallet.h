@@ -6,7 +6,7 @@
 class Wallet {
 public:
     std::string address;
-    std::string seed; // Onde as 12 palavras ficam guardadas
+    std::string seed;
 
     void create(); 
 };
