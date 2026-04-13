@@ -3,7 +3,9 @@
 
 #include <vector>
 #include <string>
-#include "block.h" // A Blockchain agora 'usa' o Bloco que está em outro arquivo
+#include "block.h"
+#include "utxo.h"      // ADICIONADO: Para gerenciar saldos rápidos
+#include "transaction.h"
 
 class Blockchain {
 private:
@@ -16,6 +18,9 @@ private:
     int getCurrentCycle(int height);
 
 public:
+    // --- ADICIONADO PARA O UTXO ---
+    UTXOSet utxoSet; // Objeto que guarda quem tem moedas sem ler a chain toda
+
     Blockchain();
     
     // Gestão da Corrente e Mineração
