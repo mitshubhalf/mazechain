@@ -4,24 +4,23 @@
 #include <string>
 #include <vector>
 
+// Estrutura para representar uma saída não gasta
 struct UTXO {
-    std::string txid;    // ID da transação que gerou este valor
-    int vout_index;      // Posição no vetor de saídas
-    std::string address; // Dono da moeda
-    double amount;       // Valor
+    std::string txid;
+    int vout_index;
+    std::string address;
+    double amount;
 };
+
+// Precisamos incluir o header que define a estrutura da Transação
+#include "transaction.h"
 
 class UTXOSet {
 public:
     std::vector<UTXO> utxos;
 
-    // Adiciona novos UTXOs e remove os que foram gastos
     void update(const Transaction& tx);
-    
-    // Calcula saldo rápido
     double getBalance(std::string address);
-    
-    // Persistência
     void saveToFile(std::string filename);
     void loadFromFile(std::string filename);
 };
