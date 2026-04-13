@@ -24,7 +24,7 @@ int main() {
 
     // ROTA RAIZ
     CROW_ROUTE(app, "/")([]() {
-        return "MAZECHAIN NODE v1.1 - STATUS: ONLINE";
+        return "MAZECHAIN NODE v1.1.2 - STATUS: ONLINE";
     });
 
     // ROTA OPTIONS PARA O ENDPOINT /send (CORS Preflight)
@@ -36,7 +36,7 @@ int main() {
         return res;
     });
 
-    // ROTA DE ENVIO DE TRANSAÇÕES - COMPLETA COM TRATAMENTO DE ERRO
+    // ROTA DE ENVIO DE TRANSAÇÕES - MELHORADA COM VALIDAÇÃO DE SALDO
     CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST)([&bc](const crow::request& req) {
         auto x = crow::json::load(req.body);
         crow::json::wvalue result;
@@ -59,14 +59,30 @@ int main() {
             double amount = x["amount"].d();
             std::string seed = x["seed"].s();
 
+            // --- MELHORIA: Validação Prévia de Saldo (Taxa de 1% incluída) ---
+            double totalNeeded = amount * 1.01;
+            double currentBalance = bc.getBalance(from);
+
+            if (currentBalance < totalNeeded) {
+                result["status"] = "error";
+                result["message"] = "Saldo insuficiente. Necessario: " + std::to_string(totalNeeded) + " MZ";
+                result["current_balance"] = currentBalance;
+                crow::response res(402, result); // 402 = Payment Required
+                add_cors(res);
+                return res;
+            }
+
             // Executa a lógica de envio na blockchain
             bc.send(from, to, amount, seed);
+
+            std::cout << "[API] Transacao de " << amount << " MZ enviada por " << from << std::endl;
 
             result["status"] = "success";
             result["message"] = "Transacao enviada para Mempool com sucesso";
             crow::response res(200, result);
             add_cors(res);
             return res;
+
         } catch (const std::exception& e) {
             result["status"] = "error";
             result["message"] = e.what();
@@ -98,7 +114,7 @@ int main() {
         return res;
     });
 
-    // ROTA DE MINERAÇÃO MANUAL VIA API
+    // ROTA DE MINERAÇÃO MANUAL VIA API - MELHORADA COM LOGS
     CROW_ROUTE(app, "/minerar_agora/<string>")([&bc](std::string endereco) {
         crow::json::wvalue x;
         if(endereco.substr(0, 2) != "MZ") {
@@ -108,6 +124,9 @@ int main() {
             add_cors(res);
             return res;
         }
+
+        std::cout << "[API] Iniciando mineracao para: " << endereco << std::endl;
+        
         bc.mineBlock(endereco);
         Storage::saveChain(bc, "data/blockchain.dat"); 
         
@@ -163,7 +182,7 @@ int main() {
         return res;
     });
 
-    // ROTA DE STATUS GERAL DO NODE
+    // ROTA DE STATUS GERAL DO NODE - MELHORADA
     CROW_ROUTE(app, "/status")([&bc]() {
         crow::json::wvalue x;
         x["moeda"] = "MazeCoin";
@@ -171,9 +190,18 @@ int main() {
         x["versao"] = "1.1.2";
         x["total_blocos"] = (int)bc.getChain().size();
         x["mempool_size"] = (int)bc.getMempool().size();
-        // Nota: Certifique-se que getTotalSupply() existe no seu blockchain.h
-        // Se não existir, use bc.getChain().size() ou outra métrica.
-        x["circulacao_total"] = bc.getChain().size() * 1000; 
+        
+        // --- MELHORIA: Cálculo de suprimento real se getTotalSupply não existir ---
+        double supply = 0;
+        for(const auto& block : bc.getChain()) {
+            for(const auto& tx : block.transactions) {
+                if(tx.signature == "coinbase") {
+                    for(const auto& out : tx.vout) supply += out.amount;
+                }
+            }
+        }
+        
+        x["circulacao_total"] = supply;
         x["dificuldade"] = bc.getDifficulty();
         x["status_rede"] = "ONLINE";
         
@@ -182,10 +210,13 @@ int main() {
         return res;
     });
 
-    // INICIALIZAÇÃO DO SERVIDOR
+    // INICIALIZAÇÃO DO SERVIDOR COM PORTA DINÂMICA
     const char* port_ptr = std::getenv("PORT");
     int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 10000;
     
-    std::cout << "Node MazeChain ativo na porta: " << port << std::endl;
+    std::cout << "==========================================" << std::endl;
+    std::cout << "  MAZECHAIN NODE API - RODANDO NA PORTA " << port << std::endl;
+    std::cout << "==========================================" << std::endl;
+    
     app.port(port).multithreaded().run();
 }
