@@ -15,7 +15,7 @@
 void add_cors(crow::response& res) {
     res.add_header("Access-Control-Allow-Origin", "*");
     res.add_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.add_header("Access-Control-Allow-Headers", "Content-Type");
+    res.add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
 int main() {
@@ -33,15 +33,15 @@ int main() {
     });
 
     // ROTA OPTIONS (CORS Preflight global)
-    // O navegador envia um OPTIONS antes de qualquer POST
     CROW_ROUTE(app, "/<string>").methods(crow::HTTPMethod::OPTIONS)([](std::string path) {
         crow::response res(204);
         add_cors(res);
         return res;
     });
 
-    // ROTA DE ENVIO - Protegida contra Double Spending na Mempool
+    // ROTA DE ENVIO - Corrigida para aceitar o Preflight do Navegador (CORS)
     CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([&bc](const crow::request& req) {
+        // Trata o Preflight OPTIONS exigido pelo navegador antes do POST
         if (req.method == crow::HTTPMethod::OPTIONS) {
             crow::response res(204);
             add_cors(res);
@@ -75,6 +75,7 @@ int main() {
             double pendingSpend = 0;
             std::vector<Transaction> mempool = bc.getMempool();
             for (const auto& tx : mempool) {
+                // Percorre as saídas para encontrar débitos pendentes do remetente
                 for (const auto& out : tx.vout) {
                     if (out.amount < 0 && out.address == from) {
                         pendingSpend += std::abs(out.amount);
@@ -85,6 +86,7 @@ int main() {
             double currentBalance = bc.getBalance(from);
             double effectiveBalance = currentBalance - pendingSpend;
 
+            // Verificação de saldo real levando em conta o que já está na fila de espera
             if (effectiveBalance < (totalNeeded - 0.000001)) {
                 result["status"] = "error";
                 result["message"] = "Saldo insuficiente (pendente na mempool)";
@@ -95,6 +97,7 @@ int main() {
                 return res;
             }
 
+            // Executa o envio
             bc.send(from, to, amount, seed);
 
             result["status"] = "success";
@@ -113,7 +116,6 @@ int main() {
     });
 
     // ROTA CARTEIRA (CORRIGIDA PARA JSON)
-    // O Frontend espera um objeto JSON para salvar no localStorage
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
         w.create();
@@ -149,7 +151,6 @@ int main() {
 
         Wallet w;
         std::string seed = x["seed"].s();
-        // A lógica w.fromSeed deve estar implementada no seu wallet.cpp
         w.fromSeed(seed); 
 
         result["status"] = "success";
