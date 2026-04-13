@@ -4,7 +4,9 @@
 #include <string>
 #include <vector>
 
-// Estrutura para representar uma saída não gasta
+// Forward declaration: Avisa que a struct existe antes de tentar usar
+struct Transaction; 
+
 struct UTXO {
     std::string txid;
     int vout_index;
@@ -12,14 +14,11 @@ struct UTXO {
     double amount;
 };
 
-// Precisamos incluir o header que define a estrutura da Transação
-#include "transaction.h"
-
+// Agora sim, a classe que usa a Transaction
 class UTXOSet {
 public:
     std::vector<UTXO> utxos;
-
-    void update(const Transaction& tx);
+    void update(const Transaction& tx); // O compilador agora sabe que Transaction é um tipo
     double getBalance(std::string address);
     void saveToFile(std::string filename);
     void loadFromFile(std::string filename);
