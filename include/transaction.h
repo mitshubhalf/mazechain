@@ -19,7 +19,11 @@ struct Transaction {
     std::string signature;
     std::string publicKey;
     std::vector<TxOut> vout;
-    std::vector<TxIn> vin; // Para futura implementação de UTXO completo
+    std::vector<TxIn> vin;
+
+    // Adicionando as declarações que estavam faltando:
+    Transaction(); 
+    std::string calculateHash() const;
 };
 
 #endif
