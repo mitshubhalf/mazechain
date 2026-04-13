@@ -14,16 +14,12 @@ struct TxOut {
     double amount;
 };
 
-class Transaction {
-public:
+struct Transaction {
     std::string id;
-    std::vector<TxIn> vin;
+    std::string signature;
+    std::string publicKey;
     std::vector<TxOut> vout;
-
-    Transaction() {}
-    Transaction(std::vector<TxIn> in, std::vector<TxOut> out);
-
-    std::string calculateHash() const;
+    std::vector<TxIn> vin; // Para futura implementação de UTXO completo
 };
 
 #endif
