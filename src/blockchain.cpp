@@ -10,10 +10,14 @@
 Blockchain::Blockchain() {
     difficulty = 4;
     totalSupply = 0;
+    // Tenta carregar UTXOs salvos anteriormente
+    utxoSet.loadFromFile("data/utxo.dat");
+
     if (chain.empty()) {
         Block genesis(0, "0", {});
         genesis.mine(difficulty);
-        chain.push_back(genesis);
+        // addBlock já cuida de atualizar o utxoSet e totalSupply
+        addBlock(genesis); 
     }
 }
 
@@ -26,14 +30,13 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
         if (out.amount < 0) senderAddress = out.address;
     }
 
-    // Regra de Maturidade (Ajustada para aceitar conforme sua mudança)
+    // Regra de Maturidade (Mantida conforme seu código: aguarda 1 confirmação)
     int currentHeight = chain.size();
     for (const auto& block : chain) {
         for (const auto& blockTx : block.transactions) {
             if (blockTx.signature == "coinbase") {
                 for (const auto& out : blockTx.vout) {
                     if (out.address == senderAddress) {
-                        // Se a diferença for 0, o bloco acabou de ser minerado e não pode ser gasto no mesmo bloco
                         if (currentHeight - block.index < 1) {
                             std::cout << "⚠️ Bloqueio Coinbase Maturity: Aguarde 1 confirmacao." << std::endl;
                             return false;
@@ -106,7 +109,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
             }
         }
 
-        // CORREÇÃO: Adicionado EPSILON (0.000001) para evitar erro de precisão do double
+        // MELHORIA: getBalance agora usa o utxoSet (Instantâneo)
         if (getBalance(sender) - spendingInThisBlock[sender] >= (amountWithFee - 0.000001)) {
             validTransactions.push_back(tx);
             spendingInThisBlock[sender] += amountWithFee;
@@ -129,17 +132,16 @@ void Blockchain::mineBlock(std::string minerAddress) {
     newBlock.mine(difficulty);
     
     addBlock(newBlock);
+    
+    // Salva tudo de forma persistente
     Storage::saveChain(*this, "data/blockchain.dat");
+    utxoSet.saveToFile("data/utxo.dat"); 
     Storage::clearMempool("data/mempool.dat");
 }
 
+// MELHORIA: Redefinido para usar UTXO Set (Otimização Massiva)
 double Blockchain::getBalance(std::string address) {
-    double balance = 0;
-    for (const auto &block : chain)
-        for (const auto &tx : block.transactions)
-            for (const auto &out : tx.vout)
-                if (out.address == address) balance += out.amount;
-    return balance;
+    return utxoSet.getBalance(address);
 }
 
 int Blockchain::getCurrentCycle(int height) {
@@ -152,9 +154,13 @@ int Blockchain::getCurrentCycle(int height) {
     return n;
 }
 
+// MELHORIA: Agora atualiza o UTXO Set automaticamente ao adicionar blocos
 void Blockchain::addBlock(const Block& block) {
     chain.push_back(block);
     for(const auto& tx : block.transactions) {
+        // Atualiza o índice de moedas gastas/recebidas
+        utxoSet.update(tx);
+        
         if(tx.signature == "coinbase") {
             for(const auto& out : tx.vout) totalSupply += out.amount;
         }
@@ -163,7 +169,7 @@ void Blockchain::addBlock(const Block& block) {
 
 void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
     double totalNeeded = amount * 1.01;
-    // CORREÇÃO: Usando EPSILON aqui também
+    // Usando o getBalance otimizado com EPSILON
     if (getBalance(from) < (totalNeeded - 0.000001)) {
         std::cout << "❌ Saldo insuficiente! Saldo atual: " << getBalance(from) << " MZ" << std::endl;
         return;
@@ -187,7 +193,12 @@ bool Blockchain::isChainValid() {
     return true;
 }
 
-void Blockchain::clearChain() { chain.clear(); totalSupply = 0; }
+void Blockchain::clearChain() { 
+    chain.clear(); 
+    totalSupply = 0; 
+    utxoSet.utxos.clear(); 
+}
+
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
 std::vector<Transaction> Blockchain::getMempool() const { return Storage::loadMempool("data/mempool.dat"); }
