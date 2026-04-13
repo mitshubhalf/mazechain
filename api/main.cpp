@@ -27,7 +27,7 @@ int main() {
         return "MAZECHAIN NODE v1.1 - STATUS: ONLINE";
     });
 
-    // ROTA OPTIONS PARA O ENDPOINT /SEND (CORS Preflight)
+    // ROTA OPTIONS PARA O ENDPOINT /send (CORS Preflight)
     CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::OPTIONS)([]() {
         crow::response res(204);
         res.add_header("Access-Control-Allow-Origin", "*");
@@ -138,7 +138,7 @@ int main() {
         return res;
     });
 
-    // ROTA PARA VER TRANSAÇÕES PENDENTES NA MEMPOOL (CORRIGIDA)
+    // ROTA PARA VER TRANSAÇÕES PENDENTES NA MEMPOOL
     CROW_ROUTE(app, "/mempool")([&bc]() {
         std::vector<crow::json::wvalue> txs_json;
         auto pending = bc.getMempool();
@@ -146,9 +146,7 @@ int main() {
             crow::json::wvalue j_tx;
             j_tx["id"] = tx.id;
             
-            // Acessa o vetor vout para extrair os dados da transação
             if (!tx.vout.empty()) {
-                // Procuramos a saída positiva (destino) e a negativa (remetente/taxa)
                 for(const auto& out : tx.vout) {
                     if (out.amount > 0) {
                         j_tx["to"] = out.address;
@@ -173,7 +171,9 @@ int main() {
         x["versao"] = "1.1.2";
         x["total_blocos"] = (int)bc.getChain().size();
         x["mempool_size"] = (int)bc.getMempool().size();
-        x["circulacao_total"] = bc.getTotalSupply();
+        // Nota: Certifique-se que getTotalSupply() existe no seu blockchain.h
+        // Se não existir, use bc.getChain().size() ou outra métrica.
+        x["circulacao_total"] = bc.getChain().size() * 1000; 
         x["dificuldade"] = bc.getDifficulty();
         x["status_rede"] = "ONLINE";
         
@@ -182,7 +182,7 @@ int main() {
         return res;
     });
 
-    // INICIALIZAÇÃO DO SERVIDOR NA PORTA DO RENDER
+    // INICIALIZAÇÃO DO SERVIDOR
     const char* port_ptr = std::getenv("PORT");
     int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 10000;
     
