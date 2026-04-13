@@ -33,8 +33,8 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
             if (blockTx.signature == "coinbase") {
                 for (const auto& out : blockTx.vout) {
                     if (out.address == senderAddress) {
-                        if (currentHeight - block.index < 100) {
-                            std::cout << "⚠️ Bloqueio Coinbase Maturity: Aguarde 100 confirmações." << std::endl;
+                        if (currentHeight - block.index < 1) {
+                            std::cout << "⚠️ Bloqueio Coinbase Maturity: Aguarde 1 confirmações." << std::endl;
                             return false;
                         }
                     }
