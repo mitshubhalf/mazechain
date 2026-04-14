@@ -30,7 +30,7 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
         if (out.amount < 0) senderAddress = out.address;
     }
 
-    // Regra de Maturidade (Mantida conforme seu código: aguarda 1 confirmação)
+    // Regra de Maturidade: aguarda 1 confirmação
     int currentHeight = chain.size();
     for (const auto& block : chain) {
         for (const auto& blockTx : block.transactions) {
@@ -88,17 +88,24 @@ void Blockchain::adjustDifficulty() {
     else if (timeTaken > timeTarget * 2 && difficulty > 1) difficulty--;
 }
 
+// 🔥 FUNÇÃO DE MINERAÇÃO CORRIGIDA PARA PROCESSAR MEMPOOL
 void Blockchain::mineBlock(std::string minerAddress) {
     if (minerAddress.substr(0, 2) != "MZ") return;
     adjustDifficulty();
 
+    // 1. Carregar transações pendentes do arquivo de forma explícita
     std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
     std::vector<Transaction> validTransactions;
     double totalFees = 0;
     std::map<std::string, double> spendingInThisBlock;
 
+    std::cout << "[MINER] Iniciando bloco #" << chain.size() << " com " << pending.size() << " txs pendentes." << std::endl;
+
     for (const auto& tx : pending) {
-        if (!verifyTransaction(tx)) continue;
+        if (!verifyTransaction(tx)) {
+            std::cout << "⚠️ Tx rejeitada: Falha na assinatura." << std::endl;
+            continue;
+        }
         
         std::string sender = "";
         double amountWithFee = 0;
@@ -109,37 +116,48 @@ void Blockchain::mineBlock(std::string minerAddress) {
             }
         }
 
-        // MELHORIA: getBalance agora usa o utxoSet (Instantâneo)
-        if (getBalance(sender) - spendingInThisBlock[sender] >= (amountWithFee - 0.000001)) {
+        // Verifica saldo usando UTXO Set + o que já foi gasto neste bloco
+        double currentBalance = getBalance(sender);
+        if (currentBalance - spendingInThisBlock[sender] >= (amountWithFee - 0.000001)) {
             validTransactions.push_back(tx);
             spendingInThisBlock[sender] += amountWithFee;
+            // Calcula 1% de taxa sobre o valor líquido enviado
             totalFees += (amountWithFee / 1.01) * 0.01;
+            std::cout << "✅ Tx de " << sender << " incluída no bloco." << std::endl;
         } else {
-            std::cout << "❌ Transacao rejeitada por saldo insuficiente ou erro de precisao." << std::endl;
+            std::cout << "❌ Saldo insuficiente para " << sender << " (Precisa: " << amountWithFee << ")." << std::endl;
         }
     }
 
+    // 2. Gerar Subsídio (Recompensa) + Taxas
     double subsidy = getBlockReward(chain.size());
     Transaction coinbase;
-    coinbase.id = "coinbase_" + std::to_string(chain.size());
+    coinbase.id = "coinbase_" + std::to_string(chain.size()) + "_" + std::to_string(std::time(0));
     coinbase.vout.push_back({minerAddress, subsidy + totalFees});
     coinbase.signature = "coinbase";
 
-    std::vector<Transaction> blockTxs = {coinbase};
-    for(const auto& t : validTransactions) blockTxs.push_back(t);
+    // 3. Montar Bloco (Coinbase sempre no topo)
+    std::vector<Transaction> blockTxs;
+    blockTxs.push_back(coinbase);
+    for(const auto& t : validTransactions) {
+        blockTxs.push_back(t);
+    }
 
+    // 4. Resolver o Proof of Work
     Block newBlock(chain.size(), chain.back().hash, blockTxs);
     newBlock.mine(difficulty);
     
+    // 5. Adicionar e Sincronizar (Isso atualiza o UTXO em tempo real)
     addBlock(newBlock);
     
-    // Salva tudo de forma persistente
+    // 6. Persistência Final (Salva no disco para o Render não perder se cair)
     Storage::saveChain(*this, "data/blockchain.dat");
     utxoSet.saveToFile("data/utxo.dat"); 
     Storage::clearMempool("data/mempool.dat");
+
+    std::cout << "📦 Bloco #" << newBlock.index << " FINALIZADO. Total de Transações: " << blockTxs.size() << std::endl;
 }
 
-// MELHORIA: Redefinido para usar UTXO Set (Otimização Massiva)
 double Blockchain::getBalance(std::string address) {
     return utxoSet.getBalance(address);
 }
@@ -154,11 +172,10 @@ int Blockchain::getCurrentCycle(int height) {
     return n;
 }
 
-// MELHORIA: Agora atualiza o UTXO Set automaticamente ao adicionar blocos
 void Blockchain::addBlock(const Block& block) {
     chain.push_back(block);
     for(const auto& tx : block.transactions) {
-        // Atualiza o índice de moedas gastas/recebidas
+        // ATUALIZA O UTXO SET: Isso é o que faz o saldo mudar efetivamente
         utxoSet.update(tx);
         
         if(tx.signature == "coinbase") {
@@ -169,20 +186,22 @@ void Blockchain::addBlock(const Block& block) {
 
 void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
     double totalNeeded = amount * 1.01;
-    // Usando o getBalance otimizado com EPSILON
+    
     if (getBalance(from) < (totalNeeded - 0.000001)) {
         std::cout << "❌ Saldo insuficiente! Saldo atual: " << getBalance(from) << " MZ" << std::endl;
         return;
     }
+
     Transaction tx;
     tx.id = Crypto::sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(0)));
-    tx.vout.push_back({to, amount});
-    tx.vout.push_back({from, totalNeeded * -1});
-    tx.publicKey = seed;
+    tx.vout.push_back({to, amount});             // Crédito para o destino
+    tx.vout.push_back({from, totalNeeded * -1}); // Débito do remetente (valor + taxa)
+    
+    tx.publicKey = seed; // Note: Na prática, aqui deveria ser a Chave Pública, não a seed.
     tx.signature = "SIG_" + Crypto::sha256_util(seed).substr(0, 16);
     
     Storage::saveMempool(tx, "data/mempool.dat");
-    std::cout << "✅ Transacao enviada para a mempool!" << std::endl;
+    std::cout << "✅ Transação de " << amount << " MZ enviada para a mempool!" << std::endl;
 }
 
 bool Blockchain::isChainValid() {
