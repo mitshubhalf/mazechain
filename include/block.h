@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <ctime>
 #include "transaction.h"
 
 class Block {
@@ -15,8 +16,12 @@ public:
     std::vector<Transaction> transactions;
 
     Block(int idx, std::string prev, std::vector<Transaction> txs);
+    
+    // Calcula o hash combinando todos os dados do bloco
     std::string calculateHash() const;
-    void mine(int difficulty); // A lógica bruta vai para o miner.cpp
+    
+    // Executa o Proof of Work internamente
+    void mine(int difficulty); 
 };
 
 #endif
