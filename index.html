@@ -70,7 +70,6 @@
     }
     .seed-box b { color: #fff; font-size: 15px; } 
     
-    /* ABAS DASHBOARD */
     .nav { display:flex; justify-content: space-between; align-items: center; padding:15px; background: #000; border-bottom: 1px solid #222; position: sticky; top:0; z-index:100; }
     .tab-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #000; border-bottom: 1px solid #222; }
     .tab-btn { padding: 12px; font-size: 10px; text-align: center; color: var(--text); cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; }
@@ -81,7 +80,6 @@
       overflow-y: auto; border: 1px solid #222; border-radius: 6px; font-family: monospace; 
     }
 
-    /* ESTILOS DA CHAIN */
     .list-item { background: #1a1a1a; padding: 10px; border-radius: 5px; margin-bottom: 10px; font-size: 11px; border-left: 3px solid var(--accent); }
     .list-item b { color: var(--accent); }
     .chart-container { width: 100%; height: 200px; margin-top: 10px; }
@@ -105,7 +103,7 @@
       <button class="secondary" onclick="go('import')">IMPORTAR VIA SEED</button>
       <div id="unlockArea" style="display:none; margin-top:30px; border-top:1px solid #222; padding-top:20px;">
         <p style="font-size:12px; color:var(--accent); text-align:center;">Wallet detectada neste dispositivo:</p>
-        <input type="password" id="unlockPass" placeholder="Sua Senha de Desbloqueio">
+        <input type="password" id="unlockPass" placeholder="Senha de Desbloqueio">
         <button id="unlockBtn" onclick="unlockWallet()">DESBLOQUEAR ACESSO</button>
       </div>
     </div>
@@ -113,7 +111,7 @@
 
   <div id="create" class="screen">
     <h2>Backup Phrase</h2>
-    <p style="color:var(--text); font-size:12px; text-align:center;">As palavras <b>reais</b> estão em branco. O resto é ruído de proteção.</p>
+    <p style="color:var(--text); font-size:12px; text-align:center;">Anote as palavras em destaque. Elas são sua única chave.</p>
     <div id="seedBox" class="seed-box">Iniciando protocolo de segurança...</div>
     <input type="password" id="newPass" placeholder="Senha Forte (mín. 4 dígitos)">
     <button id="genBtn" onclick="generateWallet()">GERAR SEED PROTEGIDA</button>
@@ -123,9 +121,8 @@
 
   <div id="import" class="screen">
     <h2>Recuperar Conta</h2>
-    <p style="color:var(--text); font-size:12px; text-align:center;">Insira suas 12 palavras separadas por espaço.</p>
-    <input id="seedInput" placeholder="apple book cat dog...">
-    <input type="password" id="importPass" placeholder="Nova senha para este dispositivo">
+    <input id="seedInput" placeholder="Insira suas 12 palavras aqui...">
+    <input type="password" id="importPass" placeholder="Defina uma nova senha">
     <button id="importBtn" onclick="importWallet()">VALIDAR E ENTRAR</button>
     <button class="secondary" onclick="go('home')" style="border:none; color:#555">Cancelar</button>
   </div>
@@ -143,50 +140,40 @@
     </div>
 
     <div style="padding:20px">
-      
       <div id="content1" class="tab-content">
         <div class="card">
-          <small style="color:var(--text); font-size:10px; letter-spacing:1px;">ENDEREÇO PÚBLICO</small>
-          <p id="addrDisp" style="font-size:10px; color:var(--accent); word-break:break-all; margin:8px 0 15px 0; font-family:monospace; background: #000; padding: 10px; border-radius: 5px;"></p>
-          <small style="color:var(--text); font-size:10px; letter-spacing:1px;">SALDO EM CONTA</small>
-          <p id="balDisp" style="font-size:28px; font-weight:bold; margin:5px 0;">0.00 MZ</p>
+          <small style="color:var(--text); font-size:10px;">ENDEREÇO PÚBLICO</small>
+          <p id="addrDisp" style="font-size:10px; color:var(--accent); word-break:break-all; font-family:monospace; background: #000; padding: 10px; border-radius: 5px;"></p>
+          <small style="color:var(--text); font-size:10px;">SALDO ATUAL</small>
+          <p id="balDisp" style="font-size:28px; font-weight:bold;">0.00 MZ</p>
         </div>
 
         <div class="card">
-          <small style="color:var(--text); font-size:10px; letter-spacing:1px;">TRANSFERIR MZ</small>
+          <small style="color:var(--text); font-size:10px;">ENVIAR MOEDAS</small>
           <input type="text" id="sendTo" placeholder="Destino (MZ...)">
           <input type="number" id="sendAmount" placeholder="Quantia">
           <button class="secondary" id="sendBtn" onclick="transferCoins()">ENVIAR AGORA</button>
         </div>
 
-        <button id="mineBtn" onclick="runMiner()">MINERAR PRÓXIMO BLOCO</button>
-        <div class="terminal" id="log" style="margin-top:20px;">> Sessão Criptografada Ativa.</div>
+        <button id="mineBtn" onclick="runMiner()">MINERAR AGORA (+RECOMPENSA)</button>
+        <div class="terminal" id="log" style="margin-top:20px;">> Conectado ao Nó Render.</div>
       </div>
 
       <div id="content2" class="tab-content" style="display:none">
-        <h3 style="font-size:12px; color:var(--accent)">ULTIMOS BLOCOS (CHAIN)</h3>
-        <div id="chainList">Carregando...</div>
-        
-        <h3 style="font-size:12px; color:var(--accent); margin-top:20px;">MEMPOOL (PENDENTES)</h3>
-        <div id="mempoolList">Nenhuma transação pendente.</div>
+        <h3 style="font-size:12px; color:var(--accent)">BLOCKCHAIN EXPLORER</h3>
+        <div id="chainList">Sincronizando blocos...</div>
       </div>
 
       <div id="content3" class="tab-content" style="display:none">
         <div class="card">
-            <h3 style="font-size:12px; color:var(--accent)">MERCADO MZ (VALOR ESTIMADO)</h3>
-            <div class="chart-container">
-                <canvas id="priceChart"></canvas>
-            </div>
+            <h3 style="font-size:12px; color:var(--accent)">VARIAÇÃO DE MERCADO</h3>
+            <div class="chart-container"><canvas id="priceChart"></canvas></div>
         </div>
-        
         <div class="card">
-            <h3 style="font-size:12px; color:var(--accent)">ESTATÍSTICAS DO NÓ</h3>
-            <div id="statsInfo" style="font-size:11px; line-height:2;">
-                Carregando dados da rede...
-            </div>
+            <h3 style="font-size:12px; color:var(--accent)">ESTADO DA REDE</h3>
+            <div id="statsInfo" style="font-size:11px; line-height:2;">Obtendo dados...</div>
         </div>
       </div>
-
     </div>
   </div>
 </div>
@@ -196,35 +183,26 @@
   let sessionSeed = null;
   let priceChart = null;
 
-  // Gerenciamento de Telas
   function go(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-    window.scrollTo(0,0);
   }
 
-  // Alternar Abas
   function switchTab(n) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
     document.getElementById('tab'+n).classList.add('active');
     document.getElementById('content'+n).style.display = 'block';
-    
     if(n === 2) updateExplorer();
     if(n === 3) updateNetwork();
   }
 
-  // --- FUNÇÕES DE SEGURANÇA ORIGINAIS (Preservadas) ---
   function applyChaosMask(seed) {
-    const chars = ["!", "@", "#", "$", "%", "&", "*", "0", "7", "x", "z"];
-    const words = seed.split(" ");
-    let html = "";
-    words.forEach(w => {
-      const c1 = chars[Math.floor(Math.random()*chars.length)];
-      const c2 = chars[Math.floor(Math.random()*chars.length)];
-      html += `${c1}${c2}<b>${w}</b>${c2}${c1} `;
-    });
-    return html;
+    const chars = ["!", "@", "#", "$", "%", "*", "7", "x"];
+    return seed.split(" ").map(w => {
+      const c = chars[Math.floor(Math.random()*chars.length)];
+      return `${c}<b>${w}</b>${c}`;
+    }).join(" ");
   }
 
   function encrypt(text, password) { return CryptoJS.AES.encrypt(text, password).toString(); }
@@ -235,12 +213,9 @@
     } catch(e) { return null; }
   }
 
-  // --- FUNÇÕES DE API ---
   async function generateWallet() {
     const pass = document.getElementById('newPass').value;
-    if(pass.length < 4) return alert("Senha curta!");
-    const btn = document.getElementById('genBtn');
-    btn.disabled = true; btn.innerText = "CONTATANDO NÓ...";
+    if(pass.length < 4) return alert("Senha muito curta!");
     try {
       const r = await fetch(`${API}/wallet/new`);
       const data = await r.json(); 
@@ -248,20 +223,21 @@
       localStorage.setItem('mz_vault', encrypt(data.seed, pass));
       localStorage.setItem('mz_addr', data.address);
       sessionSeed = data.seed; 
-      btn.style.display = "none";
+      document.getElementById('genBtn').style.display = "none";
       document.getElementById('confirmBtn').style.display = "block";
-    } catch(e) { alert("Erro de conexão."); btn.disabled = false; }
+    } catch(e) { alert("Erro ao conectar com o servidor."); }
   }
 
+  function confirmSave() { loadDashboard(); }
+
   async function importWallet() {
-    const seedInput = document.getElementById('seedInput').value.trim();
+    const seed = document.getElementById('seedInput').value.trim().toLowerCase();
     const pass = document.getElementById('importPass').value;
-    const seed = seedInput.toLowerCase().replace(/\s+/g, ' ');
     try {
       const r = await fetch(`${API}/wallet/import`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seed: seed })
+          body: JSON.stringify({ seed })
       });
       const data = await r.json();
       if (data.address) {
@@ -270,17 +246,13 @@
         sessionSeed = seed;
         loadDashboard();
       }
-    } catch (e) { alert("Erro."); }
+    } catch (e) { alert("Seed inválida."); }
   }
 
   function unlockWallet() {
     const pass = document.getElementById('unlockPass').value;
-    const vault = localStorage.getItem('mz_vault');
-    const decrypted = decrypt(vault, pass);
-    if(decrypted) {
-      sessionSeed = decrypted; 
-      loadDashboard();
-    } else { alert("Senha Incorreta!"); }
+    const decrypted = decrypt(localStorage.getItem('mz_vault'), pass);
+    if(decrypted) { sessionSeed = decrypted; loadDashboard(); } else { alert("Senha incorreta!"); }
   }
 
   function loadDashboard() {
@@ -292,6 +264,7 @@
 
   async function updateStats() {
     const addr = localStorage.getItem('mz_addr');
+    if(!addr) return;
     try {
       const r = await fetch(`${API}/balance/${addr}`);
       const d = await r.json();
@@ -299,25 +272,21 @@
     } catch(e) {}
   }
 
-  // --- NOVAS FUNÇÕES: EXPLORER E REDE ---
-
   async function updateExplorer() {
     const list = document.getElementById('chainList');
-    list.innerHTML = "Sincronizando...";
     try {
         const r = await fetch(`${API}/chain`);
         const data = await r.json();
         list.innerHTML = "";
-        // Pegar apenas os últimos 5 blocos para não lotar a tela
-        data.blocks.slice(-5).reverse().forEach(b => {
+        data.blocks.slice(-8).reverse().forEach(b => {
             list.innerHTML += `
                 <div class="list-item">
                     <b>BLOCO #${b.index}</b><br>
-                    Hash: ${b.hash.substring(0,20)}...<br>
-                    TXs: ${b.transactions_count} | Nonce: ${b.nonce}
+                    Hash: <small>${b.hash.substring(0,32)}...</small><br>
+                    Transações: ${b.transactions_count} | Nonce: ${b.nonce}
                 </div>`;
         });
-    } catch(e) { list.innerHTML = "Erro ao ler chain."; }
+    } catch(e) { list.innerHTML = "Erro ao ler blockchain."; }
   }
 
   async function updateNetwork() {
@@ -326,55 +295,25 @@
         const r = await fetch(`${API}/status`);
         const d = await r.json();
         info.innerHTML = `
-            Versão: <b>${d.versao}</b><br>
-            Dificuldade: <b>${d.dificuldade}</b><br>
-            Circulação: <b>${d.circulacao_total.toFixed(2)} MZ</b><br>
-            Total de Blocos: <b>${d.total_blocos}</b><br>
-            Status do Nó: <span style="color:#0f0">SINCRONIZADO</span>
+            Protocolo: <b>v${d.version || '1.0'}</b><br>
+            Dificuldade: <b>${d.difficulty || 4}</b><br>
+            Moedas Criadas: <b>${(d.total_supply || 0).toFixed(2)} MZ</b><br>
+            Altura da Rede: <b>${d.total_blocks || 0}</b><br>
+            Status: <span style="color:#0f0">OPERACIONAL</span>
         `;
-        updateChart(d.circulacao_total);
+        if(priceChart) {
+            priceChart.data.datasets[0].data.shift();
+            priceChart.data.datasets[0].data.push(0.10 + (d.total_blocks * 0.01));
+            priceChart.update();
+        }
     } catch(e) { info.innerHTML = "Nó offline."; }
   }
 
-  function initChart() {
-    const ctx = document.getElementById('priceChart').getContext('2d');
-    priceChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['1h', '45m', '30m', '15m', 'Agora'],
-            datasets: [{
-                label: 'Valor MZ (Simulado)',
-                data: [0.10, 0.12, 0.11, 0.15, 0.14],
-                borderColor: '#f5c542',
-                tension: 0.4,
-                fill: true,
-                backgroundColor: 'rgba(245, 197, 66, 0.1)'
-            }]
-        },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { y: { display: false }, x: { grid: { display: false } } }
-        }
-    });
-  }
-
-  function updateChart(supply) {
-    if(!priceChart) return;
-    // Lógica simples: quanto mais blocos/supply, o valor oscila (apenas visual)
-    const newVal = (supply / 100) + (Math.random() * 0.5);
-    priceChart.data.datasets[0].data.shift();
-    priceChart.data.datasets[0].data.push(newVal);
-    priceChart.update();
-  }
-
-  // --- TRANSACAO E MINERACAO (IGUAIS) ---
   async function transferCoins() {
     const to = document.getElementById('sendTo').value.trim();
     const amount = parseFloat(document.getElementById('sendAmount').value);
     const from = localStorage.getItem('mz_addr');
-    if (!sessionSeed) return alert("Sessão expirada.");
+    const log = document.getElementById('log');
     try {
       const r = await fetch(`${API}/send`, {
         method: "POST",
@@ -382,26 +321,44 @@
         body: JSON.stringify({ from, to, amount, seed: sessionSeed })
       });
       const d = await r.json();
-      document.getElementById('log').innerHTML += `<br>> ${d.message}`;
-    } catch (e) { alert("Erro no envio."); }
+      log.innerHTML += `<br>> ${d.message || d.error}`;
+      updateStats();
+    } catch (e) { log.innerHTML += `<br>> Erro na rede.`; }
   }
 
   async function runMiner() {
     const addr = localStorage.getItem('mz_addr');
-    document.getElementById('log').innerHTML += `<br>> Minerando...`;
+    const log = document.getElementById('log');
+    log.innerHTML += `<br>> Iniciando Mineração...`;
     try {
       const r = await fetch(`${API}/minerar_agora/${addr}`);
       const d = await r.json();
       if(d.status === "success") {
-        document.getElementById('log').innerHTML += `<br><span style="color:#0f0">> Bloco #${d.height} minerado!</span>`;
+        log.innerHTML += `<br><span style="color:#0f0">> Bloco #${d.height} Resolvido! +50 MZ</span>`;
         updateStats();
       }
-    } catch(e) { alert("Erro ao minerar."); }
+    } catch(e) { log.innerHTML += `<br>> Erro ao minerar.`; }
+  }
+
+  function initChart() {
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['-4h', '-3h', '-2h', '-1h', 'Agora'],
+            datasets: [{
+                data: [0.10, 0.12, 0.11, 0.13, 0.14],
+                borderColor: '#f5c542', backgroundColor: 'rgba(245, 197, 66, 0.1)',
+                fill: true, tension: 0.4
+            }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
+    });
   }
 
   function logout() { sessionSeed = null; location.reload(); }
   window.onload = () => { if(localStorage.getItem('mz_vault')) document.getElementById('unlockArea').style.display = "block"; };
-  setInterval(updateStats, 10000); 
+  setInterval(updateStats, 15000); 
 </script>
 </body>
 </html>
