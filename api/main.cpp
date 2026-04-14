@@ -10,11 +10,13 @@
 #include <iostream>
 #include <algorithm>
 
-// Função para habilitar comunicação com o Frontend (CORS)
+// Função para habilitar comunicação total com o Frontend (CORS)
+// Atualizada para ser mais rigorosa com o Preflight do Navegador
 void add_cors(crow::response& res) {
     res.add_header("Access-Control-Allow-Origin", "*");
     res.add_header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
-    res.add_header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization");
+    res.add_header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With");
+    res.add_header("Access-Control-Max-Age", "3600");
 }
 
 int main() {
@@ -44,11 +46,14 @@ int main() {
         return res;
     });
 
-    // --- ROTA DE ENVIO (POST + OPTIONS) ---
+    // --- ROTA DE ENVIO (CORREÇÃO DEFINITIVA DO CORS) ---
     CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([&bc](const crow::request& req) {
+        crow::response res;
+        add_cors(res);
+
+        // Se for OPTIONS (Preflight), responde imediatamente com 204 (No Content)
         if (req.method == crow::HTTPMethod::OPTIONS) {
-            crow::response res(204);
-            add_cors(res);
+            res.code = 204;
             return res;
         }
 
@@ -58,8 +63,8 @@ int main() {
         if (!x) {
             result["status"] = "error";
             result["message"] = "JSON Invalido";
-            crow::response res(400, result);
-            add_cors(res);
+            res.code = 400;
+            res.body = result.dump();
             return res;
         }
 
@@ -69,6 +74,7 @@ int main() {
             double amount = x["amount"].d();
             std::string seed = x["seed"].s();
 
+            // Cálculo de saldo considerando a Mempool
             double pendingSpend = 0;
             for (const auto& tx : bc.getMempool()) {
                 for (const auto& out : tx.vout) {
@@ -80,23 +86,23 @@ int main() {
             if (balance < (amount * 1.01)) { 
                 result["status"] = "error";
                 result["message"] = "Saldo insuficiente ou pendente";
-                crow::response res(402, result);
-                add_cors(res);
+                res.code = 402;
+                res.body = result.dump();
                 return res;
             }
 
             bc.send(from, to, amount, seed);
             result["status"] = "success";
             result["message"] = "Transacao enviada para a mempool";
-            crow::response res(200, result);
-            add_cors(res);
+            res.code = 200;
+            res.body = result.dump();
             return res;
 
         } catch (const std::exception& e) {
             result["status"] = "error";
             result["message"] = e.what();
-            crow::response res(400, result);
-            add_cors(res);
+            res.code = 400;
+            res.body = result.dump();
             return res;
         }
     });
@@ -106,11 +112,13 @@ int main() {
         crow::json::wvalue x;
         std::vector<crow::json::wvalue> block_list;
         
+        // Percorre a blockchain e envia detalhes extras para a Lupa de busca
         for (const auto& block : bc.getChain()) {
             crow::json::wvalue b;
             b["index"] = block.index;
             b["hash"] = block.hash;
             b["nonce"] = block.nonce;
+            b["prev_hash"] = block.previous_hash;
             b["transactions_count"] = (int)block.transactions.size();
             block_list.push_back(std::move(b));
         }
@@ -126,7 +134,7 @@ int main() {
     // --- ROTA CARTEIRA NOVA ---
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
-        w.create(); // Internamente já usa o fromSeed
+        w.create();
         crow::json::wvalue result;
         result["address"] = w.address;
         result["seed"] = w.seed;
@@ -135,34 +143,35 @@ int main() {
         return res;
     });
     
-    // --- ROTA IMPORTAR CARTEIRA (MELHORADA) ---
+    // --- ROTA IMPORTAR CARTEIRA ---
     CROW_ROUTE(app, "/wallet/import").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([](const crow::request& req) {
+        crow::response res;
+        add_cors(res);
+
         if (req.method == crow::HTTPMethod::OPTIONS) {
-            crow::response res(204);
-            add_cors(res);
+            res.code = 204;
             return res;
         }
+
         auto x = crow::json::load(req.body);
         crow::json::wvalue result;
 
         if (!x || !x.has("seed")) {
             result["status"] = "error";
             result["message"] = "Seed obrigatoria";
-            crow::response res(400, result);
-            add_cors(res);
+            res.code = 400;
+            res.body = result.dump();
             return res;
         }
 
         std::string userSeed = x["seed"].s();
         Wallet w;
-        
-        // Agora usamos a sua nova função fromSeed!
         w.fromSeed(userSeed); 
 
         result["address"] = w.address;
         result["status"] = "success";
-        crow::response res(result);
-        add_cors(res);
+        res.code = 200;
+        res.body = result.dump();
         return res;
     });
 
@@ -175,7 +184,7 @@ int main() {
         return res;
     });
 
-    // --- ROTA MINERAÇÃO ---
+    // --- ROTA MINERAÇÃO (ATUALIZADA PARA 1000 MZ NO LOG) ---
     CROW_ROUTE(app, "/minerar_agora/<string>")([&bc](std::string endereco) {
         bc.mineBlock(endereco);
         Storage::saveChain(bc, "data/blockchain.dat");
@@ -183,6 +192,7 @@ int main() {
         crow::json::wvalue x;
         x["status"] = "success";
         x["height"] = (int)bc.getChain().size();
+        x["reward"] = 1000; // Define o valor da recompensa para o Front ler
         
         crow::response res(x);
         add_cors(res);
