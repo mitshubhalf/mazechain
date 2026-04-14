@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 #include "block.h"
-#include "utxo.h"      // Gerencia saldos rápidos via UTXO Set
+#include "utxo.h"      
 #include "transaction.h"
 
 class Blockchain {
@@ -12,59 +12,49 @@ private:
     std::vector<Block> chain;
     int difficulty;
     double totalSupply;
+    
+    // Constante de limite máximo para garantir que a economia nunca ultrapasse 20M
+    const double MAX_SUPPLY = 20000000.0;
 
-    // Métodos privados de auxílio (Regras de Protocolo MazeChain)
+    // Métodos privados de auxílio
     void adjustDifficulty();
     int getCurrentCycle(int height);
 
 public:
-    // --- UTXO SET ---
-    // Objeto que armazena os saldos atuais em cache para evitar varredura total da chain
+    // UTXO SET: Saldo em cache (Vital para performance)
     UTXOSet utxoSet; 
 
     Blockchain();
     
     // --- GESTÃO DA CORRENTE E MINERAÇÃO ---
-    // Responsável por processar a mempool, validar taxas e criar novos blocos
     void mineBlock(std::string minerAddress);
-    
-    // Adiciona o bloco à corrente e dispara a atualização do UTXO Set
     void addBlock(const Block& block);
-    
-    // Retorna o último bloco minerado na rede
     Block getLastBlock() const { return chain.back(); }
-    
-    // Reseta a blockchain (limpa memória e arquivos temporários)
     void clearChain();
     
-    // --- LÓGICA ECONÔMICA (REGRAS DO MAZECHAIN) ---
-    // Calcula o subsídio do bloco baseado na altura e halving
+    // --- LÓGICA ECONÔMICA (MAZECHAIN V2.1) ---
+    // Regras: 1000 MZ (0-1k), 500 MZ (1k-2k), 250 MZ (2k-4k), Halving...
     double getBlockReward(int height);
-    
-    // Consulta o saldo atual via UTXO Set (Otimizado)
     double getBalance(std::string address);
-    
-    // Retorna a quantidade total de moedas em circulação
     double getTotalSupply() const { return totalSupply; }
+    double getMaxSupply() const { return MAX_SUPPLY; } // Getter para conferência
     
     // --- AÇÕES E VALIDAÇÃO ---
-    // Cria uma transação, calcula taxas (1%) e envia para o arquivo mempool.dat
+    // Processa o envio, aplica taxa de 1% e salva em data/mempool.dat
     void send(std::string from, std::string to, double amount, std::string seed);
     
-    // Valida assinaturas e regras de maturidade (Coinbase Maturity)
+    // Valida se o remetente tem saldo, se a assinatura confere e o tamanho do endereço
     bool verifyTransaction(const Transaction& tx);
     
-    // Verifica a integridade matemática da blockchain (hashes e hashes anteriores)
+    // Varredura completa para garantir que ninguém alterou o histórico (PoW check)
     bool isChainValid();
     
-    // --- GETTERS PARA A API (MAIN.CPP) ---
+    // --- INTEGRAÇÃO ---
     std::vector<Block> getChain() const;
     int getDifficulty() const;
-    
-    // Carrega as transações pendentes diretamente do armazenamento
     std::vector<Transaction> getMempool() const; 
 
-    // --- ESTATÍSTICAS NO CONSOLE ---
+    // Exibe Blocos, Supply Atual, Dificuldade e Taxas acumuladas
     void printStats();
 };
 
