@@ -10,19 +10,34 @@
 #include <iostream>
 #include <algorithm>
 
-// Função para habilitar comunicação total com o Frontend (CORS)
-void add_cors(crow::response& res) {
-    res.add_header("Access-Control-Allow-Origin", "*");
-    res.add_header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
-    res.add_header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With");
-    res.add_header("Access-Control-Max-Age", "3600");
-}
+// =======================
+// 🔥 MIDDLEWARE CORS GLOBAL
+// =======================
+struct CORS {
+    struct context {};
+
+    void before_handle(crow::request& req, crow::response& res, context&) {
+        res.add_header("Access-Control-Allow-Origin", "*");
+        res.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.add_header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization");
+
+        if (req.method == crow::HTTPMethod::OPTIONS) {
+            res.code = 204;
+            res.end();
+        }
+    }
+
+    void after_handle(crow::request&, crow::response& res, context&) {
+        res.add_header("Access-Control-Allow-Origin", "*");
+    }
+};
 
 int main() {
-    crow::SimpleApp app;
+
+    crow::App<CORS> app; // 🔥 IMPORTANTE: usando middleware
+
     Blockchain bc;
     
-    // Tenta carregar a blockchain existente
     if(!Storage::loadChain(bc, "data/blockchain.dat")) {
         std::cout << "[INFO] Nenhuma blockchain encontrada. Iniciando nova." << std::endl;
     }
@@ -32,7 +47,7 @@ int main() {
         return "MAZECHAIN NODE v1.1.2 - STATUS: ONLINE";
     });
 
-    // --- ROTA DE STATUS ---
+    // --- STATUS ---
     CROW_ROUTE(app, "/status")([&bc]() {
         crow::json::wvalue x;
         x["status"] = "online";
@@ -40,30 +55,19 @@ int main() {
         x["difficulty"] = bc.getDifficulty();
         x["total_supply"] = bc.getTotalSupply();
         x["total_blocks"] = (int)bc.getChain().size();
-        crow::response res(x);
-        add_cors(res);
-        return res;
+        return crow::response(x);
     });
 
-    // --- ROTA DE ENVIO (CORREÇÃO DEFINITIVA DO CORS) ---
-    CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([&bc](const crow::request& req) {
-        crow::response res;
-        add_cors(res);
-
-        if (req.method == crow::HTTPMethod::OPTIONS) {
-            res.code = 204;
-            return res;
-        }
+    // --- SEND (SEM GAMBIARRA) ---
+    CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST)([&bc](const crow::request& req) {
 
         auto x = crow::json::load(req.body);
         crow::json::wvalue result;
-        
+
         if (!x) {
             result["status"] = "error";
             result["message"] = "JSON Invalido";
-            res.code = 400;
-            res.body = result.dump();
-            return res;
+            return crow::response(400, result.dump());
         }
 
         try {
@@ -80,31 +84,28 @@ int main() {
             }
 
             double balance = bc.getBalance(from) - pendingSpend;
-            if (balance < (amount * 1.01)) { 
+
+            if (balance < (amount * 1.01)) {
                 result["status"] = "error";
                 result["message"] = "Saldo insuficiente ou pendente";
-                res.code = 402;
-                res.body = result.dump();
-                return res;
+                return crow::response(402, result.dump());
             }
 
             bc.send(from, to, amount, seed);
+
             result["status"] = "success";
             result["message"] = "Transacao enviada para a mempool";
-            res.code = 200;
-            res.body = result.dump();
-            return res;
+
+            return crow::response(200, result.dump());
 
         } catch (const std::exception& e) {
             result["status"] = "error";
             result["message"] = e.what();
-            res.code = 400;
-            res.body = result.dump();
-            return res;
+            return crow::response(400, result.dump());
         }
     });
 
-    // --- ROTA CHAIN (CORRIGIDA) ---
+    // --- CHAIN ---
     CROW_ROUTE(app, "/chain")([&bc]() {
         crow::json::wvalue x;
         std::vector<crow::json::wvalue> block_list;
@@ -114,41 +115,31 @@ int main() {
             b["index"] = block.index;
             b["hash"] = block.hash;
             b["nonce"] = block.nonce;
-            // AQUI ESTAVA O ERRO: Mudado de previous_hash para prevHash
-            b["prev_hash"] = block.prevHash; 
+            b["prev_hash"] = block.prevHash;
             b["transactions_count"] = (int)block.transactions.size();
             block_list.push_back(std::move(b));
         }
         
         x["blocks"] = std::move(block_list);
         x["length"] = (int)bc.getChain().size();
-        
-        crow::response res(x);
-        add_cors(res);
-        return res;
+
+        return crow::response(x);
     });
 
-    // --- ROTA CARTEIRA NOVA ---
+    // --- WALLET NEW ---
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
         w.create();
+
         crow::json::wvalue result;
         result["address"] = w.address;
         result["seed"] = w.seed;
-        crow::response res(result);
-        add_cors(res);
-        return res;
-    });
-    
-    // --- ROTA IMPORTAR CARTEIRA ---
-    CROW_ROUTE(app, "/wallet/import").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([](const crow::request& req) {
-        crow::response res;
-        add_cors(res);
 
-        if (req.method == crow::HTTPMethod::OPTIONS) {
-            res.code = 204;
-            return res;
-        }
+        return crow::response(result);
+    });
+
+    // --- WALLET IMPORT ---
+    CROW_ROUTE(app, "/wallet/import").methods(crow::HTTPMethod::POST)([](const crow::request& req) {
 
         auto x = crow::json::load(req.body);
         crow::json::wvalue result;
@@ -156,47 +147,40 @@ int main() {
         if (!x || !x.has("seed")) {
             result["status"] = "error";
             result["message"] = "Seed obrigatoria";
-            res.code = 400;
-            res.body = result.dump();
-            return res;
+            return crow::response(400, result.dump());
         }
 
         std::string userSeed = x["seed"].s();
         Wallet w;
-        w.fromSeed(userSeed); 
+        w.fromSeed(userSeed);
 
         result["address"] = w.address;
         result["status"] = "success";
-        res.code = 200;
-        res.body = result.dump();
-        return res;
+
+        return crow::response(200, result.dump());
     });
 
-    // --- ROTA SALDO ---
+    // --- BALANCE ---
     CROW_ROUTE(app, "/balance/<string>")([&bc](std::string endereco) {
         crow::json::wvalue x;
         x["balance"] = bc.getBalance(endereco);
-        crow::response res(x);
-        add_cors(res);
-        return res;
+        return crow::response(x);
     });
 
-    // --- ROTA MINERAÇÃO ---
+    // --- MINERAR ---
     CROW_ROUTE(app, "/minerar_agora/<string>")([&bc](std::string endereco) {
         bc.mineBlock(endereco);
         Storage::saveChain(bc, "data/blockchain.dat");
-        
+
         crow::json::wvalue x;
         x["status"] = "success";
         x["height"] = (int)bc.getChain().size();
-        x["reward"] = 1000; 
-        
-        crow::response res(x);
-        add_cors(res);
-        return res;
+        x["reward"] = 1000;
+
+        return crow::response(x);
     });
 
-    // --- CONFIGURAÇÃO DE PORTA DINÂMICA ---
+    // --- PORTA ---
     const char* port_ptr = std::getenv("PORT");
     int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 8080;
 
