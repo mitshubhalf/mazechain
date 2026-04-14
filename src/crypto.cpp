@@ -1,7 +1,8 @@
 #include "../include/crypto.h"
+#include "../include/transaction.h" // ADICIONE ESTA LINHA AQUI
 #include <openssl/sha.h>
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 #include <vector>
 
 namespace Crypto {
