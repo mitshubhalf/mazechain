@@ -126,7 +126,7 @@ int main() {
     // --- ROTA CARTEIRA NOVA ---
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
-        w.create();
+        w.create(); // Internamente já usa o fromSeed
         crow::json::wvalue result;
         result["address"] = w.address;
         result["seed"] = w.seed;
@@ -135,7 +135,7 @@ int main() {
         return res;
     });
     
-    // --- ROTA IMPORTAR CARTEIRA (CORRIGIDA) ---
+    // --- ROTA IMPORTAR CARTEIRA (MELHORADA) ---
     CROW_ROUTE(app, "/wallet/import").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([](const crow::request& req) {
         if (req.method == crow::HTTPMethod::OPTIONS) {
             crow::response res(204);
@@ -147,20 +147,20 @@ int main() {
 
         if (!x || !x.has("seed")) {
             result["status"] = "error";
+            result["message"] = "Seed obrigatoria";
             crow::response res(400, result);
             add_cors(res);
             return res;
         }
 
-        std::string seed = x["seed"].s();
+        std::string userSeed = x["seed"].s();
         Wallet w;
         
-        // CORREÇÃO: Usamos o atributo seed e chamamos o create 
-        // para garantir compatibilidade com o seu src/wallet.cpp atual
-        w.seed = seed;
-        w.create(); 
+        // Agora usamos a sua nova função fromSeed!
+        w.fromSeed(userSeed); 
 
         result["address"] = w.address;
+        result["status"] = "success";
         crow::response res(result);
         add_cors(res);
         return res;
