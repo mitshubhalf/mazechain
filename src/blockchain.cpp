@@ -195,4 +195,3 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
-double Blockchain::getTotalSupply() const { return totalSupply; }
