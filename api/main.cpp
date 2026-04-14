@@ -11,6 +11,7 @@
 #include <algorithm>
 
 // Função para habilitar comunicação com o Frontend (CORS)
+// Essencial para que a Vercel consiga aceder ao Railway
 void add_cors(crow::response& res) {
     res.add_header("Access-Control-Allow-Origin", "*");
     res.add_header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
@@ -26,9 +27,20 @@ int main() {
         std::cout << "[INFO] Nenhuma blockchain encontrada. Iniciando nova." << std::endl;
     }
 
-    // ROTA RAIZ
+    // --- ROTA RAIZ ---
     CROW_ROUTE(app, "/")([]() {
         return "MAZECHAIN NODE v1.1.2 - STATUS: ONLINE";
+    });
+
+    // --- ROTA DE STATUS ---
+    // O Frontend usa esta rota para verificar se o servidor está ativo
+    CROW_ROUTE(app, "/status")([]() {
+        crow::json::wvalue x;
+        x["status"] = "online";
+        x["version"] = "1.1.2";
+        crow::response res(x);
+        add_cors(res);
+        return res;
     });
 
     // --- ROTA DE ENVIO (POST + OPTIONS) ---
@@ -56,7 +68,7 @@ int main() {
             double amount = x["amount"].d();
             std::string seed = x["seed"].s();
 
-            // Lógica de saldo pendente na Mempool
+            // Cálculo de saldo considerando a Mempool (transações pendentes)
             double pendingSpend = 0;
             for (const auto& tx : bc.getMempool()) {
                 for (const auto& out : tx.vout) {
@@ -65,7 +77,7 @@ int main() {
             }
 
             double balance = bc.getBalance(from) - pendingSpend;
-            if (balance < (amount * 1.01)) {
+            if (balance < (amount * 1.01)) { // 1% de taxa simulada
                 result["status"] = "error";
                 result["message"] = "Saldo insuficiente ou pendente na mempool";
                 crow::response res(402, result);
@@ -89,17 +101,16 @@ int main() {
         }
     });
 
-    // --- NOVA ROTA CHAIN (Para listar blocos) ---
+    // --- ROTA CHAIN ---
     CROW_ROUTE(app, "/chain")([&bc]() {
         crow::json::wvalue x;
         x["length"] = (int)bc.getChain().size();
-        // Aqui você pode expandir para retornar os blocos se o método existir
         crow::response res(x);
         add_cors(res);
         return res;
     });
 
-    // --- NOVA ROTA STATS (Estatísticas da rede) ---
+    // --- ROTA STATS ---
     CROW_ROUTE(app, "/stats")([&bc]() {
         crow::json::wvalue x;
         x["height"] = (int)bc.getChain().size();
@@ -111,7 +122,7 @@ int main() {
         return res;
     });
 
-    // ROTA CARTEIRA NOVA
+    // --- ROTA CARTEIRA NOVA ---
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
         w.create();
@@ -123,7 +134,7 @@ int main() {
         return res;
     });
 
-    // ROTA SALDO
+    // --- ROTA SALDO ---
     CROW_ROUTE(app, "/balance/<string>")([&bc](std::string endereco) {
         crow::json::wvalue x;
         x["balance"] = bc.getBalance(endereco);
@@ -132,7 +143,7 @@ int main() {
         return res;
     });
 
-    // ROTA MINERAÇÃO
+    // --- ROTA MINERAÇÃO ---
     CROW_ROUTE(app, "/minerar_agora/<string>")([&bc](std::string endereco) {
         bc.mineBlock(endereco);
         Storage::saveChain(bc, "data/blockchain.dat");
@@ -143,8 +154,16 @@ int main() {
         return res;
     });
 
-    // Inicialização na porta do Render
+    // --- CONFIGURAÇÃO DE PORTA DINÂMICA (PARA RAILWAY/RENDER) ---
     const char* port_ptr = std::getenv("PORT");
-    int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 10000;
-    app.port(port).multithreaded().run();
+    // Se a variável PORT não existir (ex: rodando local), usa a 8080
+    int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 8080;
+
+    std::cout << "==========================================" << std::endl;
+    std::cout << "MAZECHAIN NODE ATIVO NA PORTA: " << port << std::endl;
+    std::cout << "ESCUTANDO EM: 0.0.0.0 (Global)" << std::endl;
+    std::cout << "==========================================" << std::endl;
+
+    // .bindaddr("0.0.0.0") é CRÍTICO para o Railway aceitar conexões externas
+    app.port(port).bindaddr("0.0.0.0").multithreaded().run();
 }
