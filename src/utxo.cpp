@@ -5,33 +5,34 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <iomanip>
 
-// Atualiza o conjunto de UTXOs com base em uma nova transação
+// Constante para comparação de valores decimais (1 Mit)
+const double EPSILON = 0.000000001;
+
 void UTXOSet::update(const Transaction& tx) {
-    // Processamos cada saída (vout) da transação
     for (const auto& out : tx.vout) {
         if (out.amount > 0) {
-            // Se o valor é positivo, é um NOVO saldo (Crédito)
+            // CRÉDITO: Adiciona novo UTXO
             UTXO newUtxo;
             newUtxo.txid = tx.id;
             newUtxo.address = out.address;
             newUtxo.amount = out.amount;
-            newUtxo.vout_index = 0; // Simplificado para este modelo
+            newUtxo.vout_index = 0; 
             utxos.push_back(newUtxo);
         } 
         else if (out.amount < 0) {
-            // Se o valor é negativo, é um GASTO (Débito)
+            // DÉBITO: Remove saldo do endereço
             double amountToReduce = std::abs(out.amount);
             
-            // Procuramos nos UTXOs existentes do endereço para subtrair/remover
             for (auto it = utxos.begin(); it != utxos.end(); ) {
                 if (it->address == out.address) {
-                    if (it->amount <= amountToReduce) {
-                        // O UTXO atual é menor ou igual ao que precisamos tirar
+                    // Se o UTXO é menor que o necessário (ou igual, considerando erro de precisão)
+                    if (it->amount <= (amountToReduce + EPSILON)) {
                         amountToReduce -= it->amount;
-                        it = utxos.erase(it); // Remove o UTXO completamente
+                        it = utxos.erase(it);
                     } else {
-                        // O UTXO tem mais do que precisamos, apenas subtraímos
+                        // O UTXO tem saldo sobrando, apenas subtrai
                         it->amount -= amountToReduce;
                         amountToReduce = 0;
                         break;
@@ -39,13 +40,12 @@ void UTXOSet::update(const Transaction& tx) {
                 } else {
                     ++it;
                 }
-                if (amountToReduce <= 0) break;
+                if (amountToReduce < EPSILON) break;
             }
         }
     }
 }
 
-// Retorna o saldo total de um endereço
 double UTXOSet::getBalance(std::string address) {
     double balance = 0;
     for (const auto& u : utxos) {
@@ -53,10 +53,10 @@ double UTXOSet::getBalance(std::string address) {
             balance += u.amount;
         }
     }
-    return balance;
+    // Retorna o saldo limpo, evitando lixo de memória decimal
+    return (balance < EPSILON) ? 0.0 : balance;
 }
 
-// Salva o estado dos UTXOs em binário
 void UTXOSet::saveToFile(std::string filename) {
     std::ofstream file(filename, std::ios::binary);
     if (!file) return;
@@ -79,7 +79,6 @@ void UTXOSet::saveToFile(std::string filename) {
     file.close();
 }
 
-// Carrega o estado dos UTXOs do disco
 void UTXOSet::loadFromFile(std::string filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file) return;
@@ -92,17 +91,13 @@ void UTXOSet::loadFromFile(std::string filename) {
         UTXO u;
         size_t txidLen, addrLen;
 
-        file.read(reinterpret_cast<char*>(&txidLen), sizeof(txidLen));
-        std::vector<char> txidBuf(txidLen + 1);
-        file.read(txidBuf.data(), txidLen);
-        txidBuf[txidLen] = '\0';
-        u.txid = std::string(txidBuf.data());
+        if(!file.read(reinterpret_cast<char*>(&txidLen), sizeof(txidLen))) break;
+        u.txid.resize(txidLen);
+        file.read(&u.txid[0], txidLen);
 
-        file.read(reinterpret_cast<char*>(&addrLen), sizeof(addrLen));
-        std::vector<char> addrBuf(addrLen + 1);
-        file.read(addrBuf.data(), addrLen);
-        addrBuf[addrLen] = '\0';
-        u.address = std::string(addrBuf.data());
+        if(!file.read(reinterpret_cast<char*>(&addrLen), sizeof(addrLen))) break;
+        u.address.resize(addrLen);
+        file.read(&u.address[0], addrLen);
 
         file.read(reinterpret_cast<char*>(&u.vout_index), sizeof(u.vout_index));
         file.read(reinterpret_cast<char*>(&u.amount), sizeof(u.amount));
