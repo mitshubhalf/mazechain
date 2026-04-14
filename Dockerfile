@@ -2,6 +2,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Instalação de dependências
 RUN apt-get update && apt-get install -y \
     g++ \
     make \
@@ -15,12 +16,14 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY . .
 
+# Download do Crow (Header-only)
 RUN mkdir -p include
 RUN wget https://github.com/CrowCpp/Crow/releases/download/v1.0+5/crow_all.h -O include/crow_all.h
 RUN mkdir -p data
 
 # Compilação
-RUN g++ src/blockchain.cpp \
+# Note: Adicionei -O3 para o nó minerar mais rápido no servidor
+RUN g++ -O3 src/blockchain.cpp \
         src/block.cpp \
         src/transaction.cpp \
         src/utxo.cpp \
@@ -32,14 +35,14 @@ RUN g++ src/blockchain.cpp \
     -lssl -lcrypto -lpthread -lboost_system -lboost_thread -lcurl \
     -o mazechain_api
 
-# --- AJUSTES PARA O RENDER ---
-# Garante que o binário tem permissão de execução
+# Permissões
 RUN chmod +x mazechain_api
 
-# O Render exige que o app responda ao host 0.0.0.0, não apenas localhost
-ENV PORT=10000
+# --- AJUSTE DE PORTA PARA RENDER ---
+# O Render define a porta automaticamente na variável de ambiente PORT.
+# O seu código C++ deve ler essa variável: std::getenv("PORT")
+ENV PORT=8080
 
-# Se o seu index.html estiver na raiz do projeto, o COPY . . já o levou para /app
-# Mas o C++ precisa saber onde ele está.
-
+# Comando de inicialização
+# Usamos o formato JSON para evitar problemas com sinais do sistema
 CMD ["./mazechain_api"]
