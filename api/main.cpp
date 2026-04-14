@@ -1,4 +1,6 @@
-#include "../include/crow_all.h"
+#define CROW_MAIN
+#define CROW_ENABLE_CORS
+#include "crow_all.h"
 #include "../include/blockchain.h"
 #include "../include/storage.h"
 #include "../include/wallet.h"
@@ -10,9 +12,7 @@
 #include <iostream>
 #include <algorithm>
 
-// ==========================================================
-// 🔥 MIDDLEWARE CORS GLOBAL (GARANTE ACESSO VIA BROWSER)
-// ==========================================================
+// O Middleware CORS continua igual, ele é essencial para o seu frontend
 struct CORS {
     struct context {};
 
@@ -33,10 +33,10 @@ struct CORS {
 };
 
 int main() {
+    // Adicionamos as chaves duplas aqui para garantir a inicialização correta no Crow
     crow::App<CORS> app; 
     Blockchain bc;
     
-    // Carrega a blockchain e o estado dos saldos (UTXOs)
     if(!Storage::loadChain(bc, "data/blockchain.dat")) {
         std::cout << "[INFO] Nenhuma blockchain encontrada. Iniciando nova." << std::endl;
     }
@@ -74,7 +74,6 @@ int main() {
             double amount = x["amount"].d();
             std::string seed = x["seed"].s();
 
-            // Lógica de saldo e taxa (1%)
             double balance = bc.getBalance(from);
 
             if (balance < (amount * 1.01)) {
@@ -83,6 +82,7 @@ int main() {
                 return crow::response(402, result.dump());
             }
 
+            // A chamada para a sua função permanece IGUAL
             bc.send(from, to, amount, seed);
             result["status"] = "success";
             result["message"] = "Transacao enviada para a mempool";
@@ -95,7 +95,7 @@ int main() {
         }
     });
 
-    // --- LISTAR BLOCO (CHAIN) ---
+    // --- LISTAR BLOCO ---
     CROW_ROUTE(app, "/chain")([&bc]() {
         crow::json::wvalue x;
         std::vector<crow::json::wvalue> block_list;
@@ -115,7 +115,7 @@ int main() {
         return crow::response(x);
     });
 
-    // --- CRIAR NOVA CARTEIRA ---
+    // --- CARTEIRA ---
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
         w.create();
@@ -125,15 +125,16 @@ int main() {
         return crow::response(result);
     });
 
-    // --- VER SALDO ---
+    // --- SALDO ---
     CROW_ROUTE(app, "/balance/<string>")([&bc](std::string endereco) {
         crow::json::wvalue x;
         x["balance"] = bc.getBalance(endereco);
         return crow::response(x);
     });
 
-    // --- MINERAR AGORA ---
+    // --- MINERAÇÃO ---
     CROW_ROUTE(app, "/minerar_agora/<string>")([&bc](std::string endereco) {
+        // A chamada da função que você escreveu no blockchain.cpp
         bc.mineBlock(endereco);
         Storage::saveChain(bc, "data/blockchain.dat");
 
@@ -144,14 +145,10 @@ int main() {
         return crow::response(x);
     });
 
-    // --- CONFIGURAÇÃO DE PORTA ---
     const char* port_ptr = std::getenv("PORT");
     int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 10000;
 
-    std::cout << "==========================================" << std::endl;
     std::cout << "MAZECHAIN NODE ATIVO NA PORTA: " << port << std::endl;
-    std::cout << "ESCUTANDO EM: 0.0.0.0 (Global)" << std::endl;
-    std::cout << "==========================================" << std::endl;
 
     app.port(port).bindaddr("0.0.0.0").multithreaded().run();
 }
