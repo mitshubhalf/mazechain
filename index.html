@@ -70,7 +70,6 @@
     }
     .seed-box b { color: #fff; font-size: 15px; } 
     
-    /* ABAS DASHBOARD */
     .nav { display:flex; justify-content: space-between; align-items: center; padding:15px; background: #000; border-bottom: 1px solid #222; position: sticky; top:0; z-index:100; }
     .tab-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #000; border-bottom: 1px solid #222; }
     .tab-btn { padding: 12px; font-size: 10px; text-align: center; color: var(--text); cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; }
@@ -81,7 +80,6 @@
       overflow-y: auto; border: 1px solid #222; border-radius: 6px; font-family: monospace; 
     }
 
-    /* ESTILOS DA CHAIN */
     .list-item { background: #1a1a1a; padding: 10px; border-radius: 5px; margin-bottom: 10px; font-size: 11px; border-left: 3px solid var(--accent); }
     .list-item b { color: var(--accent); }
     .chart-container { width: 100%; height: 200px; margin-top: 10px; }
@@ -104,17 +102,17 @@
       <button onclick="go('create')">CRIAR NOVA WALLET</button>
       <button class="secondary" onclick="go('import')">IMPORTAR VIA SEED</button>
       <div id="unlockArea" style="display:none; margin-top:30px; border-top:1px solid #222; padding-top:20px;">
-        <p style="font-size:12px; color:var(--accent); text-align:center;">Wallet detectada neste dispositivo:</p>
-        <input type="password" id="unlockPass" placeholder="Sua Senha de Desbloqueio">
-        <button id="unlockBtn" onclick="unlockWallet()">DESBLOQUEAR ACESSO</button>
+        <p style="font-size:12px; color:var(--accent); text-align:center;">Wallet detectada:</p>
+        <input type="password" id="unlockPass" placeholder="Sua Senha">
+        <button id="unlockBtn" onclick="unlockWallet()">DESBLOQUEAR</button>
       </div>
     </div>
   </div>
 
   <div id="create" class="screen">
     <h2>Backup Phrase</h2>
-    <p style="color:var(--text); font-size:12px; text-align:center;">As palavras <b>reais</b> estão em branco. O resto é ruído de proteção.</p>
-    <div id="seedBox" class="seed-box">Iniciando protocolo de segurança...</div>
+    <p style="color:var(--text); font-size:12px; text-align:center;">As palavras em <b>branco</b> são reais. Anote-as.</p>
+    <div id="seedBox" class="seed-box">Aguardando geração...</div>
     <input type="password" id="newPass" placeholder="Senha Forte (mín. 4 dígitos)">
     <button id="genBtn" onclick="generateWallet()">GERAR SEED PROTEGIDA</button>
     <button id="confirmBtn" class="secondary" onclick="confirmSave()" style="display:none">JÁ ANOTEI TUDO (ENTRAR)</button>
@@ -123,171 +121,118 @@
 
   <div id="import" class="screen">
     <h2>Recuperar Conta</h2>
-    <p style="color:var(--text); font-size:12px; text-align:center;">Insira suas 12 palavras separadas por espaço.</p>
-    <input id="seedInput" placeholder="apple book cat dog...">
-    <input type="password" id="importPass" placeholder="Nova senha para este dispositivo">
-    <button id="importBtn" onclick="importWallet()">VALIDAR E ENTRAR</button>
+    <input id="seedInput" placeholder="Sua seed de 12 palavras">
+    <input type="password" id="importPass" placeholder="Nova senha">
+    <button id="importBtn" onclick="importWallet()">IMPORTAR</button>
     <button class="secondary" onclick="go('home')" style="border:none; color:#555">Cancelar</button>
   </div>
 
   <div id="dashboard" class="screen" style="padding:0">
     <div class="nav">
       <b style="color:var(--accent)">MAZECHAIN CORE</b> 
-      <span onclick="logout()" style="cursor:pointer; font-size:11px; color:var(--text)">[LOCK]</span>
+      <span onclick="logout()" style="cursor:pointer; font-size:11px; color:var(--text)">[SAIR]</span>
     </div>
     
     <div class="tab-bar">
       <div class="tab-btn active" id="tab1" onclick="switchTab(1)">Carteira</div>
-      <div class="tab-btn" id="tab2" onclick="switchTab(2)">Explorador</div>
+      <div class="tab-btn" id="tab2" onclick="switchTab(2)">Cadeia</div>
       <div class="tab-btn" id="tab3" onclick="switchTab(3)">Rede</div>
     </div>
 
     <div style="padding:20px">
-      
       <div id="content1" class="tab-content">
         <div class="card">
-          <small style="color:var(--text); font-size:10px; letter-spacing:1px;">ENDEREÇO PÚBLICO</small>
-          <p id="addrDisp" style="font-size:10px; color:var(--accent); word-break:break-all; margin:8px 0 15px 0; font-family:monospace; background: #000; padding: 10px; border-radius: 5px;"></p>
-          <small style="color:var(--text); font-size:10px; letter-spacing:1px;">SALDO EM CONTA</small>
+          <small style="color:var(--text); font-size:10px;">ENDEREÇO</small>
+          <p id="addrDisp" style="font-size:10px; color:var(--accent); word-break:break-all; font-family:monospace;"></p>
+          <small style="color:var(--text); font-size:10px;">SALDO</small>
           <p id="balDisp" style="font-size:28px; font-weight:bold; margin:5px 0;">0.00 MZ</p>
         </div>
 
         <div class="card">
-          <small style="color:var(--text); font-size:10px; letter-spacing:1px;">TRANSFERIR MZ</small>
           <input type="text" id="sendTo" placeholder="Destino (MZ...)">
           <input type="number" id="sendAmount" placeholder="Quantia">
-          <button class="secondary" id="sendBtn" onclick="transferCoins()">ENVIAR AGORA</button>
+          <button class="secondary" id="sendBtn" onclick="transferCoins()">ENVIAR MZ</button>
         </div>
 
-        <button id="mineBtn" onclick="runMiner()">MINERAR PRÓXIMO BLOCO</button>
-        <div class="terminal" id="log" style="margin-top:20px;">> Sessão Criptografada Ativa.</div>
+        <button id="mineBtn" onclick="runMiner()">MINERAR BLOCO</button>
+        <div class="terminal" id="log" style="margin-top:20px;">> Terminal MazeChain pronto.</div>
       </div>
 
       <div id="content2" class="tab-content" style="display:none">
-        <h3 style="font-size:12px; color:var(--accent)">ULTIMOS BLOCOS (CHAIN)</h3>
-        <div id="chainList">Carregando...</div>
-        
-        <h3 style="font-size:12px; color:var(--accent); margin-top:20px;">MEMPOOL (PENDENTES)</h3>
-        <div id="mempoolList">Nenhuma transação pendente.</div>
+        <h3 style="font-size:12px; color:var(--accent)">EXPLORADOR DE BLOCOS</h3>
+        <div id="chainList">Sincronizando...</div>
       </div>
 
       <div id="content3" class="tab-content" style="display:none">
-        <div class="card">
-            <h3 style="font-size:12px; color:var(--accent)">MERCADO MZ (VALOR ESTIMADO)</h3>
-            <div class="chart-container">
-                <canvas id="priceChart"></canvas>
-            </div>
-        </div>
-        
-        <div class="card">
-            <h3 style="font-size:12px; color:var(--accent)">ESTATÍSTICAS DO NÓ</h3>
-            <div id="statsInfo" style="font-size:11px; line-height:2;">
-                Carregando dados da rede...
-            </div>
-        </div>
+        <div class="card"><div class="chart-container"><canvas id="priceChart"></canvas></div></div>
+        <div class="card"><div id="statsInfo" style="font-size:11px; line-height:2;">Carregando rede...</div></div>
       </div>
-
     </div>
   </div>
 </div>
 
 <script>
-  const API = "https://mazechain.onrender.com"; 
+  // ATUALIZE COM O LINK DO SEU RAILWAY (SEM BARRA NO FINAL)
+  const API = "https://mazechain-production.up.railway.app"; 
+  
   let sessionSeed = null;
   let priceChart = null;
 
-  // Gerenciamento de Telas
   function go(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     window.scrollTo(0,0);
   }
 
-  // Alternar Abas
   function switchTab(n) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
     document.getElementById('tab'+n).classList.add('active');
     document.getElementById('content'+n).style.display = 'block';
-    
     if(n === 2) updateExplorer();
     if(n === 3) updateNetwork();
   }
 
-  // --- FUNÇÕES DE SEGURANÇA ORIGINAIS (Preservadas) ---
   function applyChaosMask(seed) {
-    const chars = ["!", "@", "#", "$", "%", "&", "*", "0", "7", "x", "z"];
-    const words = seed.split(" ");
-    let html = "";
-    words.forEach(w => {
-      const c1 = chars[Math.floor(Math.random()*chars.length)];
-      const c2 = chars[Math.floor(Math.random()*chars.length)];
-      html += `${c1}${c2}<b>${w}</b>${c2}${c1} `;
-    });
-    return html;
+    const chars = ["!", "@", "#", "$", "*"];
+    return seed.split(" ").map(w => `${chars[Math.floor(Math.random()*chars.length)]}<b>${w}</b>${chars[Math.floor(Math.random()*chars.length)]}`).join(" ");
   }
 
-  function encrypt(text, password) { return CryptoJS.AES.encrypt(text, password).toString(); }
-  function decrypt(cipher, password) {
-    try {
-      const bytes = CryptoJS.AES.decrypt(cipher, password);
-      return bytes.toString(CryptoJS.enc.Utf8) || null;
-    } catch(e) { return null; }
+  function encrypt(t, p) { return CryptoJS.AES.encrypt(t, p).toString(); }
+  function decrypt(c, p) {
+    try { return CryptoJS.AES.decrypt(c, p).toString(CryptoJS.enc.Utf8) || null; } catch(e) { return null; }
   }
 
-  // --- FUNÇÕES DE API ---
   async function generateWallet() {
     const pass = document.getElementById('newPass').value;
-    if(pass.length < 4) return alert("Senha curta!");
+    if(pass.length < 4) return alert("Senha muito curta.");
     const btn = document.getElementById('genBtn');
-    btn.disabled = true; btn.innerText = "CONTATANDO NÓ...";
+    btn.disabled = true;
     try {
       const r = await fetch(`${API}/wallet/new`);
-      const data = await r.json(); 
+      const data = await r.json();
+      sessionSeed = data.seed;
       document.getElementById('seedBox').innerHTML = applyChaosMask(data.seed);
       localStorage.setItem('mz_vault', encrypt(data.seed, pass));
       localStorage.setItem('mz_addr', data.address);
-      sessionSeed = data.seed; 
       btn.style.display = "none";
       document.getElementById('confirmBtn').style.display = "block";
-    } catch(e) { alert("Erro de conexão."); btn.disabled = false; }
+    } catch(e) { alert("Erro ao conectar ao servidor."); btn.disabled = false; }
   }
 
-  async function importWallet() {
-    const seedInput = document.getElementById('seedInput').value.trim();
-    const pass = document.getElementById('importPass').value;
-    const seed = seedInput.toLowerCase().replace(/\s+/g, ' ');
-    try {
-      const r = await fetch(`${API}/wallet/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seed: seed })
-      });
-      const data = await r.json();
-      if (data.address) {
-        localStorage.setItem('mz_vault', encrypt(seed, pass));
-        localStorage.setItem('mz_addr', data.address);
-        sessionSeed = seed;
-        loadDashboard();
-      }
-    } catch (e) { alert("Erro."); }
-  }
+  function confirmSave() { loadDashboard(); }
 
   function unlockWallet() {
     const pass = document.getElementById('unlockPass').value;
-    const vault = localStorage.getItem('mz_vault');
-    const decrypted = decrypt(vault, pass);
-    if(decrypted) {
-      sessionSeed = decrypted; 
-      loadDashboard();
-    } else { alert("Senha Incorreta!"); }
+    const decrypted = decrypt(localStorage.getItem('mz_vault'), pass);
+    if(decrypted) { sessionSeed = decrypted; loadDashboard(); } else { alert("Senha incorreta!"); }
   }
 
   function loadDashboard() {
     go('dashboard');
     document.getElementById('addrDisp').innerText = localStorage.getItem('mz_addr');
     updateStats();
-    initChart();
+    if(!priceChart) initChart();
   }
 
   async function updateStats() {
@@ -299,25 +244,13 @@
     } catch(e) {}
   }
 
-  // --- NOVAS FUNÇÕES: EXPLORER E REDE ---
-
   async function updateExplorer() {
     const list = document.getElementById('chainList');
-    list.innerHTML = "Sincronizando...";
     try {
         const r = await fetch(`${API}/chain`);
         const data = await r.json();
-        list.innerHTML = "";
-        // Pegar apenas os últimos 5 blocos para não lotar a tela
-        data.blocks.slice(-5).reverse().forEach(b => {
-            list.innerHTML += `
-                <div class="list-item">
-                    <b>BLOCO #${b.index}</b><br>
-                    Hash: ${b.hash.substring(0,20)}...<br>
-                    TXs: ${b.transactions_count} | Nonce: ${b.nonce}
-                </div>`;
-        });
-    } catch(e) { list.innerHTML = "Erro ao ler chain."; }
+        list.innerHTML = `<div class="list-item"><b>BLOCKCHAIN INFO</b><br>Altura da rede: ${data.length} blocos</div>`;
+    } catch(e) { list.innerHTML = "Erro na rede."; }
   }
 
   async function updateNetwork() {
@@ -325,51 +258,10 @@
     try {
         const r = await fetch(`${API}/status`);
         const d = await r.json();
-        info.innerHTML = `
-            Versão: <b>${d.versao}</b><br>
-            Dificuldade: <b>${d.dificuldade}</b><br>
-            Circulação: <b>${d.circulacao_total.toFixed(2)} MZ</b><br>
-            Total de Blocos: <b>${d.total_blocos}</b><br>
-            Status do Nó: <span style="color:#0f0">SINCRONIZADO</span>
-        `;
-        updateChart(d.circulacao_total);
+        info.innerHTML = `Status: ONLINE<br>Versão: ${d.version}<br>Porta: 0.0.0.0 (Global)`;
     } catch(e) { info.innerHTML = "Nó offline."; }
   }
 
-  function initChart() {
-    const ctx = document.getElementById('priceChart').getContext('2d');
-    priceChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['1h', '45m', '30m', '15m', 'Agora'],
-            datasets: [{
-                label: 'Valor MZ (Simulado)',
-                data: [0.10, 0.12, 0.11, 0.15, 0.14],
-                borderColor: '#f5c542',
-                tension: 0.4,
-                fill: true,
-                backgroundColor: 'rgba(245, 197, 66, 0.1)'
-            }]
-        },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { y: { display: false }, x: { grid: { display: false } } }
-        }
-    });
-  }
-
-  function updateChart(supply) {
-    if(!priceChart) return;
-    // Lógica simples: quanto mais blocos/supply, o valor oscila (apenas visual)
-    const newVal = (supply / 100) + (Math.random() * 0.5);
-    priceChart.data.datasets[0].data.shift();
-    priceChart.data.datasets[0].data.push(newVal);
-    priceChart.update();
-  }
-
-  // --- TRANSACAO E MINERACAO (IGUAIS) ---
   async function transferCoins() {
     const to = document.getElementById('sendTo').value.trim();
     const amount = parseFloat(document.getElementById('sendAmount').value);
@@ -383,6 +275,7 @@
       });
       const d = await r.json();
       document.getElementById('log').innerHTML += `<br>> ${d.message}`;
+      updateStats();
     } catch (e) { alert("Erro no envio."); }
   }
 
@@ -393,15 +286,23 @@
       const r = await fetch(`${API}/minerar_agora/${addr}`);
       const d = await r.json();
       if(d.status === "success") {
-        document.getElementById('log').innerHTML += `<br><span style="color:#0f0">> Bloco #${d.height} minerado!</span>`;
+        document.getElementById('log').innerHTML += `<br><span style="color:#0f0">> Bloco minerado!</span>`;
         updateStats();
       }
     } catch(e) { alert("Erro ao minerar."); }
   }
 
+  function initChart() {
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    priceChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: ['A','B','C','D','E'], datasets: [{ label:'Price', data:[1,3,2,5,4], borderColor:'#f5c542', fill:true }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+    });
+  }
+
   function logout() { sessionSeed = null; location.reload(); }
   window.onload = () => { if(localStorage.getItem('mz_vault')) document.getElementById('unlockArea').style.display = "block"; };
-  setInterval(updateStats, 10000); 
 </script>
 </body>
 </html>
