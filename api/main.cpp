@@ -41,12 +41,12 @@ int main() {
         std::cout << "[INFO] Nenhuma blockchain encontrada. Iniciando nova." << std::endl;
     }
 
-    // Rota Raiz
+    // --- ROTA RAIZ ---
     CROW_ROUTE(app, "/")([]() {
         return "MAZECHAIN NODE v1.1.2 - STATUS: ONLINE";
     });
 
-    // Status do Nó
+    // --- STATUS DO NÓ ---
     CROW_ROUTE(app, "/status")([&bc]() {
         crow::json::wvalue x;
         x["status"] = "online";
@@ -57,7 +57,7 @@ int main() {
         return crow::response(x);
     });
 
-    // Enviar Transação
+    // --- ENVIAR TRANSAÇÃO ---
     CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST)([&bc](const crow::request& req) {
         auto x = crow::json::load(req.body);
         crow::json::wvalue result;
@@ -74,16 +74,10 @@ int main() {
             double amount = x["amount"].d();
             std::string seed = x["seed"].s();
 
-            // Lógica de Mempool para evitar double spending instantâneo
-            double pendingSpend = 0;
-            for (const auto& tx : bc.getMempool()) {
-                // Aqui verificamos se o endereço 'from' já tem envios pendentes
-                // (Depende da implementação do seu bc.send)
-            }
-
+            // Lógica de saldo e taxa (1%)
             double balance = bc.getBalance(from);
 
-            if (balance < (amount * 1.01)) { // Taxa de 1%
+            if (balance < (amount * 1.01)) {
                 result["status"] = "error";
                 result["message"] = "Saldo insuficiente";
                 return crow::response(402, result.dump());
@@ -101,7 +95,7 @@ int main() {
         }
     });
 
-    // Listar Blocos
+    // --- LISTAR BLOCO (CHAIN) ---
     CROW_ROUTE(app, "/chain")([&bc]() {
         crow::json::wvalue x;
         std::vector<crow::json::wvalue> block_list;
@@ -121,7 +115,7 @@ int main() {
         return crow::response(x);
     });
 
-    // Criar Carteira
+    // --- CRIAR NOVA CARTEIRA ---
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
         w.create();
@@ -131,17 +125,16 @@ int main() {
         return crow::response(result);
     });
 
-    // Ver Saldo
+    // --- VER SALDO ---
     CROW_ROUTE(app, "/balance/<string>")([&bc](std::string endereco) {
         crow::json::wvalue x;
         x["balance"] = bc.getBalance(endereco);
         return crow::response(x);
     });
 
-    // Minerar Bloco
+    // --- MINERAR AGORA ---
     CROW_ROUTE(app, "/minerar_agora/<string>")([&bc](std::string endereco) {
         bc.mineBlock(endereco);
-        // Salva após minerar para não perder progresso
         Storage::saveChain(bc, "data/blockchain.dat");
 
         crow::json::wvalue x;
@@ -151,12 +144,13 @@ int main() {
         return crow::response(x);
     });
 
-    // Configuração de Porta
+    // --- CONFIGURAÇÃO DE PORTA ---
     const char* port_ptr = std::getenv("PORT");
     int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 10000;
 
     std::cout << "==========================================" << std::endl;
     std::cout << "MAZECHAIN NODE ATIVO NA PORTA: " << port << std::endl;
+    std::cout << "ESCUTANDO EM: 0.0.0.0 (Global)" << std::endl;
     std::cout << "==========================================" << std::endl;
 
     app.port(port).bindaddr("0.0.0.0").multithreaded().run();
