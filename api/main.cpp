@@ -10,17 +10,19 @@
 #include <iostream>
 #include <algorithm>
 
-// =======================
-// 🔥 MIDDLEWARE CORS GLOBAL
-// =======================
+// ==========================================================
+// 🔥 MIDDLEWARE CORS GLOBAL CORRIGIDO (SEM DUPLICAÇÃO)
+// ==========================================================
 struct CORS {
     struct context {};
 
     void before_handle(crow::request& req, crow::response& res, context&) {
-        res.add_header("Access-Control-Allow-Origin", "*");
-        res.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        res.add_header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization");
+        // Usamos set_header para garantir que o valor seja ÚNICO (*)
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization");
 
+        // Trata a requisição de pré-vôo (Preflight) do navegador
         if (req.method == crow::HTTPMethod::OPTIONS) {
             res.code = 204;
             res.end();
@@ -28,13 +30,14 @@ struct CORS {
     }
 
     void after_handle(crow::request&, crow::response& res, context&) {
-        res.add_header("Access-Control-Allow-Origin", "*");
+        // Garante que o header esteja presente na resposta final sem duplicar
+        res.set_header("Access-Control-Allow-Origin", "*");
     }
 };
 
 int main() {
-
-    crow::App<CORS> app; // 🔥 IMPORTANTE: usando middleware
+    // Inicializa o App com o Middleware CORS
+    crow::App<CORS> app; 
 
     Blockchain bc;
     
@@ -58,9 +61,8 @@ int main() {
         return crow::response(x);
     });
 
-    // --- SEND (SEM GAMBIARRA) ---
+    // --- SEND ---
     CROW_ROUTE(app, "/send").methods(crow::HTTPMethod::POST)([&bc](const crow::request& req) {
-
         auto x = crow::json::load(req.body);
         crow::json::wvalue result;
 
@@ -76,6 +78,7 @@ int main() {
             double amount = x["amount"].d();
             std::string seed = x["seed"].s();
 
+            // Cálculo de saldo pendente na mempool
             double pendingSpend = 0;
             for (const auto& tx : bc.getMempool()) {
                 for (const auto& out : tx.vout) {
@@ -85,6 +88,7 @@ int main() {
 
             double balance = bc.getBalance(from) - pendingSpend;
 
+            // Verificação de taxa mínima (1%)
             if (balance < (amount * 1.01)) {
                 result["status"] = "error";
                 result["message"] = "Saldo insuficiente ou pendente";
@@ -95,7 +99,6 @@ int main() {
 
             result["status"] = "success";
             result["message"] = "Transacao enviada para a mempool";
-
             return crow::response(200, result.dump());
 
         } catch (const std::exception& e) {
@@ -122,7 +125,6 @@ int main() {
         
         x["blocks"] = std::move(block_list);
         x["length"] = (int)bc.getChain().size();
-
         return crow::response(x);
     });
 
@@ -130,17 +132,14 @@ int main() {
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
         w.create();
-
         crow::json::wvalue result;
         result["address"] = w.address;
         result["seed"] = w.seed;
-
         return crow::response(result);
     });
 
     // --- WALLET IMPORT ---
     CROW_ROUTE(app, "/wallet/import").methods(crow::HTTPMethod::POST)([](const crow::request& req) {
-
         auto x = crow::json::load(req.body);
         crow::json::wvalue result;
 
@@ -156,7 +155,6 @@ int main() {
 
         result["address"] = w.address;
         result["status"] = "success";
-
         return crow::response(200, result.dump());
     });
 
@@ -180,7 +178,7 @@ int main() {
         return crow::response(x);
     });
 
-    // --- PORTA ---
+    // --- CONFIGURAÇÃO DE PORTA PARA O RENDER ---
     const char* port_ptr = std::getenv("PORT");
     int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 8080;
 
