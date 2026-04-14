@@ -11,7 +11,6 @@
 #include <algorithm>
 
 // Função para habilitar comunicação total com o Frontend (CORS)
-// Atualizada para ser mais rigorosa com o Preflight do Navegador
 void add_cors(crow::response& res) {
     res.add_header("Access-Control-Allow-Origin", "*");
     res.add_header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
@@ -51,7 +50,6 @@ int main() {
         crow::response res;
         add_cors(res);
 
-        // Se for OPTIONS (Preflight), responde imediatamente com 204 (No Content)
         if (req.method == crow::HTTPMethod::OPTIONS) {
             res.code = 204;
             return res;
@@ -74,7 +72,6 @@ int main() {
             double amount = x["amount"].d();
             std::string seed = x["seed"].s();
 
-            // Cálculo de saldo considerando a Mempool
             double pendingSpend = 0;
             for (const auto& tx : bc.getMempool()) {
                 for (const auto& out : tx.vout) {
@@ -107,18 +104,18 @@ int main() {
         }
     });
 
-    // --- ROTA CHAIN ---
+    // --- ROTA CHAIN (CORRIGIDA) ---
     CROW_ROUTE(app, "/chain")([&bc]() {
         crow::json::wvalue x;
         std::vector<crow::json::wvalue> block_list;
         
-        // Percorre a blockchain e envia detalhes extras para a Lupa de busca
         for (const auto& block : bc.getChain()) {
             crow::json::wvalue b;
             b["index"] = block.index;
             b["hash"] = block.hash;
             b["nonce"] = block.nonce;
-            b["prev_hash"] = block.previous_hash;
+            // AQUI ESTAVA O ERRO: Mudado de previous_hash para prevHash
+            b["prev_hash"] = block.prevHash; 
             b["transactions_count"] = (int)block.transactions.size();
             block_list.push_back(std::move(b));
         }
@@ -184,7 +181,7 @@ int main() {
         return res;
     });
 
-    // --- ROTA MINERAÇÃO (ATUALIZADA PARA 1000 MZ NO LOG) ---
+    // --- ROTA MINERAÇÃO ---
     CROW_ROUTE(app, "/minerar_agora/<string>")([&bc](std::string endereco) {
         bc.mineBlock(endereco);
         Storage::saveChain(bc, "data/blockchain.dat");
@@ -192,7 +189,7 @@ int main() {
         crow::json::wvalue x;
         x["status"] = "success";
         x["height"] = (int)bc.getChain().size();
-        x["reward"] = 1000; // Define o valor da recompensa para o Front ler
+        x["reward"] = 1000; 
         
         crow::response res(x);
         add_cors(res);
