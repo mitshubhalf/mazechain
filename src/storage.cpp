@@ -13,7 +13,7 @@
     #define MKDIR(dir) mkdir(dir, 0777)
 #endif
 
-// Função para garantir que a pasta data/ exista
+// Garante que a pasta de dados exista
 void ensure_directory() { 
     struct stat info;
     if (stat("data", &info) != 0) {
@@ -21,12 +21,12 @@ void ensure_directory() {
     }
 }
 
-// Salva uma transação na mempool (append mode)
 void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     ensure_directory();
     std::ofstream file(filename, std::ios::binary | std::ios::app);
     if (!file.is_open()) return;
 
+    // Grava metadados da transação
     int idSize = tx.id.size();
     file.write((char*)&idSize, sizeof(int));
     file.write(tx.id.c_str(), idSize);
@@ -39,6 +39,7 @@ void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     file.write((char*)&pubSize, sizeof(int));
     file.write(tx.publicKey.c_str(), pubSize);
 
+    // Grava saídas (Vouts)
     int vCount = tx.vout.size();
     file.write((char*)&vCount, sizeof(int));
     for (const auto& out : tx.vout) {
@@ -50,7 +51,6 @@ void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     file.close();
 }
 
-// Carrega todas as transações da mempool
 std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
     std::vector<Transaction> txs;
     std::ifstream file(filename, std::ios::binary);
@@ -82,11 +82,13 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
     return txs;
 }
 
-// Salva a Blockchain inteira
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     ensure_directory();
     std::ofstream file(filename, std::ios::binary | std::ios::trunc);
-    if (!file.is_open()) return;
+    if (!file.is_open()) {
+        std::cerr << "❌ Erro ao abrir arquivo para salvar blockchain!" << std::endl;
+        return;
+    }
 
     auto chain = bc.getChain();
     int chainSize = chain.size();
@@ -131,7 +133,6 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     file.close();
 }
 
-// Carrega a Blockchain (Ajustada para retornar bool)
 bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) return false;
@@ -139,7 +140,9 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
     int chainSize; 
     if(!file.read((char*)&chainSize, sizeof(int))) return false;
 
+    // IMPORTANTE: Limpamos para evitar duplicatas ao recarregar
     bc.clearChain();
+
     for (int i = 0; i < chainSize; i++) {
         int idx; long long ts; int n;
         if(!file.read((char*)&idx, sizeof(int))) break;
@@ -163,7 +166,7 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
             std::string sig(sS, ' '); file.read(&sig[0], sS);
             
             int pS; file.read((char*)&pS, sizeof(int));
-            std::string pub(pS, ' '); file.read(&pub[0], pS);
+            std::string pub(pS, ' '); file.read(&pS != 0 ? &pub[0] : nullptr, pS);
             
             int outC; file.read((char*)&outC, sizeof(int));
             std::vector<TxOut> vouts;
@@ -176,13 +179,18 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
             Transaction t; t.id = id; t.signature = sig; t.publicKey = pub; t.vout = vouts;
             txs.push_back(t);
         }
+        
+        // Reconstrói o bloco com os dados lidos
         Block b(idx, ph, txs); 
         b.hash = h; 
         b.timestamp = ts; 
         b.nonce = n;
+        
+        // addBlock vai atualizar o UTXOSet e o TotalSupply automaticamente
         bc.addBlock(b);
     }
     file.close();
+    std::cout << "✅ Blockchain carregada com sucesso. Altura: " << bc.getChain().size() << std::endl;
     return true;
 }
 
