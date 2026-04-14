@@ -11,7 +11,6 @@
 #include <algorithm>
 
 // Função para habilitar comunicação com o Frontend (CORS)
-// Essencial para que o navegador não bloqueie as requisições
 void add_cors(crow::response& res) {
     res.add_header("Access-Control-Allow-Origin", "*");
     res.add_header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
@@ -33,7 +32,6 @@ int main() {
     });
 
     // --- ROTA DE STATUS ---
-    // Ajustado para bater com d.version, d.difficulty, etc no Frontend
     CROW_ROUTE(app, "/status")([&bc]() {
         crow::json::wvalue x;
         x["status"] = "online";
@@ -71,7 +69,6 @@ int main() {
             double amount = x["amount"].d();
             std::string seed = x["seed"].s();
 
-            // Cálculo de saldo considerando a Mempool
             double pendingSpend = 0;
             for (const auto& tx : bc.getMempool()) {
                 for (const auto& out : tx.vout) {
@@ -105,7 +102,6 @@ int main() {
     });
 
     // --- ROTA CHAIN ---
-    // Ajustado para retornar a lista de blocos que o Explorador espera
     CROW_ROUTE(app, "/chain")([&bc]() {
         crow::json::wvalue x;
         std::vector<crow::json::wvalue> block_list;
@@ -139,7 +135,7 @@ int main() {
         return res;
     });
     
-    // --- ROTA IMPORTAR CARTEIRA ---
+    // --- ROTA IMPORTAR CARTEIRA (CORRIGIDA) ---
     CROW_ROUTE(app, "/wallet/import").methods(crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)([](const crow::request& req) {
         if (req.method == crow::HTTPMethod::OPTIONS) {
             crow::response res(204);
@@ -147,10 +143,23 @@ int main() {
             return res;
         }
         auto x = crow::json::load(req.body);
+        crow::json::wvalue result;
+
+        if (!x || !x.has("seed")) {
+            result["status"] = "error";
+            crow::response res(400, result);
+            add_cors(res);
+            return res;
+        }
+
         std::string seed = x["seed"].s();
         Wallet w;
-        w.importSeed(seed);
-        crow::json::wvalue result;
+        
+        // CORREÇÃO: Usamos o atributo seed e chamamos o create 
+        // para garantir compatibilidade com o seu src/wallet.cpp atual
+        w.seed = seed;
+        w.create(); 
+
         result["address"] = w.address;
         crow::response res(result);
         add_cors(res);
