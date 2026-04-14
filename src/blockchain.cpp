@@ -7,17 +7,143 @@
 #include <sstream>
 #include <map>
 
+// Constantes da Economia MazeChain
+const double MAX_SUPPLY = 20000000.0; // 20 Milhões de MZ
+const double MITS_PER_COIN = 100000000.0; // 100 Milhões de Mits = 1 MZ
+
 Blockchain::Blockchain() {
     difficulty = 4;
     totalSupply = 0;
-    // Tenta carregar UTXOs salvos anteriormente
+    
+    // Tenta carregar o estado anterior
     utxoSet.loadFromFile("data/utxo.dat");
 
     if (chain.empty()) {
-        Block genesis(0, "0", {});
-        genesis.mine(difficulty);
-        // addBlock já cuida de atualizar o utxoSet e totalSupply
-        addBlock(genesis); 
+        // Bloco Gênesis: No Bitcoin, o Bloco 0 não era gastável. 
+        // Aqui, criamos ele vazio. O saldo real virá no Bloco #1 minerado por VOCÊ.
+        std::vector<Transaction> genesisTxs;
+        Block genesis(0, "0", genesisTxs);
+        genesis.hash = genesis.calculateHash(); // Gênesis não precisa minerar se estiver vazio
+        
+        chain.push_back(genesis);
+        std::cout << "[SISTEMA] Bloco Gênesis estabelecido. Aguardando primeira mineração manual." << std::endl;
+    }
+}
+
+double Blockchain::getBlockReward(int height) {
+    // Se já atingiu 20M, a recompensa de 'novas moedas' é ZERO. 
+    // O minerador passará a viver apenas de taxas.
+    if (totalSupply >= MAX_SUPPLY) return 0.0;
+
+    double reward = 1000.0;
+    
+    // Regra: 0-1000 (1000), 1001-2000 (500), 2001-4000 (250)...
+    if (height > 0 && height <= 1000) {
+        reward = 1000.0;
+    } else if (height > 1000 && height <= 2000) {
+        reward = 500.0;
+    } else if (height > 2000 && height <= 4000) {
+        reward = 250.0;
+    } else if (height > 4000) {
+        // Segue halving contínuo a cada 2000 blocos após o marco de 4000
+        int halvings = (height - 4000) / 2000 + 3; 
+        reward = 1000.0 / std::pow(2, halvings);
+    }
+
+    // Garante que não ultrapasse o limite máximo no último bloco
+    if (totalSupply + reward > MAX_SUPPLY) {
+        reward = MAX_SUPPLY - totalSupply;
+    }
+
+    return (reward < 0.00000001) ? 0.0 : reward;
+}
+
+void Blockchain::mineBlock(std::string minerAddress) {
+    if (minerAddress.substr(0, 2) != "MZ") {
+        std::cout << "❌ Endereço de minerador inválido!" << std::endl;
+        return;
+    }
+
+    adjustDifficulty();
+
+    // 1. Carregar Mempool
+    std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
+    std::vector<Transaction> validTransactions;
+    double totalFees = 0;
+    std::map<std::string, double> spendingInThisBlock;
+
+    for (const auto& tx : pending) {
+        if (!verifyTransaction(tx)) continue;
+        
+        std::string sender = "";
+        double amountWithFee = 0;
+        for (const auto& out : tx.vout) {
+            if (out.amount < 0) { 
+                sender = out.address; 
+                amountWithFee = std::abs(out.amount); 
+            }
+        }
+
+        double currentBalance = getBalance(sender);
+        if (currentBalance - spendingInThisBlock[sender] >= (amountWithFee - 0.00000001)) {
+            validTransactions.push_back(tx);
+            spendingInThisBlock[sender] += amountWithFee;
+            
+            // A taxa de 1% já está inclusa no débito. Aqui extraímos ela para o minerador.
+            // Valor Bruto = Líquido * 1.01 -> Taxa = Valor Bruto - (Valor Bruto / 1.01)
+            double fee = amountWithFee - (amountWithFee / 1.01);
+            totalFees += fee;
+        }
+    }
+
+    // 2. Subsídio + Taxas (Sua lógica de economia infinita)
+    double subsidy = getBlockReward(chain.size());
+    
+    // Se o subsídio acabou (chegou em 20M), totalReward será apenas as Taxas.
+    // Isso mantém os mineradores ativos para sempre.
+    double totalReward = subsidy + totalFees;
+
+    Transaction coinbase;
+    coinbase.id = "coinbase_" + std::to_string(chain.size()) + "_" + std::to_string(std::time(0));
+    coinbase.vout.push_back({minerAddress, totalReward});
+    coinbase.signature = "coinbase";
+    coinbase.publicKey = "SYSTEM_EMISSION";
+
+    // 3. Montar Bloco
+    std::vector<Transaction> blockTxs;
+    blockTxs.push_back(coinbase);
+    blockTxs.insert(blockTxs.end(), validTransactions.begin(), validTransactions.end());
+
+    // 4. Proof of Work
+    Block newBlock(chain.size(), chain.back().hash, blockTxs);
+    std::cout << "[MINER] Minerando bloco #" << newBlock.index << " (Dificuldade: " << difficulty << ")..." << std::endl;
+    newBlock.mine(difficulty);
+    
+    // 5. Adicionar à rede e atualizar UTXOs
+    addBlock(newBlock);
+    
+    // 6. Persistência
+    Storage::saveChain(*this, "data/blockchain.dat");
+    utxoSet.saveToFile("data/utxo.dat"); 
+    Storage::clearMempool("data/mempool.dat");
+
+    std::cout << "🎯 Bloco #" << newBlock.index << " minerado! Recompensa: " 
+              << std::fixed << std::setprecision(8) << totalReward << " MZ (Subsídio: " 
+              << subsidy << " + Taxas: " << totalFees << ")" << std::endl;
+}
+
+// --- Restante das funções de validação e utilidade ---
+
+void Blockchain::addBlock(const Block& block) {
+    chain.push_back(block);
+    for(const auto& tx : block.transactions) {
+        utxoSet.update(tx);
+        // Apenas o subsídio novo aumenta o totalSupply. 
+        // As taxas já existiam, então não aumentam o supply global.
+        if(tx.signature == "coinbase") {
+            double subsidy = getBlockReward(block.index);
+            totalSupply += subsidy;
+        }
     }
 }
 
@@ -30,200 +156,43 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
         if (out.amount < 0) senderAddress = out.address;
     }
 
-    // Regra de Maturidade: aguarda 1 confirmação
-    int currentHeight = chain.size();
-    for (const auto& block : chain) {
-        for (const auto& blockTx : block.transactions) {
-            if (blockTx.signature == "coinbase") {
-                for (const auto& out : blockTx.vout) {
-                    if (out.address == senderAddress) {
-                        if (currentHeight - block.index < 1) {
-                            std::cout << "⚠️ Bloqueio Coinbase Maturity: Aguarde 1 confirmacao." << std::endl;
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
+    // Validação básica de chave pública -> endereço
     std::string cleanKey = tx.publicKey;
     cleanKey.erase(0, cleanKey.find_first_not_of(" \t\r\n"));
     cleanKey.erase(cleanKey.find_last_not_of(" \t\r\n") + 1);
-    
-    // O endereço deve ser gerado exatamente como na criação da carteira
     std::string expectedAddress = "MZ" + Crypto::sha256_util(cleanKey).substr(0, 20);
     
     return (senderAddress == expectedAddress);
 }
 
-double Blockchain::getBlockReward(int height) {
-    if (totalSupply >= 20000000) return 0;
-    double reward = 1000.0;
-    long interval = 1000;
-    int h = height;
-    while (h >= interval) {
-        reward /= 2.0;
-        h -= interval;
-        interval *= 2;
-        if (reward < 0.000001) return 0;
-    }
-    return reward;
-}
-
 void Blockchain::adjustDifficulty() {
-    int height = chain.size();
-    int n = getCurrentCycle(height);
-    if (n < 5) return; 
-
-    if (height < 10) return;
+    if (chain.size() < 11) return;
+    
     const Block& lastBlock = chain.back();
-    const Block& relayBlock = chain[height - 10];
+    const Block& relayBlock = chain[chain.size() - 10];
 
-    long timeTarget = 6000; 
+    long timeTarget = 600; // Alvo de 1 minuto para 10 blocos (ajuste conforme necessário)
     long timeTaken = lastBlock.timestamp - relayBlock.timestamp;
-    if (timeTaken < 1) timeTaken = 1;
 
     if (timeTaken < timeTarget / 2) difficulty++;
     else if (timeTaken > timeTarget * 2 && difficulty > 1) difficulty--;
 }
 
-// 🔥 FUNÇÃO DE MINERAÇÃO CORRIGIDA PARA PROCESSAR MEMPOOL
-void Blockchain::mineBlock(std::string minerAddress) {
-    if (minerAddress.substr(0, 2) != "MZ") return;
-    adjustDifficulty();
-
-    // 1. Carregar transações pendentes do arquivo de forma explícita
-    std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
-    std::vector<Transaction> validTransactions;
-    double totalFees = 0;
-    std::map<std::string, double> spendingInThisBlock;
-
-    std::cout << "[MINER] Iniciando bloco #" << chain.size() << " com " << pending.size() << " txs pendentes." << std::endl;
-
-    for (const auto& tx : pending) {
-        if (!verifyTransaction(tx)) {
-            std::cout << "⚠️ Tx rejeitada: Falha na assinatura." << std::endl;
-            continue;
-        }
-        
-        std::string sender = "";
-        double amountWithFee = 0;
-        for (const auto& out : tx.vout) {
-            if (out.amount < 0) { 
-                sender = out.address; 
-                amountWithFee = std::abs(out.amount); 
-            }
-        }
-
-        // Verifica saldo usando UTXO Set + o que já foi gasto neste bloco
-        double currentBalance = getBalance(sender);
-        if (currentBalance - spendingInThisBlock[sender] >= (amountWithFee - 0.000001)) {
-            validTransactions.push_back(tx);
-            spendingInThisBlock[sender] += amountWithFee;
-            // Calcula 1% de taxa sobre o valor líquido enviado
-            totalFees += (amountWithFee / 1.01) * 0.01;
-            std::cout << "✅ Tx de " << sender << " incluída no bloco." << std::endl;
-        } else {
-            std::cout << "❌ Saldo insuficiente para " << sender << " (Precisa: " << amountWithFee << ")." << std::endl;
-        }
-    }
-
-    // 2. Gerar Subsídio (Recompensa) + Taxas
-    double subsidy = getBlockReward(chain.size());
-    Transaction coinbase;
-    coinbase.id = "coinbase_" + std::to_string(chain.size()) + "_" + std::to_string(std::time(0));
-    coinbase.vout.push_back({minerAddress, subsidy + totalFees});
-    coinbase.signature = "coinbase";
-
-    // 3. Montar Bloco (Coinbase sempre no topo)
-    std::vector<Transaction> blockTxs;
-    blockTxs.push_back(coinbase);
-    for(const auto& t : validTransactions) {
-        blockTxs.push_back(t);
-    }
-
-    // 4. Resolver o Proof of Work
-    Block newBlock(chain.size(), chain.back().hash, blockTxs);
-    newBlock.mine(difficulty);
-    
-    // 5. Adicionar e Sincronizar (Isso atualiza o UTXO em tempo real)
-    addBlock(newBlock);
-    
-    // 6. Persistência Final (Salva no disco para o Render não perder se cair)
-    Storage::saveChain(*this, "data/blockchain.dat");
-    utxoSet.saveToFile("data/utxo.dat"); 
-    Storage::clearMempool("data/mempool.dat");
-
-    std::cout << "📦 Bloco #" << newBlock.index << " FINALIZADO. Total de Transações: " << blockTxs.size() << std::endl;
-}
-
-double Blockchain::getBalance(std::string address) {
-    return utxoSet.getBalance(address);
-}
-
-int Blockchain::getCurrentCycle(int height) {
-    int n = 0; long tempInterval = 1000; int tempHeight = height;
-    while(tempHeight >= tempInterval) {
-        tempHeight -= tempInterval;
-        tempInterval *= 2;
-        n++;
-    }
-    return n;
-}
-
-void Blockchain::addBlock(const Block& block) {
-    chain.push_back(block);
-    for(const auto& tx : block.transactions) {
-        // ATUALIZA O UTXO SET: Isso é o que faz o saldo mudar efetivamente
-        utxoSet.update(tx);
-        
-        if(tx.signature == "coinbase") {
-            for(const auto& out : tx.vout) totalSupply += out.amount;
-        }
-    }
-}
-
+double Blockchain::getBalance(std::string address) { return utxoSet.getBalance(address); }
 void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
     double totalNeeded = amount * 1.01;
-    
-    if (getBalance(from) < (totalNeeded - 0.000001)) {
-        std::cout << "❌ Saldo insuficiente! Saldo atual: " << getBalance(from) << " MZ" << std::endl;
-        return;
-    }
+    if (getBalance(from) < totalNeeded) return;
 
     Transaction tx;
     tx.id = Crypto::sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(0)));
-    tx.vout.push_back({to, amount});             // Crédito para o destino
-    tx.vout.push_back({from, totalNeeded * -1}); // Débito do remetente (valor + taxa)
-    
-    tx.publicKey = seed; // Note: Na prática, aqui deveria ser a Chave Pública, não a seed.
+    tx.vout.push_back({to, amount});
+    tx.vout.push_back({from, totalNeeded * -1});
+    tx.publicKey = seed;
     tx.signature = "SIG_" + Crypto::sha256_util(seed).substr(0, 16);
     
     Storage::saveMempool(tx, "data/mempool.dat");
-    std::cout << "✅ Transação de " << amount << " MZ enviada para a mempool!" << std::endl;
-}
-
-bool Blockchain::isChainValid() {
-    for (size_t i = 1; i < chain.size(); i++) {
-        if (chain[i].hash != chain[i].calculateHash()) return false;
-        if (chain[i].prevHash != chain[i-1].hash) return false;
-    }
-    return true;
-}
-
-void Blockchain::clearChain() { 
-    chain.clear(); 
-    totalSupply = 0; 
-    utxoSet.utxos.clear(); 
 }
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
-std::vector<Transaction> Blockchain::getMempool() const { return Storage::loadMempool("data/mempool.dat"); }
-
-void Blockchain::printStats() {
-    int height = chain.size();
-    std::cout << "\n📊 Altura: " << height << " | Dificuldade: " << difficulty 
-              << " | Circulacao: " << std::fixed << std::setprecision(2) << totalSupply << " MZ" << std::endl;
-}
+double Blockchain::getTotalSupply() const { return totalSupply; }
