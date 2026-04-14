@@ -84,7 +84,6 @@
     .list-item b { color: var(--accent); }
     .chart-container { width: 100%; height: 200px; margin-top: 10px; }
 
-    /* Estilo da Lupa */
     .search-container { display: flex; gap: 5px; margin-bottom: 15px; }
     .search-container input { margin-top: 0; border-radius: 8px 0 0 8px; flex: 1; }
     .search-container button { margin-top: 0; width: 60px; border-radius: 0 8px 8px 0; padding: 0; font-size: 18px; }
@@ -166,12 +165,10 @@
 
       <div id="content2" class="tab-content" style="display:none">
         <h3 style="font-size:12px; color:var(--accent)">BLOCKCHAIN EXPLORER</h3>
-        
         <div class="search-container">
           <input type="text" id="searchBox" placeholder="Buscar Hash, Bloco ou Transação...">
           <button onclick="searchChain()">🔍</button>
         </div>
-
         <div id="chainList">Sincronizando blocos...</div>
       </div>
 
@@ -283,7 +280,6 @@
     } catch(e) {}
   }
 
-  // LUPA DE PESQUISA NO FRONTEND
   function searchChain() {
     const term = document.getElementById('searchBox').value.toLowerCase();
     const items = document.querySelectorAll('.list-item');
@@ -335,25 +331,50 @@
     } catch(e) { info.innerHTML = "Nó offline."; }
   }
 
+  // 🔥 TRANSFERÊNCIA COM RECONEXÃO AUTOMÁTICA
   async function transferCoins() {
     const to = document.getElementById('sendTo').value.trim();
     const amount = parseFloat(document.getElementById('sendAmount').value);
     const from = localStorage.getItem('mz_addr');
     const log = document.getElementById('log');
-    
-    if(!to || !amount) return alert("Preencha todos os campos");
 
-    try {
-      const r = await fetch(`${API}/send`, {
+    if (!to || !amount) return alert("Preencha todos os campos");
+
+    const payload = { from, to, amount, seed: sessionSeed };
+
+    async function sendRequest() {
+      const res = await fetch(`${API}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to, amount, seed: sessionSeed })
+        body: JSON.stringify(payload)
       });
-      const d = await r.json();
-      log.innerHTML += `<br>> ${d.message || d.error || 'Erro desconhecido'}`;
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error("Resposta inválida do servidor"); }
+      if (!res.ok) { throw new Error(data.message || data.error || "Erro na transação"); }
+      return data;
+    }
+
+    try {
+      log.innerHTML += `<br>> Enviando transação...`;
       log.scrollTop = log.scrollHeight;
+      const result = await sendRequest();
+      log.innerHTML += `<br><span style="color:#0f0">> ${result.message}</span>`;
       updateStats();
-    } catch (e) { log.innerHTML += `<br><span style="color:red">> Erro de Conexão (CORS ou Offline)</span>`; }
+    } catch (err) {
+      console.warn("Erro detectado:", err);
+      log.innerHTML += `<br><span style="color:orange">> Tentando reconectar...</span>`;
+      log.scrollTop = log.scrollHeight;
+      try {
+        await new Promise(r => setTimeout(r, 2000));
+        const retry = await sendRequest();
+        log.innerHTML += `<br><span style="color:#0f0">> ${retry.message} (retry)</span>`;
+        updateStats();
+      } catch (err2) {
+        log.innerHTML += `<br><span style="color:red">> Falha: servidor offline ou bloqueado</span>`;
+      }
+    }
+    log.scrollTop = log.scrollHeight;
   }
 
   async function runMiner() {
@@ -361,16 +382,14 @@
     const log = document.getElementById('log');
     log.innerHTML += `<br>> Iniciando Mineração...`;
     log.scrollTop = log.scrollHeight;
-    
     try {
       const r = await fetch(`${API}/minerar_agora/${addr}`);
       const d = await r.json();
       if(d.status === "success") {
-        // Exibe a recompensa de 1000 MZ conforme solicitado
         log.innerHTML += `<br><span style="color:#0f0">> Bloco #${d.height} Resolvido! +1000 MZ</span>`;
         updateStats();
       }
-    } catch(e) { log.innerHTML += `<br><span style="color:red">> Erro ao minerar. Verifique o console.</span>`; }
+    } catch(e) { log.innerHTML += `<br><span style="color:red">> Erro ao minerar.</span>`; }
     log.scrollTop = log.scrollHeight;
   }
 
@@ -392,8 +411,18 @@
   }
 
   function logout() { sessionSeed = null; location.reload(); }
-  window.onload = () => { if(localStorage.getItem('mz_vault')) document.getElementById('unlockArea').style.display = "block"; };
-  setInterval(updateStats, 15000); 
+
+  window.onload = () => { 
+    if(localStorage.getItem('mz_vault')) 
+      document.getElementById('unlockArea').style.display = "block"; 
+  };
+
+  setInterval(updateStats, 15000);
+
+  // 🔥 KEEP ALIVE (IMPEDIR RENDER DORMIR)
+  setInterval(() => {
+    fetch(`${API}/status`).catch(() => {});
+  }, 20000);
 </script>
 </body>
 </html>
