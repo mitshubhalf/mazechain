@@ -29,6 +29,7 @@ Blockchain::Blockchain() {
 void Blockchain::clearChain() {
     chain.clear();
     totalSupply = 0;
+    utxoSet.utxos.clear();
 }
 
 bool Blockchain::isChainValid() {
@@ -160,7 +161,8 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
     }
 
     std::string cleanKey = tx.publicKey;
-    std::string expectedAddress = "MZ" + Crypto::sha256_util(cleanKey + "SALT_MAZE_2026").substr(0, 32);
+    std::string h1 = Crypto::sha256_util(cleanKey);
+    std::string expectedAddress = "MZ" + Crypto::sha256_util(h1 + "SALT_MAZE_2026").substr(0, 32);
     
     return (senderAddress == expectedAddress);
 }
