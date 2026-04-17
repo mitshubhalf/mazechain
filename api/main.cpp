@@ -11,6 +11,7 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+#include <fstream>
 
 struct CORS {
     struct context {};
@@ -38,7 +39,14 @@ int main() {
     }
 
     CROW_ROUTE(app, "/")([]() {
-        return "MAZECHAIN NODE v2.1 - STATUS: ONLINE (20M MAX SUPPLY)";
+        std::ifstream file("index.html");
+        if (file.is_open()) {
+            std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            crow::response res(content);
+            res.set_header("Content-Type", "text/html");
+            return res;
+        }
+        return crow::response(200, "MAZECHAIN NODE v2.1 - STATUS: ONLINE (20M MAX SUPPLY)");
     });
 
     // --- STATUS COMPLETO ---
