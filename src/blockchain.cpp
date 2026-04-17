@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <sstream>
 #include <map>
+#include <ctime>
 
 // Constantes da Economia MazeChain
 const double MITS_PER_COIN = 100000000.0; // 100 Milhões de Mits = 1 MZ
@@ -26,8 +27,44 @@ Blockchain::Blockchain() {
     }
 }
 
+// --- FUNÇÕES QUE ESTAVAM FALTANDO ---
+
+void Blockchain::clearChain() {
+    chain.clear();
+    totalSupply = 0;
+    // Opcional: Re-gerar bloco gênesis se necessário após limpar
+}
+
+bool Blockchain::isChainValid() {
+    for (size_t i = 1; i < chain.size(); i++) {
+        const Block& currentBlock = chain[i];
+        const Block& prevBlock = chain[i-1];
+
+        // Verifica se o hash do bloco atual está correto
+        if (currentBlock.hash != currentBlock.calculateHash()) {
+            return false;
+        }
+
+        // Verifica se o bloco aponta para o hash do anterior
+        if (currentBlock.previousHash != prevBlock.hash) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void Blockchain::printStats() {
+    std::cout << "\n=== ESTATÍSTICAS DA MAZECHAIN ===" << std::endl;
+    std::cout << "Altura da Rede: " << chain.size() << " blocos" << std::endl;
+    std::cout << "Dificuldade Atual: " << difficulty << std::endl;
+    std::cout << "Supply em Circulação: " << std::fixed << std::setprecision(8) << totalSupply << " MZ" << std::endl;
+    std::cout << "Max Supply: " << getMaxSupply() << " MZ" << std::endl;
+    std::cout << "=================================\n" << std::endl;
+}
+
+// --- FIM DAS FUNÇÕES FALTANTES ---
+
 double Blockchain::getBlockReward(int height) {
-    // MAX_SUPPLY agora vem do header como constante
     if (totalSupply >= getMaxSupply()) return 0.0;
 
     double reward = 1000.0;
@@ -43,7 +80,6 @@ double Blockchain::getBlockReward(int height) {
         reward = 1000.0 / std::pow(2, halvings);
     }
 
-    // Ajuste fino para não ultrapassar os 20M exatos
     if (totalSupply + reward > getMaxSupply()) {
         reward = getMaxSupply() - totalSupply;
     }
@@ -77,12 +113,10 @@ void Blockchain::mineBlock(std::string minerAddress) {
         }
 
         double currentBalance = getBalance(sender);
-        // Proteção contra gasto duplo no mesmo bloco
         if (currentBalance - spendingInThisBlock[sender] >= (amountWithFee - 0.00000001)) {
             validTransactions.push_back(tx);
             spendingInThisBlock[sender] += amountWithFee;
             
-            // Cálculo da taxa de 1%
             double fee = amountWithFee - (amountWithFee / 1.01);
             totalFees += fee;
         }
@@ -118,7 +152,6 @@ void Blockchain::addBlock(const Block& block) {
     chain.push_back(block);
     for(const auto& tx : block.transactions) {
         utxoSet.update(tx);
-        // Apenas o subsídio entra para o supply global
         if(tx.signature == "coinbase") {
             totalSupply += getBlockReward(block.index);
         }
@@ -133,7 +166,6 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
         if (out.amount < 0) senderAddress = out.address;
     }
 
-    // AJUSTE: Compatibilidade com endereço de 34 caracteres e SALT
     std::string cleanKey = tx.publicKey;
     std::string expectedAddress = "MZ" + Crypto::sha256_util(cleanKey + "SALT_MAZE_2026").substr(0, 32);
     
@@ -161,12 +193,10 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
     }
 
     Transaction tx;
-    // O ID da transação agora é calculado de forma única para evitar colisões
     tx.id = Crypto::sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(0)));
     tx.vout.push_back({to, amount});
     tx.vout.push_back({from, totalNeeded * -1});
     tx.publicKey = seed;
-    // Assinatura simplificada para este modelo de estudo
     tx.signature = "SIG_" + Crypto::sha256_util(seed).substr(0, 16);
     
     Storage::saveMempool(tx, "data/mempool.dat");
@@ -175,4 +205,4 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
-// Removi a redefinição do getTotalSupply daqui para evitar o erro de compilação.
+double Blockchain::getTotalSupply() const { return totalSupply; }
