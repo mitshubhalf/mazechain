@@ -9,13 +9,12 @@
 #include <ctime>
 
 // Constantes da Economia MazeChain
-const double MITS_PER_COIN = 100000000.0; // 100 Milhões de Mits = 1 MZ
+const double MITS_PER_COIN = 100000000.0; 
 
 Blockchain::Blockchain() {
     difficulty = 4;
     totalSupply = 0;
     
-    // Tenta carregar o estado anterior
     utxoSet.loadFromFile("data/utxo.dat");
 
     if (chain.empty()) {
@@ -27,12 +26,9 @@ Blockchain::Blockchain() {
     }
 }
 
-// --- FUNÇÕES QUE ESTAVAM FALTANDO ---
-
 void Blockchain::clearChain() {
     chain.clear();
     totalSupply = 0;
-    // Opcional: Re-gerar bloco gênesis se necessário após limpar
 }
 
 bool Blockchain::isChainValid() {
@@ -40,13 +36,12 @@ bool Blockchain::isChainValid() {
         const Block& currentBlock = chain[i];
         const Block& prevBlock = chain[i-1];
 
-        // Verifica se o hash do bloco atual está correto
         if (currentBlock.hash != currentBlock.calculateHash()) {
             return false;
         }
 
-        // Verifica se o bloco aponta para o hash do anterior
-        if (currentBlock.previousHash != prevBlock.hash) {
+        // CORRIGIDO: de previousHash para prevHash
+        if (currentBlock.prevHash != prevBlock.hash) {
             return false;
         }
     }
@@ -61,8 +56,6 @@ void Blockchain::printStats() {
     std::cout << "Max Supply: " << getMaxSupply() << " MZ" << std::endl;
     std::cout << "=================================\n" << std::endl;
 }
-
-// --- FIM DAS FUNÇÕES FALTANTES ---
 
 double Blockchain::getBlockReward(int height) {
     if (totalSupply >= getMaxSupply()) return 0.0;
@@ -205,4 +198,4 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
-double Blockchain::getTotalSupply() const { return totalSupply; }
+// getTotalSupply removido daqui pois já está no header (.h)
