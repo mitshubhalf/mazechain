@@ -41,7 +41,6 @@ bool Blockchain::isChainValid() {
             return false;
         }
 
-        // CORRIGIDO: de previousHash para prevHash
         if (currentBlock.prevHash != prevBlock.hash) {
             return false;
         }
@@ -58,22 +57,25 @@ void Blockchain::printStats() {
     std::cout << "=================================\n" << std::endl;
 }
 
+// --- NOVA LOGICA DE RECOMPENSA (INCENTIVO 2000 MZ) ---
 double Blockchain::getBlockReward(int height) {
     if (totalSupply >= getMaxSupply()) return 0.0;
 
-    double reward = 1000.0;
+    double reward = 0.0;
     
     if (height > 0 && height <= 1000) {
-        reward = 1000.0;
+        reward = 2000.0; // Incentivo inicial turbinado
     } else if (height > 1000 && height <= 2000) {
-        reward = 500.0;
+        reward = 250.0;  // Primeiro Halving agressivo
     } else if (height > 2000 && height <= 4000) {
-        reward = 250.0;
+        reward = 125.0;  // Segundo Halving
     } else if (height > 4000) {
+        // Redução exponencial a partir daqui
         int halvings = (height - 4000) / 2000 + 3; 
         reward = 1000.0 / std::pow(2, halvings);
     }
 
+    // Garante que não ultrapasse o Max Supply por arredondamento
     if (totalSupply + reward > getMaxSupply()) {
         reward = getMaxSupply() - totalSupply;
     }
@@ -82,8 +84,9 @@ double Blockchain::getBlockReward(int height) {
 }
 
 void Blockchain::mineBlock(std::string minerAddress) {
-    if (minerAddress.substr(0, 2) != "MZ") {
-        std::cout << "❌ Endereço inválido!" << std::endl;
+    // Validação do prefixo MZ e comprimento do novo endereço (34 caracteres)
+    if (minerAddress.substr(0, 2) != "MZ" || minerAddress.length() < 30) {
+        std::cout << "❌ Endereço inválido para mineração!" << std::endl;
         return;
     }
 
@@ -130,7 +133,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
     blockTxs.insert(blockTxs.end(), validTransactions.begin(), validTransactions.end());
 
     Block newBlock(chain.size(), chain.back().hash, blockTxs);
-    std::cout << "[MINER] Minerando bloco #" << newBlock.index << "..." << std::endl;
+    std::cout << "[MINER] Minerando bloco #" << newBlock.index << " (Recompensa: " << subsidy << " MZ)..." << std::endl;
     newBlock.mine(difficulty);
     
     addBlock(newBlock);
@@ -139,16 +142,18 @@ void Blockchain::mineBlock(std::string minerAddress) {
     utxoSet.saveToFile("data/utxo.dat"); 
     Storage::clearMempool("data/mempool.dat");
 
-    std::cout << "🎯 Bloco #" << newBlock.index << " OK! Recompensa: " << totalReward << " MZ" << std::endl;
+    std::cout << "🎯 Bloco #" << newBlock.index << " OK! Total: " << totalReward << " MZ" << std::endl;
 }
 
 void Blockchain::addBlock(const Block& block) {
     chain.push_back(block);
+    // Atualiza o supply baseado na recompensa teórica do bloco
+    if (block.index > 0) {
+        totalSupply += getBlockReward(block.index);
+    }
+    
     for(const auto& tx : block.transactions) {
         utxoSet.update(tx);
-        if(tx.signature == "coinbase") {
-            totalSupply += getBlockReward(block.index);
-        }
     }
 }
 
@@ -160,9 +165,10 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
         if (out.amount < 0) senderAddress = out.address;
     }
 
+    // NOVO PADRÃO: SHA256 da Seed + SALT_MAZE_2026_PRODUCTION
     std::string cleanKey = tx.publicKey;
     std::string h1 = Crypto::sha256_util(cleanKey);
-    std::string expectedAddress = "MZ" + Crypto::sha256_util(h1 + "SALT_MAZE_2026").substr(0, 32);
+    std::string expectedAddress = "MZ" + Crypto::sha256_util(h1 + "SALT_MAZE_2026_PRODUCTION").substr(0, 32);
     
     return (senderAddress == expectedAddress);
 }
@@ -183,8 +189,7 @@ double Blockchain::getBalance(std::string address) { return utxoSet.getBalance(a
 void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
     double totalNeeded = amount * 1.01;
     if (getBalance(from) < totalNeeded) {
-        std::cout << "❌ Saldo insuficiente!" << std::endl;
-        return;
+        throw std::runtime_error("Saldo insuficiente!");
     }
 
     Transaction tx;
@@ -200,4 +205,3 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
-// getTotalSupply removido daqui pois já está no header (.h)
