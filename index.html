@@ -210,14 +210,22 @@
     } catch(e) { alert("Erro de conexão."); }
   }
 
+  // FUNÇÃO IMPORTAR COM CORREÇÃO DE SEED INVÁLIDA
   async function importWallet() {
-    const seed = document.getElementById('seedInput').value.trim().toLowerCase();
+    const rawInput = document.getElementById('seedInput').value;
+    // Limpeza rigorosa: remove espaços duplos, quebras de linha e espaços nas pontas
+    const seed = rawInput.trim().toLowerCase().replace(/\s+/g, ' '); 
     const pass = document.getElementById('importPass').value;
+
+    if (!seed || seed.split(' ').length < 12) {
+        return alert("Por favor, insira as 12 palavras da sua seed.");
+    }
+
     try {
       const r = await fetch(`${API}/wallet/import`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seed })
+          body: JSON.stringify({ seed: seed })
       });
       const data = await r.json();
       if (data.address) {
@@ -225,14 +233,21 @@
         localStorage.setItem('mz_addr', data.address);
         sessionSeed = seed;
         loadDashboard();
+      } else {
+        alert("O servidor não reconheceu esta Seed. Verifique a ortografia.");
       }
-    } catch (e) { alert("Seed inválida."); }
+    } catch (e) { alert("Erro de conexão com o nó."); }
   }
 
   function unlockWallet() {
     const pass = document.getElementById('unlockPass').value;
     const decrypted = decrypt(localStorage.getItem('mz_vault'), pass);
-    if(decrypted) { sessionSeed = decrypted; loadDashboard(); } else { alert("Senha incorreta!"); }
+    if(decrypted) { 
+        sessionSeed = decrypted; 
+        loadDashboard(); 
+    } else { 
+        alert("Senha incorreta!"); 
+    }
   }
 
   function loadDashboard() {
@@ -295,6 +310,7 @@
     const log = document.getElementById('log');
 
     if (!to || !amount) return alert("Dados incompletos");
+    if (!sessionSeed) return alert("Erro: Seed não carregada na sessão.");
 
     try {
       log.innerHTML += `<br>> Processando envio...`;
