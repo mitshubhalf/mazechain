@@ -7,13 +7,17 @@
 #include <iomanip>
 #include <fstream>
 
+#ifdef _WIN32
+    #include <direct.h>
+    #define MKDIR(path) _mkdir(path)
+#else
+    #include <sys/types.h>
+    #define MKDIR(path) mkdir(path, 0777)
+#endif
+
 int main(int argc, char* argv[]) {
     // 1. Garante a pasta de dados na raiz do projeto
-    #ifdef _WIN32
-        mkdir("data");
-    #else
-        mkdir("data", 0777);
-    #endif
+    MKDIR("data");
 
     // 2. Verificação inteligente da wordlist
     std::string wordlist_path = "wordlist.txt";
@@ -71,7 +75,8 @@ int main(int argc, char* argv[]) {
         
         bc.mineBlock(minerAddress);
         
-        // CORREÇÃO TÉCNICA: saveChain é void. Chamamos e depois confirmamos.
+        // CORREÇÃO TÉCNICA: saveChain é void. 
+        // Não usamos mais 'if (Storage::saveChain)', apenas chamamos a função.
         try {
             Storage::saveChain(bc, "data/blockchain.dat");
             Storage::clearMempool("data/mempool.dat");
@@ -115,7 +120,7 @@ int main(int argc, char* argv[]) {
     else if (cmd == "stats") {
         std::cout << "--- ESTATÍSTICAS DA REDE ---\n";
         std::cout << "Blocos: " << bc.getChain().size() << "\n";
-        std::cout << "Circulação: " << bc.getTotalSupply() << " MZ\n";
+        std::cout << "Circulação: " << std::fixed << std::setprecision(8) << bc.getTotalSupply() << " MZ\n";
         return 0;
     }
 
