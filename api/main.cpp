@@ -12,8 +12,8 @@
 #include <iostream>
 #include <algorithm>
 #include <fstream>
+#include <sys/stat.h>
 
-// Estrutura de Middleware para comunicação com o Frontend
 struct CORS {
     struct context {};
     void before_handle(crow::request& req, crow::response& res, context&) {
@@ -30,55 +30,64 @@ struct CORS {
     }
 };
 
-// --- FUNÇÃO PRINCIPAL COM SUPORTE A CLI (TERMINAL) E API (WEB) ---
 int main(int argc, char* argv[]) {
-    // 1. Verificação da wordlist (Sempre necessária)
-    std::ifstream check_wordlist("wordlist.txt");
-    if (!check_wordlist.is_open()) {
-        std::cerr << "❌ ERRO CRÍTICO: wordlist.txt não encontrada!" << std::endl;
-        return 1;
+    // 1. Garantir que a pasta 'data' existe (na raiz do projeto)
+    #ifdef _WIN32
+        mkdir("data");
+    #else
+        mkdir("data", 0777);
+    #endif
+
+    // 2. Verificação inteligente da wordlist.txt
+    std::string wl = "wordlist.txt";
+    std::ifstream check_wl(wl);
+    if (!check_wl.is_open()) {
+        check_wl.open("../wordlist.txt"); // Tenta um nível acima se estiver na pasta build
+        if (check_wl.is_open()) wl = "../wordlist.txt";
+        else {
+            std::cerr << "❌ ERRO: wordlist.txt não encontrada! Baixe-a com o comando curl sugerido anteriormente." << std::endl;
+            return 1;
+        }
     }
-    check_wordlist.close();
+    check_wl.close();
 
     Blockchain bc;
     
-    // Carrega a chain existente do disco antes de qualquer operação
+    // 3. Carregar a Chain (Caminho relativo à raiz)
     if(!Storage::loadChain(bc, "data/blockchain.dat")) {
-        std::cout << "[INFO] Nenhuma blockchain local encontrada. Iniciando nova rede..." << std::endl;
+        std::cout << "[SISTEMA] Nenhuma blockchain local encontrada. Iniciando nova rede..." << std::endl;
     }
 
     // --- MODO TERMINAL (CLI) ---
-    // Se você digitar: ./mazechain mine [endereco]
     if (argc > 1) {
         std::string cmd = argv[1];
 
-        if (cmd == "mine" && argc > 2) {
-            std::string endereco = argv[2];
-            std::cout << "⛏️  Iniciando mineração via terminal para: " << endereco << std::endl;
-            
-            int altura_atual = (int)bc.getChain().size();
-            bc.mineBlock(endereco);
-
-            // Salva o progresso no disco após minerar
-            Storage::saveChain(bc, "data/blockchain.dat");
-            Storage::clearMempool("data/mempool.dat");
-
-            std::cout << "✅ Bloco #" << altura_atual << " minerado com sucesso!" << std::endl;
-            return 0; // Encerra o programa após minerar
-        }
-
+        // COMANDO: wallet create
         if (cmd == "wallet" && argc > 2 && std::string(argv[2]) == "create") {
             Wallet w;
-            w.create();
+            w.create(); // A função create() agora usará a 'wl' correta internamente ou o padrão
             std::cout << "\n✅ MAZECHAIN: CARTEIRA GERADA" << std::endl;
             std::cout << "ADDRESS: " << w.address << std::endl;
             std::cout << "SEED   : " << w.seed << std::endl;
-            return 0;
+            std::cout << "------------------------------------------" << std::endl;
+            return 0; // Finaliza para não abrir o servidor
+        }
+
+        // COMANDO: mine [endereco]
+        if (cmd == "mine" && argc > 2) {
+            std::string miner_addr = argv[2];
+            std::cout << "⛏️  Minerando bloco via terminal para: " << miner_addr << "..." << std::endl;
+            
+            bc.mineBlock(miner_addr);
+            Storage::saveChain(bc, "data/blockchain.dat");
+            Storage::clearMempool("data/mempool.dat");
+
+            std::cout << "✅ Sucesso! Bloco #" << (bc.getChain().size() - 1) << " minerado." << std::endl;
+            return 0; // Finaliza para não abrir o servidor
         }
     }
 
     // --- MODO SERVIDOR (API CROW) ---
-    // Se você rodar apenas: ./mazechain
     crow::App<CORS> app; 
 
     CROW_ROUTE(app, "/")([]() {
@@ -89,36 +98,26 @@ int main(int argc, char* argv[]) {
             res.set_header("Content-Type", "text/html; charset=UTF-8");
             return res;
         }
-        return crow::response(200, "MAZECHAIN NODE v2.1 - STATUS: ONLINE");
+        return crow::response(200, "MAZECHAIN NODE v2.1 - ONLINE");
     });
 
     CROW_ROUTE(app, "/status")([&bc]() {
         crow::json::wvalue x;
-        x["status"] = "online";
-        x["version"] = "2.1.0";
         x["blocks"] = (int)bc.getChain().size();
-        return crow::response(x);
+        x["supply"] = bc.getTotalSupply();
+        return x;
     });
 
     CROW_ROUTE(app, "/balance/<string>")([&bc](std::string endereco) {
-        double bal = bc.getBalance(endereco);
         crow::json::wvalue x;
         x["address"] = endereco;
-        x["balance_mz"] = bal;
-        return crow::response(x);
+        x["balance"] = bc.getBalance(endereco);
+        return x;
     });
 
-    CROW_ROUTE(app, "/minerar_agora/<string>")([&bc](std::string endereco) {
-        bc.mineBlock(endereco);
-        Storage::saveChain(bc, "data/blockchain.dat");
-        Storage::clearMempool("data/mempool.dat");
-        return crow::response(200, "OK");
-    });
-
-    // Configuração de porta para Render/Replit
     const char* port_ptr = std::getenv("PORT");
     int port = (port_ptr != nullptr) ? std::stoi(port_ptr) : 10000;
     
-    std::cout << "🚀 MazeChain API rodando na porta " << port << "..." << std::endl;
+    std::cout << "🚀 MazeChain API Online na porta " << port << "..." << std::endl;
     app.port(port).bindaddr("0.0.0.0").multithreaded().run();
 }
