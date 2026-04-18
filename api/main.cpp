@@ -30,6 +30,15 @@ struct CORS {
 };
 
 int main() {
+    // Verificação de segurança: a wordlist é essencial para o funcionamento das rotas de wallet
+    std::ifstream check_wordlist("wordlist.txt");
+    if (!check_wordlist.is_open()) {
+        std::cerr << "❌ ERRO: wordlist.txt nao encontrada! O servidor nao pode iniciar sem a lista BIP-39." << std::endl;
+        std::cerr << "Execute: curl -L https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt -o wordlist.txt" << std::endl;
+        return 1;
+    }
+    check_wordlist.close();
+
     crow::App<CORS> app; 
     Blockchain bc;
     
@@ -103,10 +112,10 @@ int main() {
         return crow::response(x);
     });
 
-    // --- NOVA CARTEIRA (BIP-39) ---
+    // --- NOVA CARTEIRA (BIP-39 - 12 PALAVRAS) ---
     CROW_ROUTE(app, "/wallet/new")([]() {
         Wallet w;
-        w.create();
+        w.create(); // Isso agora gera 12 palavras usando o wordlist.txt
         crow::json::wvalue result;
         result["address"] = w.address;
         result["seed"] = w.seed;
