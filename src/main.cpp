@@ -16,12 +16,10 @@
 #endif
 
 int main(int argc, char* argv[]) {
-    // 1. Garante a pasta de dados na raiz do projeto
-    if (MKDIR("data") != 0) {
-        // pasta pode já existir, então não tratamos como erro crítico
-    }
+    // 1. Garante a pasta de dados
+    MKDIR("data");
 
-    // 2. Verificação inteligente da wordlist
+    // 2. Verificação da wordlist
     std::string wordlist_path = "wordlist.txt";
     std::ifstream check_wordlist(wordlist_path);
 
@@ -39,14 +37,14 @@ int main(int argc, char* argv[]) {
     }
     check_wordlist.close();
 
-    // 3. Inicialização da Blockchain
+    // 3. Inicializa blockchain
     Blockchain bc;
 
     if (!Storage::loadChain(bc, "data/blockchain.dat")) {
         std::cout << "[INFO] Nenhuma blockchain encontrada. Criando nova.\n";
     }
 
-    // 4. Se não houver argumentos, ajuda
+    // 4. Ajuda
     if (argc < 2) {
         std::cout << "==========================================\n";
         std::cout << "          MAZECHAIN CORE v2.1              \n";
@@ -87,7 +85,7 @@ int main(int argc, char* argv[]) {
 
         bc.mineBlock(minerAddress);
 
-        // Correto (função é void)
+        // ✅ CORREÇÃO DEFINITIVA (SEM IF)
         Storage::saveChain(bc, "data/blockchain.dat");
         Storage::clearMempool("data/mempool.dat");
 
