@@ -63,22 +63,33 @@ void Blockchain::printStats() {
     std::cout << "==========================================\n" << std::endl;
 }
 
-// --- LÓGICA DE RECOMPENSA GARANTIDA ---
+// --- LÓGICA DE RECOMPENSA GARANTIDA (HALVING GEOMÉTRICO) ---
 double Blockchain::getBlockReward(int height) {
     if (totalSupply >= getMaxSupply()) return 0.0;
 
-    double reward = 0.0;
+    double reward = 2000.0; // Recompensa inicial
     
-    // Se a altura for menor ou igual a 1000, garante 2000 MZ
-    if (height >= 0 && height <= 1000) {
-        reward = 2000.0; 
-    } else if (height > 1000 && height <= 2000) {
-        reward = 1000.0; 
-    } else if (height > 2000 && height <= 4000) {
-        reward = 500.0;  
+    // Regra: Dobra a quantidade de blocos para cada halving
+    if (height <= 1000) {
+        reward = 2000.0;
+    } else if (height <= 2000) {
+        reward = 1000.0;
+    } else if (height <= 4000) {
+        reward = 500.0;
     } else {
-        int halvings = ((height - 4000) / 2000) + 3; 
-        reward = 4000.0 / std::pow(2, halvings);
+        // Para alturas maiores que 4000 (8000, 16000, 32000...)
+        int currentHalvingBlockLimit = 4000;
+        reward = 500.0;
+        
+        while (height > currentHalvingBlockLimit) {
+            currentHalvingBlockLimit *= 2; // Dobra o intervalo
+            reward /= 2.0;                 // Metade da recompensa
+            
+            if (reward < 0.00000001) {
+                reward = 0.0;
+                break;
+            }
+        }
     }
 
     if (totalSupply + reward > getMaxSupply()) {
@@ -157,6 +168,7 @@ void Blockchain::addBlock(const Block& block) {
     if (block.index >= chain.size()) {
         chain.push_back(block);
         if (block.index > 0) {
+            // Soma o valor real gerado na coinbase deste bloco ao supply total
             totalSupply += getBlockReward(block.index);
         }
         for(const auto& tx : block.transactions) {
