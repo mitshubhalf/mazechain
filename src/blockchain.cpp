@@ -63,13 +63,12 @@ void Blockchain::printStats() {
     std::cout << "==========================================\n" << std::endl;
 }
 
-// --- LÓGICA DE RECOMPENSA GARANTIDA (HALVING GEOMÉTRICO) ---
+// --- HALVING ---
 double Blockchain::getBlockReward(int height) {
     if (totalSupply >= getMaxSupply()) return 0.0;
 
-    double reward = 2000.0; // Recompensa inicial
+    double reward = 2000.0;
     
-    // Regra: Dobra a quantidade de blocos para cada halving
     if (height <= 1000) {
         reward = 2000.0;
     } else if (height <= 2000) {
@@ -77,13 +76,12 @@ double Blockchain::getBlockReward(int height) {
     } else if (height <= 4000) {
         reward = 500.0;
     } else {
-        // Para alturas maiores que 4000 (8000, 16000, 32000...)
         int currentHalvingBlockLimit = 4000;
         reward = 500.0;
         
         while (height > currentHalvingBlockLimit) {
-            currentHalvingBlockLimit *= 2; // Dobra o intervalo
-            reward /= 2.0;                 // Metade da recompensa
+            currentHalvingBlockLimit *= 2;
+            reward /= 2.0;
             
             if (reward < 0.00000001) {
                 reward = 0.0;
@@ -113,6 +111,9 @@ void Blockchain::mineBlock(std::string minerAddress) {
     std::map<std::string, double> spendingInThisBlock;
 
     for (const auto& tx : pending) {
+
+        if (tx.publicKey.empty()) continue; // proteção extra
+
         if (!verifyTransaction(tx)) continue;
         
         std::string sender = "";
@@ -129,15 +130,16 @@ void Blockchain::mineBlock(std::string minerAddress) {
         if (sender.empty()) continue;
 
         double currentBalance = getBalance(sender);
-        if (currentBalance - spendingInThisBlock[sender] >= (amountWithFee - 0.000000005)) {
+
+        if (currentBalance - spendingInThisBlock[sender] >= amountWithFee) {
             validTransactions.push_back(tx);
             spendingInThisBlock[sender] += amountWithFee;
-            double fee = amountWithFee - (amountWithFee / 1.01);
+
+            double fee = amountWithFee * 0.01; // mais preciso
             totalFees += std::max(0.0, fee);
         }
     }
 
-    // Calcula recompensa baseada na altura que o bloco TERÁ
     double subsidy = getBlockReward(static_cast<int>(chain.size()));
     double totalReward = subsidy + totalFees;
 
@@ -164,13 +166,15 @@ void Blockchain::mineBlock(std::string minerAddress) {
 }
 
 void Blockchain::addBlock(const Block& block) {
-    // Evita duplicar o supply se o bloco já existir (na carga inicial)
+
     if (block.index >= chain.size()) {
         chain.push_back(block);
+
         if (block.index > 0) {
-            // Soma o valor real gerado na coinbase deste bloco ao supply total
-            totalSupply += getBlockReward(block.index);
+            double reward = getBlockReward(block.index);
+            totalSupply += reward;
         }
+
         for(const auto& tx : block.transactions) {
             utxoSet.update(tx);
         }
@@ -180,6 +184,8 @@ void Blockchain::addBlock(const Block& block) {
 bool Blockchain::verifyTransaction(const Transaction& tx) {
     if (tx.signature == "coinbase") return true;
     
+    if (tx.publicKey.empty()) return false;
+
     std::string senderAddress = "";
     for (const auto& out : tx.vout) {
         if (out.amount < 0) {
@@ -218,8 +224,10 @@ double Blockchain::getBalance(std::string address) {
 
 void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
     double totalNeeded = amount * 1.01;
+
     if (amount <= 0) throw std::runtime_error("Valor invalido.");
     if (getBalance(from) < totalNeeded) throw std::runtime_error("Saldo insuficiente.");
+    if (seed.empty()) throw std::runtime_error("Seed invalida.");
 
     Transaction tx;
     tx.id = Crypto::sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(nullptr)));
@@ -234,7 +242,6 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
 
-// --- RESOLUÇÃO DOS ERROS DE REDEFINIÇÃO ---
 double Blockchain::getTotalSupply() const { 
     return totalSupply; 
 }
