@@ -10,6 +10,9 @@
 class Blockchain {
 private:
     std::vector<Block> chain;
+    // Lista interna de transações aguardando mineração
+    std::vector<Transaction> pendingTransactions; 
+    
     int difficulty;
     double totalSupply;
     
@@ -32,7 +35,6 @@ public:
     double getBlockReward(int height);
     double getBalance(std::string address);
     
-    // APENAS AS DECLARAÇÕES AQUI (A lógica fica no .cpp)
     double getTotalSupply() const;
     double getMaxSupply() const;
     
@@ -42,7 +44,9 @@ public:
     
     std::vector<Block> getChain() const;
     int getDifficulty() const;
-    std::vector<Transaction> getMempool() const; 
+
+    // FUNÇÃO CORRIGIDA PARA O MAIN.CPP:
+    std::vector<Transaction> getPendingTransactions() const { return pendingTransactions; }
 
     void printStats();
 };
