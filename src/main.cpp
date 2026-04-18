@@ -75,8 +75,8 @@ int main(int argc, char* argv[]) {
         
         bc.mineBlock(minerAddress);
         
-        // --- AQUI ESTAVA O ERRO ---
-        // A função saveChain agora é void, então apenas chamamos ela.
+        // --- CORREÇÃO APLICADA AQUI ---
+        // A função saveChain é void, portanto é chamada de forma isolada.
         Storage::saveChain(bc, "data/blockchain.dat");
         Storage::clearMempool("data/mempool.dat");
         
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
         std::cout << "--- HISTÓRICO DA BLOCKCHAIN ---\n";
         for (const auto& b : bc.getChain()) {
             std::cout << "Bloco #" << b.index 
-                      << " | Hash: " << b.hash.substr(0,16) << "..."
+                      << " | Hash: " << b.hash.substr(0,16) << "..." 
                       << " | Txs: " << b.transactions.size() << "\n";
         }
         return 0;
