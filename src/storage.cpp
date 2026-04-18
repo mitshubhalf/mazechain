@@ -26,7 +26,6 @@ void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     std::ofstream file(filename, std::ios::binary | std::ios::app);
     if (!file.is_open()) return;
 
-    // Grava metadados da transação
     int idSize = tx.id.size();
     file.write((char*)&idSize, sizeof(int));
     file.write(tx.id.c_str(), idSize);
@@ -39,7 +38,6 @@ void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     file.write((char*)&pubSize, sizeof(int));
     file.write(tx.publicKey.c_str(), pubSize);
 
-    // Grava saídas (Vouts)
     int vCount = tx.vout.size();
     file.write((char*)&vCount, sizeof(int));
     for (const auto& out : tx.vout) {
@@ -65,7 +63,8 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
         std::string sig(sigSize, ' '); file.read(&sig[0], sigSize);
         
         int pubSize; file.read((char*)&pubSize, sizeof(int));
-        std::string pub(pubSize, ' '); file.read(&pub[0], pubSize);
+        std::string pub(pubSize, ' '); 
+        if(pubSize > 0) file.read(&pub[0], pubSize); // Proteção contra pub vazia
         
         int vCount; file.read((char*)&vCount, sizeof(int));
         std::vector<TxOut> vouts;
@@ -140,7 +139,6 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
     int chainSize; 
     if(!file.read((char*)&chainSize, sizeof(int))) return false;
 
-    // IMPORTANTE: Limpamos para evitar duplicatas ao recarregar
     bc.clearChain();
 
     for (int i = 0; i < chainSize; i++) {
@@ -166,7 +164,8 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
             std::string sig(sS, ' '); file.read(&sig[0], sS);
             
             int pS; file.read((char*)&pS, sizeof(int));
-            std::string pub(pS, ' '); file.read(&pS != 0 ? &pub[0] : nullptr, pS);
+            std::string pub(pS, ' '); 
+            if(pS > 0) file.read(&pub[0], pS); // Melhorado aqui
             
             int outC; file.read((char*)&outC, sizeof(int));
             std::vector<TxOut> vouts;
@@ -180,13 +179,11 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
             txs.push_back(t);
         }
         
-        // Reconstrói o bloco com os dados lidos
         Block b(idx, ph, txs); 
         b.hash = h; 
         b.timestamp = ts; 
         b.nonce = n;
         
-        // addBlock vai atualizar o UTXOSet e o TotalSupply automaticamente
         bc.addBlock(b);
     }
     file.close();
