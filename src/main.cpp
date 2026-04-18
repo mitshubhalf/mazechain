@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
         mkdir("data", 0777);
     #endif
 
-    // 2. Verificação inteligente da wordlist (Procura na pasta atual ou na anterior)
+    // 2. Verificação inteligente da wordlist
     std::string wordlist_path = "wordlist.txt";
     std::ifstream check_wordlist(wordlist_path);
     if (!check_wordlist.is_open()) {
@@ -34,10 +34,10 @@ int main(int argc, char* argv[]) {
     Blockchain bc;
     Storage::loadChain(bc, "data/blockchain.dat");
 
-    // 4. Se não houver argumentos, mostra o menu de ajuda e encerra
+    // 4. Se não houver argumentos, ajuda
     if (argc < 2) {
         std::cout << "==========================================\n";
-        std::cout << "          MAZECHAIN CORE v2.1             \n";
+        std::cout << "          MAZECHAIN CORE v2.1              \n";
         std::cout << "    ECONOMY: 20M MZ | UNIT: MITS          \n";
         std::cout << "==========================================\n";
         std::cout << "Uso: ./mazechain [comando] [argumentos]\n\n";
@@ -53,7 +53,6 @@ int main(int argc, char* argv[]) {
 
     std::string cmd = argv[1];
 
-    // --- COMANDO: WALLET CREATE ---
     if (cmd == "wallet" && argc > 2 && std::string(argv[2]) == "create") {
         Wallet w;
         w.create();
@@ -63,26 +62,26 @@ int main(int argc, char* argv[]) {
         std::cout << "SEED   : " << w.seed << "\n";
         std::cout << "⚠️ Guarde sua SEED em lugar seguro!\n";
         std::cout << "------------------------------------------\n";
-        return 0; // Finaliza aqui para não abrir servidor
+        return 0;
     }
 
-    // --- COMANDO: MINE ---
     else if (cmd == "mine" && argc > 2) {
         std::string minerAddress = argv[2];
         std::cout << "⛏️ Iniciando mineração para: " << minerAddress << "...\n";
         
         bc.mineBlock(minerAddress);
         
-        if (Storage::saveChain(bc, "data/blockchain.dat")) {
+        // CORREÇÃO TÉCNICA: saveChain é void. Chamamos e depois confirmamos.
+        try {
+            Storage::saveChain(bc, "data/blockchain.dat");
             Storage::clearMempool("data/mempool.dat");
             std::cout << "✅ Bloco #" << (bc.getChain().size() - 1) << " minerado e salvo!\n";
-        } else {
-            std::cerr << "❌ ERRO ao salvar blockchain.\n";
+        } catch (const std::exception& e) {
+            std::cerr << "❌ ERRO ao salvar blockchain: " << e.what() << "\n";
         }
         return 0;
     }
 
-    // --- COMANDO: BALANCE ---
     else if (cmd == "balance" && argc > 2) {
         double balance = bc.getBalance(argv[2]);
         std::cout << "------------------------------------------\n";
@@ -93,7 +92,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // --- COMANDO: SEND ---
     else if (cmd == "send" && argc > 5) {
         try {
             bc.send(argv[2], argv[3], std::stod(argv[4]), argv[5]);
@@ -104,7 +102,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // --- COMANDO: CHAIN ---
     else if (cmd == "chain") {
         std::cout << "--- HISTÓRICO DA BLOCKCHAIN ---\n";
         for (const auto& b : bc.getChain()) {
@@ -115,7 +112,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // --- COMANDO: STATS ---
     else if (cmd == "stats") {
         std::cout << "--- ESTATÍSTICAS DA REDE ---\n";
         std::cout << "Blocos: " << bc.getChain().size() << "\n";
