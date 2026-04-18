@@ -75,15 +75,12 @@ int main(int argc, char* argv[]) {
         
         bc.mineBlock(minerAddress);
         
-        // CORREÇÃO TÉCNICA: saveChain é void. 
-        // Não usamos mais 'if (Storage::saveChain)', apenas chamamos a função.
-        try {
-            Storage::saveChain(bc, "data/blockchain.dat");
-            Storage::clearMempool("data/mempool.dat");
-            std::cout << "✅ Bloco #" << (bc.getChain().size() - 1) << " minerado e salvo!\n";
-        } catch (const std::exception& e) {
-            std::cerr << "❌ ERRO ao salvar blockchain: " << e.what() << "\n";
-        }
+        // --- AQUI ESTAVA O ERRO ---
+        // A função saveChain agora é void, então apenas chamamos ela.
+        Storage::saveChain(bc, "data/blockchain.dat");
+        Storage::clearMempool("data/mempool.dat");
+        
+        std::cout << "✅ Bloco #" << (bc.getChain().size() - 1) << " minerado e salvo!\n";
         return 0;
     }
 
