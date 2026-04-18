@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
 
         bc.mineBlock(minerAddress);
 
-        // ✅ CORREÇÃO DEFINITIVA (SEM IF)
+        // ✅ CORREÇÃO: sem if
         Storage::saveChain(bc, "data/blockchain.dat");
         Storage::clearMempool("data/mempool.dat");
 
