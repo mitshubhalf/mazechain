@@ -17,19 +17,63 @@ Blockchain::Blockchain() {
     difficulty = 4;
     totalSupply = 0;
     
-    try {
-        utxoSet.loadFromFile("data/utxo.dat");
-    } catch (...) {
-        std::cerr << "[ERRO] Falha ao carregar UTXO.dat. Iniciando novo conjunto." << std::endl;
-    }
-
-    if (chain.empty()) {
+    // 1. Tenta carregar a Blockchain primeiro (ela é a base da verdade)
+    std::vector<Block> loadedChain = Storage::loadChain("data/blockchain.dat");
+    
+    if (loadedChain.empty()) {
         std::vector<Transaction> genesisTxs;
         Block genesis(0, "0", genesisTxs);
         genesis.hash = genesis.calculateHash(); 
         chain.push_back(genesis);
         std::cout << "[SISTEMA] Bloco Gênesis estabelecido com sucesso." << std::endl;
+    } else {
+        chain.push_back(loadedChain[0]); 
+        
+        for (size_t i = 1; i < loadedChain.size(); i++) {
+            const Block& current = loadedChain[i];
+            const Block& prev = chain.back();
+
+            bool hashOk = (current.hash == current.calculateHash());
+            bool linkOk = (current.prevHash == prev.hash);
+            std::string target(difficulty, '0');
+            bool diffOk = (current.hash.substr(0, difficulty) == target);
+
+            if (hashOk && linkOk && diffOk) {
+                chain.push_back(current);
+            } else {
+                std::cout << "⚠️ [ALERTA] Bloco #" << i << " inválido detectado no disco!" << std::endl;
+                std::cout << "⚠️ A chain será truncada no bloco #" << (i-1) << " para evitar corrupção." << std::endl;
+                break; 
+            }
+        }
+        std::cout << "✅ Blockchain carregada com sucesso. Altura: " << chain.size() << std::endl;
     }
+
+    // 2 & 3. RECONSTRUÇÃO DO ESTADO (UTXO e Supply)
+    // Em vez de confiar no utxo.dat, nós o reconstruímos a partir da chain validada
+    rebuildUTXO();
+}
+
+void Blockchain::rebuildUTXO() {
+    std::cout << "🔄 Sincronizando saldos com a blockchain..." << std::endl;
+    utxoSet.utxos.clear(); // Limpa o estado antigo
+    totalSupply = 0;       // Zera o supply para recontar
+
+    for (const auto& block : chain) {
+        // Recontar o supply (apenas o subsídio, taxas não geram novas moedas)
+        if (block.index > 0) {
+            totalSupply += getBlockReward(block.index);
+        }
+
+        // Reprocessa cada transação para reconstruir o mapa de saldos exato
+        for (const auto& tx : block.transactions) {
+            utxoSet.update(tx);
+        }
+    }
+    
+    // Salva o estado limpo e sincronizado
+    utxoSet.saveToFile("data/utxo.dat");
+    std::cout << "✅ Saldos sincronizados. Supply total: " << totalSupply << " MZ" << std::endl;
 }
 
 void Blockchain::clearChain() {
@@ -63,44 +107,33 @@ void Blockchain::printStats() {
     std::cout << "==========================================\n" << std::endl;
 }
 
-// --- HALVING (Lógica Original Mantida) ---
 double Blockchain::getBlockReward(int height) {
-    if (totalSupply >= getMaxSupply()) return 0.0;
-
+    // Calculamos baseado na altura informada, não no totalSupply atual
+    // para permitir a reconstrução precisa.
     double reward = 2000.0;
-    
-    if (height <= 1000) {
-        reward = 2000.0;
-    } else if (height <= 2000) {
-        reward = 1000.0;
-    } else if (height <= 4000) {
-        reward = 500.0;
-    } else {
+    if (height <= 1000) reward = 2000.0;
+    else if (height <= 2000) reward = 1000.0;
+    else if (height <= 4000) reward = 500.0;
+    else {
         int currentHalvingBlockLimit = 4000;
         reward = 500.0;
-        
         while (height > currentHalvingBlockLimit) {
             currentHalvingBlockLimit *= 2;
             reward /= 2.0;
-            
-            if (reward < 0.00000001) {
-                reward = 0.0;
-                break;
-            }
+            if (reward < 0.00000001) { reward = 0.0; break; }
         }
     }
-
-    if (totalSupply + reward > getMaxSupply()) {
-        reward = std::max(0.0, getMaxSupply() - totalSupply);
-    }
-
-    return (reward < 0.00000001) ? 0.0 : reward;
+    return reward;
 }
 
-// --- MINE BLOCK (Melhorado para processar Mempool corretamente) ---
 void Blockchain::mineBlock(std::string minerAddress) {
     if (minerAddress.length() < 30 || minerAddress.substr(0, 2) != "MZ") {
         std::cout << "❌ ERRO: Endereço de minerador inválido!" << std::endl;
+        return;
+    }
+
+    if (!isChainValid()) {
+        std::cout << "❌ ERRO: Chain em memória inválida. Abortando mineração." << std::endl;
         return;
     }
 
@@ -123,7 +156,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
         double amountWithFee = 0;
         double netValue = 0;
         
-        // Identifica o remetente (valor negativo) e o valor enviado (valor positivo)
         for (const auto& out : tx.vout) {
             if (out.amount < 0) { 
                 sender = out.address; 
@@ -137,12 +169,10 @@ void Blockchain::mineBlock(std::string minerAddress) {
 
         double currentBalance = getBalance(sender);
         
-        // Validação de saldo considerando outras transações do mesmo remetente no bloco
         if (currentBalance - spendingInThisBlock[sender] >= amountWithFee) {
             validTransactions.push_back(tx);
             spendingInThisBlock[sender] += amountWithFee;
 
-            // A taxa é a diferença entre o que saiu da carteira e o que chegou no destino
             double fee = amountWithFee - netValue;
             totalFees += std::max(0.0, fee);
         } else {
@@ -153,7 +183,6 @@ void Blockchain::mineBlock(std::string minerAddress) {
     double subsidy = getBlockReward(static_cast<int>(chain.size()));
     double totalReward = subsidy + totalFees;
 
-    // Transação Coinbase
     Transaction coinbase;
     coinbase.id = "coinbase_h" + std::to_string(chain.size()) + "_" + std::to_string(std::time(nullptr));
     coinbase.vout.push_back({minerAddress, totalReward});
@@ -171,6 +200,7 @@ void Blockchain::mineBlock(std::string minerAddress) {
     
     addBlock(newBlock);
     
+    // IMPORTANTE: Storage::saveChain deve usar std::ios::trunc para limpar o lixo antigo do arquivo
     Storage::saveChain(*this, "data/blockchain.dat");
     utxoSet.saveToFile("data/utxo.dat"); 
     Storage::clearMempool("data/mempool.dat");
@@ -182,7 +212,6 @@ void Blockchain::addBlock(const Block& block) {
     if (block.index >= chain.size()) {
         chain.push_back(block);
 
-        // Atualiza o supply apenas com o subsídio (as taxas são moedas já existentes circulando)
         if (block.index > 0) {
             double reward = getBlockReward(block.index);
             totalSupply += reward;
@@ -208,7 +237,6 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
 
     if (senderAddress.empty()) return false;
 
-    // Validação da Derivação do Endereço (Original)
     std::string h1 = Crypto::sha256_util(tx.publicKey);
     std::string expectedAddress = "MZ" + Crypto::sha256_util(h1 + "SALT_MAZE_2026_PRODUCTION").substr(0, 32);
     
@@ -236,7 +264,6 @@ double Blockchain::getBalance(std::string address) {
 }
 
 void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
-    // Taxa de 1% calculada sobre o valor enviado
     double fee = amount * 0.01;
     double totalNeeded = amount + fee;
 
@@ -246,8 +273,8 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 
     Transaction tx;
     tx.id = Crypto::sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(nullptr)));
-    tx.vout.push_back({to, amount});              // Saída para o destino
-    tx.vout.push_back({from, totalNeeded * -1}); // "Saída" negativa indicando o gasto total da carteira
+    tx.vout.push_back({to, amount});
+    tx.vout.push_back({from, totalNeeded * -1}); 
     tx.publicKey = seed;
     tx.signature = "SIG_" + Crypto::sha256_util(seed + tx.id).substr(0, 24);
     
@@ -256,11 +283,5 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
-
-double Blockchain::getTotalSupply() const { 
-    return totalSupply; 
-}
-
-double Blockchain::getMaxSupply() const { 
-    return 20000000.0; 
-}
+double Blockchain::getTotalSupply() const { return totalSupply; }
+double Blockchain::getMaxSupply() const { return 20000000.0; }
