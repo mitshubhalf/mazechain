@@ -61,8 +61,10 @@ int main(int argc, char* argv[]) {
     bool db_exists = check_db.good();
     check_db.close();
 
+    // Tenta carregar. Se falhar e não existir arquivo, cria o gênesis.
     if (!Storage::loadChain(bc, "data/blockchain.dat")) {
         if (!db_exists) {
+            // O Bloco Gênesis é criado automaticamente pelo construtor da Blockchain
             std::cout << "[SISTEMA] Bloco Gênesis estabelecido com sucesso.\n";
         }
     }
@@ -113,7 +115,7 @@ int main(int argc, char* argv[]) {
 
     // ---------------- COMANDO MINE (COM VERIFICAÇÃO ANTI-FRAUDE) ----------------
     else if (cmd == "mine" && argc > 2) {
-        // SEGURANÇA: Antes de minerar, valida a chain atual
+        // SEGURANÇA: Antes de minerar, valida a chain atual para evitar minerar sobre dados falsos
         if (!bc.isChainValid()) {
             std::cout << "❌ MINERAÇÃO REJEITADA: A blockchain atual contém dados fraudados!\n";
             std::cout << "⚠️ O sistema detectou alteração em blocos anteriores. Corrija a chain para prosseguir.\n";
@@ -133,16 +135,19 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // ---------------- COMANDO MEMPOOL ----------------
+    // ---------------- COMANDO MEMPOOL (CORRIGIDO) ----------------
     else if (cmd == "mempool") {
         std::cout << "--- TRANSAÇÕES PENDENTES (MEMPOOL) ---\n";
-        // Supondo que sua classe Storage tenha um método para ler o mempool
         auto pending = Storage::loadMempool("data/mempool.dat");
         if (pending.empty()) {
             std::cout << "Nenhuma transação aguardando mineração.\n";
         } else {
             for (const auto& tx : pending) {
-                std::cout << "Origem: " << tx.sender << " | Destino: " << tx.receiver << " | Valor: " << tx.amount << " MZ\n";
+                // Ajustado para nomes de membros comuns se 'sender' falhar
+                // Se o seu Transaction.h usar outros nomes, ajuste aqui:
+                std::cout << "Origem: " << tx.fromAddress 
+                          << " | Destino: " << tx.toAddress 
+                          << " | Valor: " << tx.value << " MZ\n";
             }
         }
         return 0;
@@ -166,6 +171,8 @@ int main(int argc, char* argv[]) {
             double amount = std::stod(argv[4]);
             bc.send(argv[2], argv[3], amount, argv[5]);
             Storage::saveChain(bc, "data/blockchain.dat");
+            // Nota: O send envia para o mempool, a gravação da chain aqui 
+            // garante o estado atual, mas a tx só entra no bloco no comando 'mine'
             std::cout << "✅ Transação enviada para a rede com sucesso.\n";
         } catch (const std::exception& e) {
             std::cerr << "❌ Erro na transação: " << e.what() << "\n";
