@@ -21,6 +21,9 @@ private:
 
     void adjustDifficulty();
     int getCurrentCycle(int height);
+    
+    // NOVO: Função para reconstruir o estado de saldos a partir da chain
+    void rebuildUTXO();
 
 public:
     UTXOSet utxoSet; 
@@ -45,7 +48,7 @@ public:
     std::vector<Block> getChain() const;
     int getDifficulty() const;
 
-    // FUNÇÃO CORRIGIDA PARA O MAIN.CPP:
+    // Função para o main.cpp acessar a mempool
     std::vector<Transaction> getPendingTransactions() const { return pendingTransactions; }
 
     void printStats();
