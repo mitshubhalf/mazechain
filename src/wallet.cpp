@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 
+// Construtor
 Wallet::Wallet() {
     address = "";
     seed = "";
@@ -28,16 +29,15 @@ void Wallet::create() {
     // 2. Validação Crítica da Wordlist
     if (wordlist.size() < 2048) {
         std::cout << "\n❌ ERRO CRITICO: wordlist.txt incompleta ou nao encontrada!" << std::endl;
-        std::cout << "Rode: curl -L https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt -o wordlist.txt" << std::endl;
+        std::cout << "Certifique-se de que o arquivo wordlist.txt esta na mesma pasta do executavel." << std::endl;
         return; 
     }
 
-    // 3. Seleção Aleatória Segura (Sorteio, não embaralhamento da lista toda)
+    // 3. Seleção Aleatória Segura
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(0, 2047);
 
-    // Definimos 12 palavras como padrão, mas o código suporta 24
     int numWords = 12; 
     std::string tempSeed = "";
 
@@ -48,14 +48,6 @@ void Wallet::create() {
 
     // 4. Gerar Endereço a partir da Seed sorteada
     fromSeed(tempSeed);
-
-    // 5. Output Formatado conforme seu padrão
-    std::cout << "\n==========================================" << std::endl;
-    std::cout << "✅ MAZECHAIN: CARTEIRA GERADA (" << numWords << "W)" << std::endl;
-    std::cout << "ADDRESS : " << this->address << std::endl;
-    std::cout << "SEED    : " << this->seed << std::endl;
-    std::cout << "AVISO   : Nunca compartilhe sua SEED!" << std::endl;
-    std::cout << "==========================================\n" << std::endl;
 }
 
 void Wallet::fromSeed(const std::string& existingSeed) {
@@ -68,6 +60,15 @@ void Wallet::fromSeed(const std::string& existingSeed) {
     // 2. Salt Temporal MazeChain 2026
     std::string h2 = Crypto::sha256_util(h1 + "SALT_MAZE_2026_PRODUCTION");
     
-    // 3. Endereço formatado com 34 caracteres
+    // 3. Endereço formatado com prefixo MZ + 32 caracteres do hash
     this->address = "MZ" + h2.substr(0, 32);
+}
+
+// ✅ MELHORIA: Implementação da função Sign necessária para transações
+std::string Wallet::sign(const std::string& message) {
+    // Em uma blockchain real, usaríamos ECDSA (Chave Privada).
+    // Para a MazeChain v2.1, usamos um Hash Assinado (HMAC-style)
+    // que prova que você possui a SEED original.
+    std::string signature = Crypto::sha256_util(this->seed + message + "MAZE_SIG_V2");
+    return signature;
 }
