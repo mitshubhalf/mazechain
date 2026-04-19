@@ -8,7 +8,7 @@
 #include <iomanip>
 
 void print_usage() {
-    std::cout << "\nUsage: ./maze_test <command> [subcommand] [args]\n\n";
+    std::cout << "\nUsage: ./mazechain <command> [subcommand] [args]\n\n";
     std::cout << "Commands:\n";
     std::cout << "  wallet create              Create a new wallet (address + seed)\n";
     std::cout << "  wallet from-seed <seed>    Recover wallet address from existing seed\n";
@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
     // --- WALLET COMMANDS ---
     if (cmd == "wallet") {
         if (argc < 3) {
-            std::cout << "Usage: ./maze_test wallet <create|from-seed>\n";
+            std::cout << "Usage: ./mazechain wallet <create|from-seed>\n";
             return 1;
         }
 
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
 
         if (sub == "from-seed") {
             if (argc < 4) {
-                std::cout << "Usage: ./maze_test wallet from-seed \"<12-word seed>\"\n";
+                std::cout << "Usage: ./mazechain wallet from-seed \"<12-word seed>\"\n";
                 return 1;
             }
             std::string seed = "";
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
     // --- BALANCE COMMAND ---
     if (cmd == "balance") {
         if (argc < 3) {
-            std::cout << "Usage: ./maze_test balance <address>\n";
+            std::cout << "Usage: ./mazechain balance <address>\n";
             return 1;
         }
         Blockchain bc;
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
     // --- CHAIN COMMANDS ---
     if (cmd == "chain") {
         if (argc < 3) {
-            std::cout << "Usage: ./maze_test chain <stats|validate>\n";
+            std::cout << "Usage: ./mazechain chain <stats|validate>\n";
             return 1;
         }
         std::string sub = argv[2];
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
     // --- MINE COMMAND ---
     if (cmd == "mine") {
         if (argc < 3) {
-            std::cout << "Usage: ./maze_test mine <address>\n";
+            std::cout << "Usage: ./mazechain mine <address>\n";
             return 1;
         }
         Blockchain bc;
@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
     // --- SEND COMMAND ---
     if (cmd == "send") {
         if (argc < 6) {
-            std::cout << "Usage: ./maze_test send <from> <to> <amount> <seed>\n";
+            std::cout << "Usage: ./mazechain send <from> <to> <amount> <seed>\n";
             return 1;
         }
         Blockchain bc;
