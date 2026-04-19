@@ -30,6 +30,7 @@ void print_full_usage() {
     std::cout << "  mine [endereco]              - Minera um bloco para o endereço\n";
     std::cout << "  balance [endereco]           - Consulta saldo e unidades Mits\n";
     std::cout << "  send [de] [para] [qtd] [seed] - Envia MZ tokens\n";
+    std::cout << "  mempool                      - Lista transações aguardando mineração\n";
     std::cout << "  chain                        - Lista o histórico de blocos\n";
     std::cout << "  chain stats                  - Estatísticas e Supply da rede\n";
     std::cout << "  chain validate               - Valida integridade total da chain\n";
@@ -49,16 +50,21 @@ int main(int argc, char* argv[]) {
             wordlist_path = "../wordlist.txt";
         } else {
             std::cerr << "❌ ERRO: wordlist.txt não encontrada!\n";
-            std::cerr << "Execute: curl -L https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt -o wordlist.txt\n";
             return 1;
         }
     }
     check_wordlist.close();
 
-    // 3. Inicializa e carrega blockchain
+    // 3. Inicializa e carrega blockchain (Silencioso se já existir)
     Blockchain bc;
+    std::ifstream check_db("data/blockchain.dat");
+    bool db_exists = check_db.good();
+    check_db.close();
+
     if (!Storage::loadChain(bc, "data/blockchain.dat")) {
-        std::cout << "[INFO] Nenhuma blockchain encontrada. Iniciando Bloco Gênesis.\n";
+        if (!db_exists) {
+            std::cout << "[SISTEMA] Bloco Gênesis estabelecido com sucesso.\n";
+        }
     }
 
     if (argc < 2) {
@@ -92,7 +98,6 @@ int main(int argc, char* argv[]) {
                 std::cout << "Erro: Forneça a seed entre aspas.\n";
                 return 1;
             }
-            // Reconstrói a seed caso ela venha como múltiplos argumentos
             std::string full_seed = "";
             for (int i = 3; i < argc; i++) {
                 if (i > 3) full_seed += " ";
@@ -102,13 +107,19 @@ int main(int argc, char* argv[]) {
             w.fromSeed(full_seed);
             std::cout << "\n✅ Carteira Recuperada:\n";
             std::cout << "ADDRESS: " << w.address << "\n";
-            std::cout << "SEED   : " << w.seed << "\n";
             return 0;
         }
     }
 
-    // ---------------- COMANDO MINE ----------------
+    // ---------------- COMANDO MINE (COM VERIFICAÇÃO ANTI-FRAUDE) ----------------
     else if (cmd == "mine" && argc > 2) {
+        // SEGURANÇA: Antes de minerar, valida a chain atual
+        if (!bc.isChainValid()) {
+            std::cout << "❌ MINERAÇÃO REJEITADA: A blockchain atual contém dados fraudados!\n";
+            std::cout << "⚠️ O sistema detectou alteração em blocos anteriores. Corrija a chain para prosseguir.\n";
+            return 1;
+        }
+
         std::string minerAddress = argv[2];
         int height = (int)bc.getChain().size();
         std::cout << "⛏️ Iniciando mineração do bloco #" << height << "...\n";
@@ -119,6 +130,21 @@ int main(int argc, char* argv[]) {
 
         std::cout << "✅ Bloco minerado com sucesso!\n";
         std::cout << "🎁 Recompensa: " << bc.getBlockReward(height) << " MZ\n";
+        return 0;
+    }
+
+    // ---------------- COMANDO MEMPOOL ----------------
+    else if (cmd == "mempool") {
+        std::cout << "--- TRANSAÇÕES PENDENTES (MEMPOOL) ---\n";
+        // Supondo que sua classe Storage tenha um método para ler o mempool
+        auto pending = Storage::loadMempool("data/mempool.dat");
+        if (pending.empty()) {
+            std::cout << "Nenhuma transação aguardando mineração.\n";
+        } else {
+            for (const auto& tx : pending) {
+                std::cout << "Origem: " << tx.sender << " | Destino: " << tx.receiver << " | Valor: " << tx.amount << " MZ\n";
+            }
+        }
         return 0;
     }
 
@@ -139,7 +165,7 @@ int main(int argc, char* argv[]) {
         try {
             double amount = std::stod(argv[4]);
             bc.send(argv[2], argv[3], amount, argv[5]);
-            Storage::saveChain(bc, "data/blockchain.dat"); // Opcional salvar auto
+            Storage::saveChain(bc, "data/blockchain.dat");
             std::cout << "✅ Transação enviada para a rede com sucesso.\n";
         } catch (const std::exception& e) {
             std::cerr << "❌ Erro na transação: " << e.what() << "\n";
@@ -157,7 +183,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Blocos Minerados: " << bc.getChain().size() << "\n";
             std::cout << std::fixed << std::setprecision(8);
             std::cout << "Circulação Total: " << bc.getTotalSupply() << " MZ\n";
-            bc.printStats(); // Chama função interna se houver
+            bc.printStats();
         } 
         else if (sub == "validate") {
             std::cout << "\n🔍 Verificando integridade da blockchain...\n";
