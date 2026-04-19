@@ -63,7 +63,7 @@ void Blockchain::printStats() {
     std::cout << "==========================================\n" << std::endl;
 }
 
-// --- HALVING ---
+// --- HALVING (Lógica Original Mantida) ---
 double Blockchain::getBlockReward(int height) {
     if (totalSupply >= getMaxSupply()) return 0.0;
 
@@ -97,6 +97,7 @@ double Blockchain::getBlockReward(int height) {
     return (reward < 0.00000001) ? 0.0 : reward;
 }
 
+// --- MINE BLOCK (Melhorado para processar Mempool corretamente) ---
 void Blockchain::mineBlock(std::string minerAddress) {
     if (minerAddress.length() < 30 || minerAddress.substr(0, 2) != "MZ") {
         std::cout << "❌ ERRO: Endereço de minerador inválido!" << std::endl;
@@ -111,38 +112,48 @@ void Blockchain::mineBlock(std::string minerAddress) {
     std::map<std::string, double> spendingInThisBlock;
 
     for (const auto& tx : pending) {
+        if (tx.publicKey.empty()) continue; 
 
-        if (tx.publicKey.empty()) continue; // proteção extra
-
-        if (!verifyTransaction(tx)) continue;
+        if (!verifyTransaction(tx)) {
+            std::cout << "⚠️ Tx ignorada: Falha na assinatura/verificação." << std::endl;
+            continue;
+        }
         
         std::string sender = "";
         double amountWithFee = 0;
+        double netValue = 0;
         
+        // Identifica o remetente (valor negativo) e o valor enviado (valor positivo)
         for (const auto& out : tx.vout) {
             if (out.amount < 0) { 
                 sender = out.address; 
                 amountWithFee = std::abs(out.amount); 
-                break;
+            } else {
+                netValue += out.amount;
             }
         }
 
         if (sender.empty()) continue;
 
         double currentBalance = getBalance(sender);
-
+        
+        // Validação de saldo considerando outras transações do mesmo remetente no bloco
         if (currentBalance - spendingInThisBlock[sender] >= amountWithFee) {
             validTransactions.push_back(tx);
             spendingInThisBlock[sender] += amountWithFee;
 
-            double fee = amountWithFee * 0.01; // mais preciso
+            // A taxa é a diferença entre o que saiu da carteira e o que chegou no destino
+            double fee = amountWithFee - netValue;
             totalFees += std::max(0.0, fee);
+        } else {
+            std::cout << "⚠️ Tx ignorada: Saldo insuficiente para " << sender << std::endl;
         }
     }
 
     double subsidy = getBlockReward(static_cast<int>(chain.size()));
     double totalReward = subsidy + totalFees;
 
+    // Transação Coinbase
     Transaction coinbase;
     coinbase.id = "coinbase_h" + std::to_string(chain.size()) + "_" + std::to_string(std::time(nullptr));
     coinbase.vout.push_back({minerAddress, totalReward});
@@ -154,6 +165,8 @@ void Blockchain::mineBlock(std::string minerAddress) {
     blockTxs.insert(blockTxs.end(), validTransactions.begin(), validTransactions.end());
 
     Block newBlock(static_cast<int>(chain.size()), chain.back().hash, blockTxs);
+    
+    std::cout << "⛏️ Iniciando busca de Hash (Dificuldade: " << difficulty << ")..." << std::endl;
     newBlock.mine(difficulty);
     
     addBlock(newBlock);
@@ -162,14 +175,14 @@ void Blockchain::mineBlock(std::string minerAddress) {
     utxoSet.saveToFile("data/utxo.dat"); 
     Storage::clearMempool("data/mempool.dat");
 
-    std::cout << "🎯 Bloco #" << newBlock.index << " OK! Recompensa: " << subsidy << " MZ" << std::endl;
+    std::cout << "🎯 Bloco #" << newBlock.index << " OK! Txs: " << blockTxs.size() << " | Recompensa: " << subsidy << " MZ + " << totalFees << " Fees" << std::endl;
 }
 
 void Blockchain::addBlock(const Block& block) {
-
     if (block.index >= chain.size()) {
         chain.push_back(block);
 
+        // Atualiza o supply apenas com o subsídio (as taxas são moedas já existentes circulando)
         if (block.index > 0) {
             double reward = getBlockReward(block.index);
             totalSupply += reward;
@@ -183,7 +196,6 @@ void Blockchain::addBlock(const Block& block) {
 
 bool Blockchain::verifyTransaction(const Transaction& tx) {
     if (tx.signature == "coinbase") return true;
-    
     if (tx.publicKey.empty()) return false;
 
     std::string senderAddress = "";
@@ -196,6 +208,7 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
 
     if (senderAddress.empty()) return false;
 
+    // Validação da Derivação do Endereço (Original)
     std::string h1 = Crypto::sha256_util(tx.publicKey);
     std::string expectedAddress = "MZ" + Crypto::sha256_util(h1 + "SALT_MAZE_2026_PRODUCTION").substr(0, 32);
     
@@ -223,7 +236,9 @@ double Blockchain::getBalance(std::string address) {
 }
 
 void Blockchain::send(std::string from, std::string to, double amount, std::string seed) {
-    double totalNeeded = amount * 1.01;
+    // Taxa de 1% calculada sobre o valor enviado
+    double fee = amount * 0.01;
+    double totalNeeded = amount + fee;
 
     if (amount <= 0) throw std::runtime_error("Valor invalido.");
     if (getBalance(from) < totalNeeded) throw std::runtime_error("Saldo insuficiente.");
@@ -231,8 +246,8 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 
     Transaction tx;
     tx.id = Crypto::sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(nullptr)));
-    tx.vout.push_back({to, amount});
-    tx.vout.push_back({from, totalNeeded * -1});
+    tx.vout.push_back({to, amount});              // Saída para o destino
+    tx.vout.push_back({from, totalNeeded * -1}); // "Saída" negativa indicando o gasto total da carteira
     tx.publicKey = seed;
     tx.signature = "SIG_" + Crypto::sha256_util(seed + tx.id).substr(0, 24);
     
