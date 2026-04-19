@@ -28,6 +28,9 @@ void print_full_usage() {
     std::cout << "  wallet from-seed \"<seed>\"    - Recupera endereço através da seed\n";
     std::cout << "\nComandos de Rede:\n";
     std::cout << "  mine [endereco]              - Minera um bloco para o endereço\n";
+    #ifdef IMAGE_SUPPORT
+    // 
+    #endif
     std::cout << "  balance [endereco]           - Consulta saldo e unidades Mits\n";
     std::cout << "  send [de] [para] [qtd] [seed] - Envia MZ tokens\n";
     std::cout << "  mempool                      - Lista transações aguardando mineração\n";
@@ -41,7 +44,7 @@ int main(int argc, char* argv[]) {
     // 1. Garante a pasta de dados
     MKDIR("data");
 
-    // 2. Verificação da wordlist
+    // 2. Verificação da wordlist para as sementes (BIP-39 style)
     std::string wordlist_path = "wordlist.txt";
     std::ifstream check_wordlist(wordlist_path);
     if (!check_wordlist.is_open()) {
@@ -135,7 +138,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // ---------------- COMANDO MEMPOOL (CORRIGIDO) ----------------
+    // ---------------- COMANDO MEMPOOL (VERSÃO UTXO) ----------------
     else if (cmd == "mempool") {
         std::cout << "--- TRANSAÇÕES PENDENTES (MEMPOOL) ---\n";
         auto pending = Storage::loadMempool("data/mempool.dat");
@@ -143,11 +146,20 @@ int main(int argc, char* argv[]) {
             std::cout << "Nenhuma transação aguardando mineração.\n";
         } else {
             for (const auto& tx : pending) {
-                // Ajustado para nomes de membros comuns se 'sender' falhar
-                // Se o seu Transaction.h usar outros nomes, ajuste aqui:
-                std::cout << "Origem: " << tx.fromAddress 
-                          << " | Destino: " << tx.toAddress 
-                          << " | Valor: " << tx.value << " MZ\n";
+                // Implementação compatível com seu Transaction.h (UTXO)
+                if (!tx.vout.empty()) {
+                    // Exibimos a primeira saída como referência principal
+                    std::cout << "ID: " << tx.id.substr(0,10) << "..."
+                              << " | Destino: " << tx.vout[0].address 
+                              << " | Valor: " << tx.vout[0].amount << " MZ\n";
+                    
+                    // Se houver mais saídas (como troco), sinaliza
+                    if (tx.vout.size() > 1) {
+                        std::cout << "   [+] Possui mais " << tx.vout.size() - 1 << " saídas vinculadas.\n";
+                    }
+                } else {
+                    std::cout << "ID: " << tx.id.substr(0,10) << "... | Transação sem saídas (Vout vazio).\n";
+                }
             }
         }
         return 0;
@@ -171,8 +183,6 @@ int main(int argc, char* argv[]) {
             double amount = std::stod(argv[4]);
             bc.send(argv[2], argv[3], amount, argv[5]);
             Storage::saveChain(bc, "data/blockchain.dat");
-            // Nota: O send envia para o mempool, a gravação da chain aqui 
-            // garante o estado atual, mas a tx só entra no bloco no comando 'mine'
             std::cout << "✅ Transação enviada para a rede com sucesso.\n";
         } catch (const std::exception& e) {
             std::cerr << "❌ Erro na transação: " << e.what() << "\n";
