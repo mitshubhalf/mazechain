@@ -1,11 +1,13 @@
 #include "../include/blockchain.h"
 #include "../include/storage.h"
 #include "../include/wallet.h"
+#include "../include/transaction.h"
 #include <iostream>
 #include <sys/stat.h>
 #include <string>
 #include <iomanip>
 #include <fstream>
+#include <vector>
 
 #ifdef _WIN32
     #include <direct.h>
@@ -15,6 +17,25 @@
     #define MKDIR(path) mkdir(path, 0777)
 #endif
 
+void print_full_usage() {
+    std::cout << "==========================================\n";
+    std::cout << "          MAZECHAIN CORE v2.1              \n";
+    std::cout << "    ECONOMY: 20M MZ | UNIT: MITS          \n";
+    std::cout << "==========================================\n";
+    std::cout << "Uso: ./mazechain [comando] [argumentos]\n\n";
+    std::cout << "Comandos de Carteira:\n";
+    std::cout << "  wallet create                - Gera nova carteira (Endereço + Seed)\n";
+    std::cout << "  wallet from-seed \"<seed>\"    - Recupera endereço através da seed\n";
+    std::cout << "\nComandos de Rede:\n";
+    std::cout << "  mine [endereco]              - Minera um bloco para o endereço\n";
+    std::cout << "  balance [endereco]           - Consulta saldo e unidades Mits\n";
+    std::cout << "  send [de] [para] [qtd] [seed] - Envia MZ tokens\n";
+    std::cout << "  chain                        - Lista o histórico de blocos\n";
+    std::cout << "  chain stats                  - Estatísticas e Supply da rede\n";
+    std::cout << "  chain validate               - Valida integridade total da chain\n";
+    std::cout << "==========================================\n";
+}
+
 int main(int argc, char* argv[]) {
     // 1. Garante a pasta de dados
     MKDIR("data");
@@ -22,127 +43,141 @@ int main(int argc, char* argv[]) {
     // 2. Verificação da wordlist
     std::string wordlist_path = "wordlist.txt";
     std::ifstream check_wordlist(wordlist_path);
-
     if (!check_wordlist.is_open()) {
         check_wordlist.open("../wordlist.txt");
-
         if (check_wordlist.is_open()) {
             wordlist_path = "../wordlist.txt";
         } else {
             std::cerr << "❌ ERRO: wordlist.txt não encontrada!\n";
-            std::cerr << "Execute:\n";
-            std::cerr << "curl -L https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt -o wordlist.txt\n";
+            std::cerr << "Execute: curl -L https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt -o wordlist.txt\n";
             return 1;
         }
     }
     check_wordlist.close();
 
-    // 3. Inicializa blockchain
+    // 3. Inicializa e carrega blockchain
     Blockchain bc;
-
     if (!Storage::loadChain(bc, "data/blockchain.dat")) {
-        std::cout << "[INFO] Nenhuma blockchain encontrada. Criando nova.\n";
+        std::cout << "[INFO] Nenhuma blockchain encontrada. Iniciando Bloco Gênesis.\n";
     }
 
-    // 4. Ajuda
     if (argc < 2) {
-        std::cout << "==========================================\n";
-        std::cout << "          MAZECHAIN CORE v2.1              \n";
-        std::cout << "    ECONOMY: 20M MZ | UNIT: MITS          \n";
-        std::cout << "==========================================\n";
-        std::cout << "Uso: ./mazechain [comando] [argumentos]\n\n";
-        std::cout << "Comandos:\n";
-        std::cout << "  wallet create          - Gera nova carteira\n";
-        std::cout << "  mine [endereco]        - Minera um bloco\n";
-        std::cout << "  balance [endereco]     - Consulta saldo\n";
-        std::cout << "  send [de] [para] [qtd] [seed]\n";
-        std::cout << "  chain                  - Ver blocos\n";
-        std::cout << "  stats                  - Ver supply\n";
+        print_full_usage();
         return 0;
     }
 
     std::string cmd = argv[1];
 
-    // ---------------- WALLET ----------------
-    if (cmd == "wallet" && argc > 2 && std::string(argv[2]) == "create") {
-        Wallet w;
-        w.create();
+    // ---------------- COMANDOS WALLET ----------------
+    if (cmd == "wallet") {
+        if (argc < 3) {
+            std::cout << "Uso: ./mazechain wallet <create|from-seed>\n";
+            return 1;
+        }
+        std::string sub = argv[2];
 
-        std::cout << "------------------------------------------\n";
-        std::cout << "✅ MAZECHAIN: CARTEIRA GERADA COM SUCESSO\n";
-        std::cout << "ADDRESS: " << w.address << "\n";
-        std::cout << "SEED   : " << w.seed << "\n";
-        std::cout << "⚠️ Guarde sua SEED em lugar seguro!\n";
-        std::cout << "------------------------------------------\n";
-        return 0;
+        if (sub == "create") {
+            Wallet w;
+            w.create();
+            std::cout << "------------------------------------------\n";
+            std::cout << "✅ MAZECHAIN: CARTEIRA GERADA COM SUCESSO\n";
+            std::cout << "ADDRESS: " << w.address << "\n";
+            std::cout << "SEED   : " << w.seed << "\n";
+            std::cout << "⚠️ Guarde sua SEED em lugar seguro!\n";
+            std::cout << "------------------------------------------\n";
+            return 0;
+        } 
+        else if (sub == "from-seed") {
+            if (argc < 4) {
+                std::cout << "Erro: Forneça a seed entre aspas.\n";
+                return 1;
+            }
+            // Reconstrói a seed caso ela venha como múltiplos argumentos
+            std::string full_seed = "";
+            for (int i = 3; i < argc; i++) {
+                if (i > 3) full_seed += " ";
+                full_seed += argv[i];
+            }
+            Wallet w;
+            w.fromSeed(full_seed);
+            std::cout << "\n✅ Carteira Recuperada:\n";
+            std::cout << "ADDRESS: " << w.address << "\n";
+            std::cout << "SEED   : " << w.seed << "\n";
+            return 0;
+        }
     }
 
-    // ---------------- MINERAÇÃO ----------------
+    // ---------------- COMANDO MINE ----------------
     else if (cmd == "mine" && argc > 2) {
         std::string minerAddress = argv[2];
-
-        std::cout << "⛏️ Iniciando mineração para: " << minerAddress << "...\n";
-
+        int height = (int)bc.getChain().size();
+        std::cout << "⛏️ Iniciando mineração do bloco #" << height << "...\n";
+        
         bc.mineBlock(minerAddress);
-
-        // ✅ CORREÇÃO: SEM IF (função é void)
         Storage::saveChain(bc, "data/blockchain.dat");
         Storage::clearMempool("data/mempool.dat");
 
-        std::cout << "✅ Bloco #" << (bc.getChain().size() - 1) << " minerado e salvo!\n";
+        std::cout << "✅ Bloco minerado com sucesso!\n";
+        std::cout << "🎁 Recompensa: " << bc.getBlockReward(height) << " MZ\n";
         return 0;
     }
 
-    // ---------------- BALANCE ----------------
+    // ---------------- COMANDO BALANCE ----------------
     else if (cmd == "balance" && argc > 2) {
         double balance = bc.getBalance(argv[2]);
-
         std::cout << "------------------------------------------\n";
         std::cout << "💰 Endereço: " << argv[2] << "\n";
-        std::cout << "💰 Saldo: " << std::fixed << std::setprecision(8) << balance << " MZ\n";
-        std::cout << "💎 Mits:  " << (long long)(balance * 100000000.0) << " units\n";
+        std::cout << std::fixed << std::setprecision(8);
+        std::cout << "💰 Saldo:    " << balance << " MZ\n";
+        std::cout << "💎 Mits:     " << (long long)(balance * 100000000.0) << " units\n";
         std::cout << "------------------------------------------\n";
         return 0;
     }
 
-    // ---------------- SEND ----------------
+    // ---------------- COMANDO SEND ----------------
     else if (cmd == "send" && argc > 5) {
         try {
             double amount = std::stod(argv[4]);
-
             bc.send(argv[2], argv[3], amount, argv[5]);
-
-            std::cout << "✅ Transação enviada para a mempool.\n";
-
+            Storage::saveChain(bc, "data/blockchain.dat"); // Opcional salvar auto
+            std::cout << "✅ Transação enviada para a rede com sucesso.\n";
         } catch (const std::exception& e) {
-            std::cerr << "❌ Erro: " << e.what() << "\n";
+            std::cerr << "❌ Erro na transação: " << e.what() << "\n";
+            return 1;
         }
         return 0;
     }
 
-    // ---------------- CHAIN ----------------
+    // ---------------- COMANDOS CHAIN ----------------
     else if (cmd == "chain") {
-        std::cout << "--- HISTÓRICO DA BLOCKCHAIN ---\n";
+        std::string sub = (argc > 2) ? argv[2] : "";
 
-        for (const auto& b : bc.getChain()) {
-            std::cout << "Bloco #" << b.index
-                      << " | Hash: " << b.hash.substr(0,16) << "..."
-                      << " | Txs: " << b.transactions.size() << "\n";
+        if (sub == "stats") {
+            std::cout << "--- ESTATÍSTICAS DA REDE ---\n";
+            std::cout << "Blocos Minerados: " << bc.getChain().size() << "\n";
+            std::cout << std::fixed << std::setprecision(8);
+            std::cout << "Circulação Total: " << bc.getTotalSupply() << " MZ\n";
+            bc.printStats(); // Chama função interna se houver
+        } 
+        else if (sub == "validate") {
+            std::cout << "\n🔍 Verificando integridade da blockchain...\n";
+            if (bc.isChainValid()) {
+                std::cout << "✅ Resultado: Blockchain íntegra e validada.\n";
+            } else {
+                std::cout << "❌ CRÍTICO: Integridade da blockchain comprometida!\n";
+            }
+        } 
+        else {
+            std::cout << "--- HISTÓRICO DE BLOCOS ---\n";
+            for (const auto& b : bc.getChain()) {
+                std::cout << "Bloco #" << b.index 
+                          << " | Hash: " << b.hash.substr(0,16) << "..."
+                          << " | Txs: " << b.transactions.size() << "\n";
+            }
         }
-
         return 0;
     }
 
-    // ---------------- STATS ----------------
-    else if (cmd == "stats") {
-        std::cout << "--- ESTATÍSTICAS DA REDE ---\n";
-        std::cout << "Blocos: " << bc.getChain().size() << "\n";
-        std::cout << "Circulação: " << std::fixed << std::setprecision(8)
-                  << bc.getTotalSupply() << " MZ\n";
-        return 0;
-    }
-
-    // ---------------- DEFAULT ----------------
-    std::cout << "❓ Comando desconhecido. Use ./mazechain para ajuda.\n";
+    std::cout << "❓ Comando desconhecido. Digite apenas ./mazechain para ajuda.\n";
     return 0;
 }
