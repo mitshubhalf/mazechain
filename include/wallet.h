@@ -8,11 +8,15 @@ public:
     std::string address;
     std::string seed;
 
-    // Gera uma seed aleatória e um endereço
+    // 1. ADICIONE O CONSTRUTOR (Isso resolve o erro "implicitly-declared")
+    Wallet(); 
+
+    // 2. MANTENHA AS FUNÇÕES DE GERAÇÃO
     void create(); 
-    
-    // Recupera o endereço a partir de uma seed existente
     void fromSeed(const std::string& existingSeed); 
+
+    // 3. ADICIONE A FUNÇÃO DE ASSINATURA (Isso resolve o erro "no declaration matches")
+    std::string sign(const std::string& message);
 };
 
 #endif
