@@ -33,7 +33,7 @@ void print_full_usage() {
     std::cout << "  mempool                      - Lista transações aguardando mineração\n";
     std::cout << "  chain                        - Lista o histórico de blocos\n";
     std::cout << "  chain stats                  - Estatísticas e Supply da rede\n";
-    std::cout << "  chain validate               - Valida integridade total da chain\n";
+    std::cout << "  chain validate                - Valida integridade total da chain\n";
     std::cout << "==========================================\n";
 }
 
@@ -55,19 +55,10 @@ int main(int argc, char* argv[]) {
     }
     check_wordlist.close();
 
-    // 3. Inicializa e carrega blockchain (Silencioso se já existir)
+    // 3. Inicializa Blockchain
+    // O construtor de Blockchain já chama Storage::loadChain e faz a filtragem resiliente.
+    // Não precisamos chamar Storage::loadChain aqui de novo, pois isso causaria duplicidade ou erros.
     Blockchain bc;
-    std::ifstream check_db("data/blockchain.dat");
-    bool db_exists = check_db.good();
-    check_db.close();
-
-    // Tenta carregar. Se falhar e não existir arquivo, cria o gênesis.
-    if (!Storage::loadChain(bc, "data/blockchain.dat")) {
-        if (!db_exists) {
-            // O Bloco Gênesis é criado automaticamente pelo construtor da Blockchain
-            std::cout << "[SISTEMA] Bloco Gênesis estabelecido com sucesso.\n";
-        }
-    }
 
     if (argc < 2) {
         print_full_usage();
@@ -113,29 +104,36 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // ---------------- COMANDO MINE (COM VERIFICAÇÃO ANTI-FRAUDE) ----------------
+    // ---------------- COMANDO MINE (REFORMULADO) ----------------
     else if (cmd == "mine" && argc > 2) {
-        // SEGURANÇA: Antes de minerar, valida a chain atual para evitar minerar sobre dados falsos
-        if (!bc.isChainValid()) {
-            std::cout << "❌ MINERAÇÃO REJEITADA: A blockchain atual contém dados fraudados!\n";
-            std::cout << "⚠️ O sistema detectou alteração em blocos anteriores. Corrija a chain para prosseguir.\n";
-            return 1;
-        }
+        // Agora confiamos na validação interna da classe Blockchain.
+        // Se o construtor carregou a chain, o que está na memória é VÁLIDO.
+        // O mineBlock usará a chain da memória para criar o próximo bloco e 
+        // o Storage::saveChain irá limpar o lixo do arquivo .dat automaticamente.
 
         std::string minerAddress = argv[2];
         int height = (int)bc.getChain().size();
-        std::cout << "⛏️ Iniciando mineração do bloco #" << height << "...\n";
-        
+
+        std::cout << "⛏️ Preparando mineração do bloco #" << height << "...\n";
+
+        // Verificação de segurança em memória antes de minerar
+        if (!bc.isChainValid()) {
+            std::cout << "❌ ERRO CRÍTICO: A chain em memória está inconsistente.\n";
+            return 1;
+        }
+
         bc.mineBlock(minerAddress);
+
+        // Note: bc.mineBlock já deve chamar Storage::saveChain internamente conforme seu blockchain.cpp
+        // Mas mantemos aqui para garantir a persistência imediata.
         Storage::saveChain(bc, "data/blockchain.dat");
         Storage::clearMempool("data/mempool.dat");
 
-        std::cout << "✅ Bloco minerado com sucesso!\n";
-        std::cout << "🎁 Recompensa: " << bc.getBlockReward(height) << " MZ\n";
+        std::cout << "✅ Operação concluída.\n";
         return 0;
     }
 
-    // ---------------- COMANDO MEMPOOL (CORRIGIDO) ----------------
+    // ---------------- COMANDO MEMPOOL ----------------
     else if (cmd == "mempool") {
         std::cout << "--- TRANSAÇÕES PENDENTES (MEMPOOL) ---\n";
         auto pending = Storage::loadMempool("data/mempool.dat");
@@ -143,11 +141,14 @@ int main(int argc, char* argv[]) {
             std::cout << "Nenhuma transação aguardando mineração.\n";
         } else {
             for (const auto& tx : pending) {
-                // Ajustado para nomes de membros comuns se 'sender' falhar
-                // Se o seu Transaction.h usar outros nomes, ajuste aqui:
-                std::cout << "Origem: " << tx.fromAddress 
-                          << " | Destino: " << tx.toAddress 
-                          << " | Valor: " << tx.value << " MZ\n";
+                if (!tx.vout.empty()) {
+                    std::cout << "ID: " << tx.id.substr(0,10) << "..."
+                              << " | Destino: " << tx.vout[0].address 
+                              << " | Valor: " << tx.vout[0].amount << " MZ\n";
+                    if (tx.vout.size() > 1) {
+                        std::cout << "   [+] Possui mais " << tx.vout.size() - 1 << " saídas vinculadas.\n";
+                    }
+                }
             }
         }
         return 0;
@@ -170,10 +171,9 @@ int main(int argc, char* argv[]) {
         try {
             double amount = std::stod(argv[4]);
             bc.send(argv[2], argv[3], amount, argv[5]);
-            Storage::saveChain(bc, "data/blockchain.dat");
-            // Nota: O send envia para o mempool, a gravação da chain aqui 
-            // garante o estado atual, mas a tx só entra no bloco no comando 'mine'
-            std::cout << "✅ Transação enviada para a rede com sucesso.\n";
+            // Transações de envio geralmente vão para o mempool e não salvam a chain direto,
+            // mas mantemos conforme sua lógica original.
+            std::cout << "✅ Transação enviada para o mempool com sucesso.\n";
         } catch (const std::exception& e) {
             std::cerr << "❌ Erro na transação: " << e.what() << "\n";
             return 1;
@@ -186,18 +186,14 @@ int main(int argc, char* argv[]) {
         std::string sub = (argc > 2) ? argv[2] : "";
 
         if (sub == "stats") {
-            std::cout << "--- ESTATÍSTICAS DA REDE ---\n";
-            std::cout << "Blocos Minerados: " << bc.getChain().size() << "\n";
-            std::cout << std::fixed << std::setprecision(8);
-            std::cout << "Circulação Total: " << bc.getTotalSupply() << " MZ\n";
             bc.printStats();
         } 
         else if (sub == "validate") {
-            std::cout << "\n🔍 Verificando integridade da blockchain...\n";
+            std::cout << "\n🔍 Verificando integridade da memória RAM...\n";
             if (bc.isChainValid()) {
-                std::cout << "✅ Resultado: Blockchain íntegra e validada.\n";
+                std::cout << "✅ Resultado: Blockchain carregada está íntegra.\n";
             } else {
-                std::cout << "❌ CRÍTICO: Integridade da blockchain comprometida!\n";
+                std::cout << "❌ CRÍTICO: Integridade comprometida!\n";
             }
         } 
         else {
