@@ -24,8 +24,7 @@ COPY . .
 RUN mkdir -p include data
 RUN wget https://github.com/CrowCpp/Crow/releases/download/v1.0+5/crow_all.h -O include/crow_all.h
 
-# 4. Compilação
-# Note que mantive o nome 'mazechain_api' para o executável
+# 4. Compilação (Atualizada com os novos arquivos de proteção)
 RUN g++ -O3 -std=c++17 \
         src/blockchain.cpp \
         src/block.cpp \
@@ -34,6 +33,11 @@ RUN g++ -O3 -std=c++17 \
         src/storage.cpp \
         src/wallet.cpp \
         src/crypto.cpp \
+        src/checkpoints.cpp \
+        src/validation.cpp \
+        src/policy.cpp \
+        src/mempool_limit.cpp \
+        src/db_integrity.cpp \
         api/main.cpp \
     -Iinclude \
     -I. \
@@ -43,10 +47,8 @@ RUN g++ -O3 -std=c++17 \
 # 5. Permissões de execução
 RUN chmod +x mazechain_api
 
-# 6. Ajuste para a porta 10000
-# Isso informa ao Docker/Render qual porta o container escuta
+# 6. Exposição da porta
 EXPOSE 10000
 
 # 7. Comando de inicialização
-# Se o seu main.cpp usar a variável de ambiente PORT, o Crow lerá 10000
 CMD ["./mazechain_api"]
