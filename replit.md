@@ -53,7 +53,7 @@ mazechain_api         - Compiled binary
 
 ## Running
 
-The app compiles and runs via `run.sh`. The workflow is configured to use port **5000**.
+The app compiles and runs via `run.sh`. The workflow is configured to use port **10000**.
 
 ```bash
 bash run.sh
@@ -71,5 +71,5 @@ Installed via Nix:
 ## Deployment
 
 Build command: `bash build.sh`
-Run command: `mkdir -p data && PORT=5000 ./mazechain_api`
+Run command: `mkdir -p data && PORT=10000 ./mazechain_api`
 Target: autoscale

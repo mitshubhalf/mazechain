@@ -14,15 +14,17 @@
     #define MKDIR(dir) mkdir(dir, 0777)
 #endif
 
-// Garante que a pasta de dados exista
+// Definimos a base do caminho para nunca mais haver dúvida
+const std::string BASE_PATH = "/home/runner/workspace/data";
+
 void ensure_directory() { 
     struct stat info;
-    if (stat("data", &info) != 0) {
-        MKDIR("data");
+    // Tenta criar a pasta no caminho absoluto
+    if (stat(BASE_PATH.c_str(), &info) != 0) {
+        MKDIR(BASE_PATH.c_str());
     }
 }
 
-// ---------------- SAVE MEMPOOL ----------------
 void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     ensure_directory();
     std::ofstream file(filename, std::ios::binary | std::ios::app);
@@ -49,11 +51,9 @@ void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
         if (aSize > 0) file.write(out.address.c_str(), aSize);
         file.write((char*)&out.amount, sizeof(double));
     }
-
     file.close();
 }
 
-// ---------------- LOAD MEMPOOL ----------------
 std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
     std::vector<Transaction> txs;
     std::ifstream file(filename, std::ios::binary);
@@ -62,47 +62,35 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
     while (true) {
         int idSize;
         if (!file.read((char*)&idSize, sizeof(int))) break;
-        if (idSize < 0 || idSize > 10000) break;
-
         std::string id(idSize, '\0');
         if (idSize > 0) file.read(&id[0], idSize);
 
-        int sigSize;
-        file.read((char*)&sigSize, sizeof(int));
+        int sigSize; file.read((char*)&sigSize, sizeof(int));
         std::string sig(sigSize, '\0');
         if (sigSize > 0) file.read(&sig[0], sigSize);
 
-        int pubSize;
-        file.read((char*)&pubSize, sizeof(int));
+        int pubSize; file.read((char*)&pubSize, sizeof(int));
         std::string pub(pubSize, '\0');
         if (pubSize > 0) file.read(&pub[0], pubSize);
 
-        int vCount;
-        file.read((char*)&vCount, sizeof(int));
+        int vCount; file.read((char*)&vCount, sizeof(int));
         std::vector<TxOut> vouts;
         for (int k = 0; k < vCount; k++) {
-            int aSize;
-            file.read((char*)&aSize, sizeof(int));
+            int aSize; file.read((char*)&aSize, sizeof(int));
             std::string a(aSize, '\0');
             if (aSize > 0) file.read(&a[0], aSize);
-            double amt;
-            file.read((char*)&amt, sizeof(double));
+            double amt; file.read((char*)&amt, sizeof(double));
             vouts.push_back({a, amt});
         }
-
-        Transaction t;
-        t.id = id; t.signature = sig; t.publicKey = pub; t.vout = vouts;
+        Transaction t; t.id = id; t.signature = sig; t.publicKey = pub; t.vout = vouts;
         txs.push_back(t);
     }
     file.close();
     return txs;
 }
 
-// ---------------- SAVE CHAIN ----------------
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     ensure_directory();
-
-    // IMPORTANTE: std::ios::trunc limpa o arquivo físico antes de salvar a chain limpa da RAM
     std::ofstream file(filename, std::ios::binary | std::ios::trunc);
     if (!file.is_open()) return;
 
@@ -125,27 +113,25 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
 
         file.write((char*)&block.nonce, sizeof(int));
 
+        int mSize = block.minerAddress.size();
+        file.write((char*)&mSize, sizeof(int));
+        file.write(block.minerAddress.c_str(), mSize);
+        file.write((char*)&block.extraNonce, sizeof(long));
+
         int txCount = block.transactions.size();
         file.write((char*)&txCount, sizeof(int));
 
         for (const auto& tx : block.transactions) {
-            int idS = tx.id.size();
-            file.write((char*)&idS, sizeof(int));
+            int idS = tx.id.size(); file.write((char*)&idS, sizeof(int));
             file.write(tx.id.c_str(), idS);
-
-            int sS = tx.signature.size();
-            file.write((char*)&sS, sizeof(int));
+            int sS = tx.signature.size(); file.write((char*)&sS, sizeof(int));
             file.write(tx.signature.c_str(), sS);
-
-            int pS = tx.publicKey.size();
-            file.write((char*)&pS, sizeof(int));
+            int pS = tx.publicKey.size(); file.write((char*)&pS, sizeof(int));
             file.write(tx.publicKey.c_str(), pS);
 
-            int outCount = tx.vout.size();
-            file.write((char*)&outCount, sizeof(int));
+            int outCount = tx.vout.size(); file.write((char*)&outCount, sizeof(int));
             for (const auto& out : tx.vout) {
-                int aSize = out.address.size();
-                file.write((char*)&aSize, sizeof(int));
+                int aSize = out.address.size(); file.write((char*)&aSize, sizeof(int));
                 file.write(out.address.c_str(), aSize);
                 file.write((char*)&out.amount, sizeof(double));
             }
@@ -154,7 +140,6 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     file.close();
 }
 
-// ---------------- LOAD CHAIN (Original) ----------------
 bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) return false;
@@ -166,16 +151,18 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
     for (int i = 0; i < chainSize; i++) {
         int idx, nonce, txC;
         long long ts;
-        if (!file.read((char*)&idx, sizeof(int))) break;
+        file.read((char*)&idx, sizeof(int));
         file.read((char*)&ts, sizeof(long long));
 
         int hS; file.read((char*)&hS, sizeof(int));
         std::string h(hS, '\0'); file.read(&h[0], hS);
-
         int phS; file.read((char*)&phS, sizeof(int));
         std::string ph(phS, '\0'); file.read(&ph[0], phS);
-
         file.read((char*)&nonce, sizeof(int));
+
+        int mS; file.read((char*)&mS, sizeof(int));
+        std::string mAddr(mS, '\0'); file.read(&mAddr[0], mS);
+        long eNonce; file.read((char*)&eNonce, sizeof(long));
         file.read((char*)&txC, sizeof(int));
 
         std::vector<Transaction> txs;
@@ -199,7 +186,8 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
             Transaction t; t.id = id; t.signature = sig; t.publicKey = pub; t.vout = vouts;
             txs.push_back(t);
         }
-        Block b(idx, ph, txs);
+
+        Block b(idx, ph, txs, mAddr, eNonce);
         b.hash = h; b.timestamp = ts; b.nonce = nonce;
         bc.addBlock(b);
     }
@@ -207,7 +195,6 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
     return true;
 }
 
-// ---------------- CLEAR MEMPOOL ----------------
 void Storage::clearMempool(const std::string& filename) {
     std::ofstream file(filename, std::ios::trunc);
     file.close();

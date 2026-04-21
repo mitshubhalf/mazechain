@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.psmisc
     pkgs.mailutils
     pkgs.asio
     pkgs.pkg-config

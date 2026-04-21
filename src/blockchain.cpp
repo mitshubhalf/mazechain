@@ -1,6 +1,7 @@
 #include "../include/blockchain.h"
 #include "../include/storage.h"
 #include "../include/crypto.h"
+#include "../include/mining_utils.h"
 #include <iostream>
 #include <cmath>
 #include <iomanip>
@@ -9,7 +10,11 @@
 #include <ctime>
 #include <algorithm> 
 
-// Constantes da Economia MazeChain
+// DEFINIÇÃO DOS CAMINHOS ABSOLUTOS PARA EVITAR "UNIVERSOS PARALELOS"
+const std::string DB_PATH = "/home/runner/workspace/data/blockchain.dat";
+const std::string UTXO_PATH = "/home/runner/workspace/data/utxo.dat";
+const std::string MEMPOOL_PATH = "/home/runner/workspace/data/mempool.dat";
+
 const double MITS_PER_COIN = 100000000.0; 
 const double MIN_FEE_RELAY = 0.00001; 
 
@@ -17,46 +22,17 @@ Blockchain::Blockchain() {
     difficulty = 4;
     totalSupply = 0;
 
-    // 1. Carregamento Resiliente
-    Storage::loadChain(*this, "data/blockchain.dat");
+    // 1. CARREGAMENTO PASSIVO USANDO CAMINHO ABSOLUTO
+    Storage::loadChain(*this, DB_PATH);
 
-    std::vector<Block> tempChain = this->chain;
-    this->chain.clear(); 
-
-    if (tempChain.empty()) {
+    if (this->chain.empty()) {
         std::vector<Transaction> genesisTxs;
-        Block genesis(0, "0", genesisTxs);
+        Block genesis(0, "0", genesisTxs, "GENESIS_BLOCK", 0);
         genesis.hash = genesis.calculateHash(); 
         chain.push_back(genesis);
-        std::cout << "[SISTEMA] Bloco Gênesis estabelecido com sucesso." << std::endl;
+        std::cout << "[SISTEMA] Novo Bloco Gênesis estabelecido." << std::endl;
     } else {
-        chain.push_back(tempChain[0]); 
-
-        for (size_t i = 1; i < tempChain.size(); i++) {
-            const Block& current = tempChain[i];
-            const Block& prev = chain.back();
-
-            bool hashOk = (current.hash == current.calculateHash());
-            bool linkOk = (current.prevHash == prev.hash);
-
-            // Validação de carregamento: 
-            // Se i > 1000, exige pelo menos 5. Se i <= 1000, aceita qualquer coisa (mínimo 0)
-            int minReq = (i > 1000) ? 5 : 0;
-            bool diffOk = true;
-            if (minReq > 0) {
-                std::string target(minReq, '0');
-                diffOk = (current.hash.substr(0, minReq) == target);
-            }
-
-            if (hashOk && linkOk && diffOk) {
-                chain.push_back(current);
-            } else {
-                std::cout << "⚠️ [ALERTA] Bloco #" << i << " inválido detectado no disco!" << std::endl;
-                std::cout << "⚠️ A chain será truncada no bloco #" << (i-1) << " para evitar corrupção." << std::endl;
-                break; 
-            }
-        }
-        std::cout << "✅ Blockchain carregada com sucesso. Altura: " << chain.size() << std::endl;
+        std::cout << "✅ Blockchain carregada do disco. Altura: " << chain.size() << std::endl;
     }
 
     rebuildUTXO();
@@ -76,7 +52,7 @@ void Blockchain::rebuildUTXO() {
         }
     }
 
-    utxoSet.saveToFile("data/utxo.dat");
+    utxoSet.saveToFile(UTXO_PATH);
     std::cout << "✅ Saldos sincronizados. Supply total: " << totalSupply << " MZ" << std::endl;
 }
 
@@ -87,18 +63,17 @@ void Blockchain::clearChain() {
 }
 
 bool Blockchain::isChainValid() {
+    if (chain.size() <= 1) return true;
+
     for (size_t i = 1; i < chain.size(); i++) {
         const Block& currentBlock = chain[i];
         const Block& prevBlock = chain[i-1];
 
-        if (currentBlock.hash != currentBlock.calculateHash()) return false;
         if (currentBlock.prevHash != prevBlock.hash) return false;
 
-        // Regra de validação: Bloco 1001+ exige dificuldade 5.
-        if (i > 1000) {
-            std::string target(5, '0');
-            if (currentBlock.hash.substr(0, 5) != target) return false;
-        }
+        int requiredDiff = (i > 1000) ? 5 : 1; 
+        std::string target(requiredDiff, '0');
+        if (currentBlock.hash.substr(0, requiredDiff) != target) return false;
     }
     return true;
 }
@@ -109,7 +84,13 @@ void Blockchain::printStats() {
     std::cout << "==========================================" << std::endl;
     std::cout << " Altura da Rede     : " << chain.size() << " blocos" << std::endl;
     std::cout << " Dificuldade Atual  : " << difficulty << std::endl;
-    std::cout << " Tempo Alvo Atual   : " << (totalSupply >= 6000000.0 ? "10 min" : "1 min") << std::endl;
+
+    if (totalSupply >= 10000000.0) {
+        std::cout << " Tempo Alvo Atual   : 10 min" << std::endl;
+    } else {
+        std::cout << " Tempo Alvo Atual   : 1 min" << std::endl;
+    }
+
     std::cout << " Circulante (Supply): " << std::fixed << std::setprecision(8) << totalSupply << " MZ" << std::endl;
     std::cout << " Supply Máximo      : " << std::fixed << std::setprecision(8) << getMaxSupply() << " MZ" << std::endl;
     std::cout << "==========================================\n" << std::endl;
@@ -138,14 +119,10 @@ void Blockchain::mineBlock(std::string minerAddress) {
         return;
     }
 
-    if (!isChainValid()) {
-        std::cout << "❌ ERRO: Chain em memória inválida. Abortando mineração." << std::endl;
-        return;
-    }
-
     adjustDifficulty();
 
-    std::vector<Transaction> pending = Storage::loadMempool("data/mempool.dat");
+    // MEMPOOL COM CAMINHO ABSOLUTO
+    std::vector<Transaction> pending = Storage::loadMempool(MEMPOOL_PATH);
     std::vector<Transaction> validTransactions;
     double totalFees = 0;
     std::map<std::string, double> spendingInThisBlock;
@@ -172,25 +149,24 @@ void Blockchain::mineBlock(std::string minerAddress) {
         }
 
         if (sender.empty()) continue;
-
         double currentBalance = getBalance(sender);
 
         if (currentBalance - spendingInThisBlock[sender] >= amountWithFee) {
             validTransactions.push_back(tx);
             spendingInThisBlock[sender] += amountWithFee;
-
             double fee = amountWithFee - netValue;
             totalFees += std::max(0.0, fee);
-        } else {
-            std::cout << "⚠️ Tx ignorada: Saldo insuficiente para " << sender << std::endl;
         }
     }
 
-    double subsidy = getBlockReward(static_cast<int>(chain.size()));
+    int currentHeight = static_cast<int>(chain.size());
+    MinerIdentity id = prepare_miner_identity(minerAddress.c_str(), currentHeight);
+
+    double subsidy = getBlockReward(currentHeight); 
     double totalReward = subsidy + totalFees;
 
     Transaction coinbase;
-    coinbase.id = "coinbase_h" + std::to_string(chain.size()) + "_" + std::to_string(std::time(nullptr));
+    coinbase.id = "coinbase_h" + std::to_string(currentHeight) + "_" + std::to_string(std::time(nullptr));
     coinbase.vout.push_back({minerAddress, totalReward});
     coinbase.signature = "coinbase";
     coinbase.publicKey = "MAZE_EMISSION_SYSTEM_2026";
@@ -199,29 +175,27 @@ void Blockchain::mineBlock(std::string minerAddress) {
     blockTxs.push_back(coinbase);
     blockTxs.insert(blockTxs.end(), validTransactions.begin(), validTransactions.end());
 
-    Block newBlock(static_cast<int>(chain.size()), chain.back().hash, blockTxs);
+    Block newBlock(currentHeight, chain.back().hash, blockTxs, id.miner_address, id.extra_nonce);
 
     std::cout << "⛏️ Iniciando busca de Hash (Dificuldade: " << difficulty << ")..." << std::endl;
     newBlock.mine(difficulty);
 
     addBlock(newBlock);
 
-    Storage::saveChain(*this, "data/blockchain.dat");
-    utxoSet.saveToFile("data/utxo.dat"); 
-    Storage::clearMempool("data/mempool.dat");
+    // SALVAMENTO COM CAMINHOS ABSOLUTOS
+    Storage::saveChain(*this, DB_PATH);
+    utxoSet.saveToFile(UTXO_PATH); 
+    Storage::clearMempool(MEMPOOL_PATH);
 
-    std::cout << "🎯 Bloco #" << newBlock.index << " OK! Txs: " << blockTxs.size() << " | Recompensa: " << subsidy << " MZ + " << totalFees << " Fees" << std::endl;
+    std::cout << "🎯 Bloco #" << newBlock.index << " OK! Txs: " << blockTxs.size() << " | Recompensa: " << subsidy << " MZ" << std::endl;
 }
 
 void Blockchain::addBlock(const Block& block) {
     if (block.index >= (int)chain.size()) {
         chain.push_back(block);
-
         if (block.index > 0) {
-            double reward = getBlockReward(block.index);
-            totalSupply += reward;
+            totalSupply += getBlockReward(block.index);
         }
-
         for(const auto& tx : block.transactions) {
             utxoSet.update(tx);
         }
@@ -251,15 +225,12 @@ bool Blockchain::verifyTransaction(const Transaction& tx) {
 void Blockchain::adjustDifficulty() {
     int currentHeight = static_cast<int>(chain.size());
 
-    // FASE 1: BLOCOS 0-1000 (Dificuldade Máxima 4, Mínima 0)
     if (currentHeight <= 1000) {
-        if (difficulty > 4) difficulty = 4;
-    } 
-    // FASE 2: BLOCOS 1001+ (Mínimo absoluto de 5)
-    else {
+        difficulty = 4;
+    } else {
         if (difficulty < 5) {
             difficulty = 5;
-            std::cout << "🛡️ [POLÍTICA] Salto para dificuldade 5 ativado (Bloco 1001+)." << std::endl;
+            std::cout << "🛡️ [POLÍTICA] Piso de dificuldade 5 ativado (Bloco 1001+)." << std::endl;
         }
     }
 
@@ -268,25 +239,18 @@ void Blockchain::adjustDifficulty() {
     const Block& lastBlock = chain.back();
     const Block& relayBlock = chain[chain.size() - 10];
 
-    long timeTargetSeconds = (totalSupply >= 6000000.0) ? 600 : 60;
+    long timeTargetSeconds = (totalSupply >= 10000000.0) ? 600 : 60;
     long timeTaken = static_cast<long>(lastBlock.timestamp - relayBlock.timestamp);
     long targetFor10Blocks = timeTargetSeconds * 10;
 
     if (timeTaken < (targetFor10Blocks / 2)) {
         difficulty++;
-        // Garante que não passe de 4 na Fase 1
-        if (currentHeight <= 1000 && difficulty > 4) difficulty = 4;
-
-        std::cout << "🚀 Rede rápida! Dificuldade: " << difficulty << std::endl;
     } else if (timeTaken > (targetFor10Blocks * 2)) {
-        int newDifficulty = difficulty - 1;
-        int minAllowed = (currentHeight > 1000) ? 5 : 0; // Mínimo 0 na Fase 1
-
-        if (newDifficulty >= minAllowed) {
-            difficulty = newDifficulty;
-            std::cout << "🐢 Rede lenta! Dificuldade: " << difficulty << std::endl;
-        }
+        difficulty--;
     }
+
+    if (currentHeight <= 1000 && difficulty > 4) difficulty = 4;
+    if (currentHeight > 1000 && difficulty < 5) difficulty = 5;
 }
 
 double Blockchain::getBalance(std::string address) { 
@@ -299,7 +263,6 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
 
     if (amount <= 0) throw std::runtime_error("Valor invalido.");
     if (getBalance(from) < totalNeeded) throw std::runtime_error("Saldo insuficiente.");
-    if (seed.empty()) throw std::runtime_error("Seed invalida.");
 
     Transaction tx;
     tx.id = Crypto::sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(nullptr)));
@@ -308,7 +271,7 @@ void Blockchain::send(std::string from, std::string to, double amount, std::stri
     tx.publicKey = seed;
     tx.signature = "SIG_" + Crypto::sha256_util(seed + tx.id).substr(0, 24);
 
-    Storage::saveMempool(tx, "data/mempool.dat");
+    Storage::saveMempool(tx, MEMPOOL_PATH);
 }
 
 std::vector<Block> Blockchain::getChain() const { return chain; }

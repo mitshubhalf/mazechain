@@ -6,6 +6,7 @@
 #include "block.h"
 #include "utxo.h"      
 #include "transaction.h"
+#include "mining_utils.h" // Inclusão necessária para MinerIdentity
 
 class Blockchain {
 private:
@@ -19,15 +20,22 @@ private:
     void adjustDifficulty();
     int getCurrentCycle(int height);
 
-    // ESTA LINHA É O QUE ESTÁ FALTANDO:
+    // Mantendo sua função de rebuild
     void rebuildUTXO(); 
+
+    // NOVO: Função interna de suporte para calcular o hash com os novos campos de segurança
+    std::string calculateBlockHash(int index, std::string prevHash, long timestamp, 
+                                 const std::vector<Transaction>& txs, int nonce, 
+                                 std::string minerAddr, long extraNonce);
 
 public:
     UTXOSet utxoSet; 
 
     Blockchain();
 
-    void mineBlock(std::string minerAddress);
+    // A assinatura continua a mesma para o seu Crow (main.cpp) não quebrar
+    void mineBlock(std::string minerAddress); 
+
     void addBlock(const Block& block);
     Block getLastBlock() const { return chain.back(); }
     void clearChain();

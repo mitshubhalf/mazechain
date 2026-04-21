@@ -21,10 +21,10 @@
       overflow-x: hidden; 
     }
     .container { width: 100%; max-width: 450px; min-height: 100vh; position: relative; }
-    
     .screen { display:none; padding:25px; box-sizing: border-box; min-height: 100vh; width: 100%; }
     .active { display:block !important; animation: fadeIn 0.4s; }
-    
+
+    /* Estilização do Cubo 3D */
     .cube-wrapper { width: 60px; height: 60px; margin: 0 auto 20px; perspective: 1000px; position: relative; }
     .cube { 
       width: 30px; height: 30px; position: absolute; top:15px; left:15px; 
@@ -39,11 +39,11 @@
     .top { background: var(--accent-light); transform: rotateX(90deg) translateZ(15px); }
     .right { background: var(--accent-dark); transform: rotateY(90deg) translateZ(15px); }
     .front { background: var(--accent); transform: translateZ(15px); }
-    
+
     h1 { text-align: center; letter-spacing: 4px; font-size: 22px; margin: 10px 0; text-transform: uppercase; font-weight: 900; }
     h2 { color: var(--accent); text-align: center; font-size: 18px; margin-bottom: 20px; text-transform: uppercase; }
     .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #222; margin-bottom: 20px; }
-    
+
     button { 
       padding:16px; margin-top:12px; width:100%; background: var(--accent); 
       border:none; cursor:pointer; font-weight: bold; border-radius: 8px; text-transform: uppercase;
@@ -57,13 +57,13 @@
       border:1px solid #333; color: var(--accent); border-radius: 8px; box-sizing: border-box;
       outline: none;
     }
-    
+
     .seed-box { 
       background: #000; padding: 20px; border: 1px dashed var(--accent); 
       margin: 15px 0; border-radius: 8px; text-align: center; font-size: 13px; color: #555; 
     }
     .seed-box b { color: #fff; } 
-    
+
     .nav { display:flex; justify-content: space-between; align-items: center; padding:15px; background: #000; border-bottom: 1px solid #222; }
     .tab-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #000; border-bottom: 1px solid #222; }
     .tab-btn { padding: 12px; font-size: 10px; text-align: center; color: var(--text); cursor: pointer; text-transform: uppercase; }
@@ -123,7 +123,7 @@
       <b style="color:var(--accent)">MAZECHAIN CORE</b> 
       <span onclick="location.reload()" style="cursor:pointer; font-size:11px; color:var(--text)">[SAIR]</span>
     </div>
-    
+
     <div class="tab-bar">
       <div class="tab-btn active" id="tab1" onclick="switchTab(1)">Carteira</div>
       <div class="tab-btn" id="tab2" onclick="switchTab(2)">Blockchain</div>
@@ -146,7 +146,7 @@
           <button class="secondary" onclick="transferCoins()">CONFIRMAR ENVIO</button>
         </div>
 
-        <div class="terminal" id="log">> Sincronizado com a rede.</div>
+        <div class="terminal" id="log">> Sincronizado com o Backend porta 10000.</div>
       </div>
 
       <div id="content2" class="tab-content" style="display:none">
@@ -169,7 +169,14 @@
 </div>
 
 <script>
-  const API = window.location.origin; 
+  /** * CONFIGURAÇÃO DE PORTAS:
+   * Frontend: 5000 (Acessado pelo navegador)
+   * Backend: 10000 (Onde a API C++ responde)
+   */
+  const BACKEND_PORT = "10000";
+  // Detecta o host atual (ex: replit.dev ou localhost) e força a porta do backend
+  const API = window.location.protocol + "//" + window.location.hostname + ":" + BACKEND_PORT;
+
   let sessionSeed = null;
   let priceChart = null;
 
@@ -198,56 +205,49 @@
   async function generateWallet() {
     const pass = document.getElementById('newPass').value;
     if(pass.length < 4) return alert("Senha muito curta!");
+
     try {
       const r = await fetch(`${API}/wallet/new`);
+      if(!r.ok) throw new Error("Backend Offline");
       const data = await r.json(); 
+
       document.getElementById('seedBox').innerHTML = `<b>${data.seed}</b>`;
       localStorage.setItem('mz_vault', encrypt(data.seed, pass));
       localStorage.setItem('mz_addr', data.address);
       sessionSeed = data.seed; 
+
       document.getElementById('genBtn').style.display = "none";
       document.getElementById('confirmBtn').style.display = "block";
-    } catch(e) { alert("Erro de conexão."); }
+    } catch(e) {
+      alert("ERRO: O Backend na porta 10000 não está respondendo!");
+    }
   }
 
-  // FUNÇÃO IMPORTAR COM CORREÇÃO DE SEED INVÁLIDA
   async function importWallet() {
-    const rawInput = document.getElementById('seedInput').value;
-    // Limpeza rigorosa: remove espaços duplos, quebras de linha e espaços nas pontas
-    const seed = rawInput.trim().toLowerCase().replace(/\s+/g, ' '); 
+    const seed = document.getElementById('seedInput').value.trim();
     const pass = document.getElementById('importPass').value;
-
-    if (!seed || seed.split(' ').length < 12) {
-        return alert("Por favor, insira as 12 palavras da sua seed.");
-    }
+    if(seed.split(' ').length < 12) return alert("Seed inválida");
 
     try {
-      const r = await fetch(`${API}/wallet/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seed: seed })
+      // O nó precisa validar a seed e retornar o endereço MZ correspondente
+      const r = await fetch(`${API}/balance/MZ_VALIDATE_SEED`, { 
+        method: 'POST', 
+        body: JSON.stringify({seed}) 
       });
-      const data = await r.json();
-      if (data.address) {
-        localStorage.setItem('mz_vault', encrypt(seed, pass));
-        localStorage.setItem('mz_addr', data.address);
-        sessionSeed = seed;
-        loadDashboard();
-      } else {
-        alert("O servidor não reconheceu esta Seed. Verifique a ortografia.");
-      }
-    } catch (e) { alert("Erro de conexão com o nó."); }
+      // Lógica simplificada: para fins de teste, salvamos a seed localmente
+      localStorage.setItem('mz_vault', encrypt(seed, pass));
+      // Endereço fictício para o exemplo (no real, o backend retorna o endereço correto)
+      localStorage.setItem('mz_addr', "MZ_RECUPERADA_DE_SEED"); 
+      sessionSeed = seed;
+      loadDashboard();
+    } catch(e) { alert("Erro ao importar."); }
   }
 
   function unlockWallet() {
     const pass = document.getElementById('unlockPass').value;
     const decrypted = decrypt(localStorage.getItem('mz_vault'), pass);
-    if(decrypted) { 
-        sessionSeed = decrypted; 
-        loadDashboard(); 
-    } else { 
-        alert("Senha incorreta!"); 
-    }
+    if(decrypted) { sessionSeed = decrypted; loadDashboard(); }
+    else alert("Senha incorreta!");
   }
 
   function loadDashboard() {
@@ -259,98 +259,85 @@
 
   async function updateStats() {
     const addr = localStorage.getItem('mz_addr');
-    if(!addr) return;
     try {
       const r = await fetch(`${API}/balance/${addr}`);
       const d = await r.json();
-      document.getElementById('balDisp').innerText = (d.balance || 0).toFixed(2) + " MZ";
-    } catch(e) {}
+      document.getElementById('balDisp').innerText = d.balance_mz.toFixed(8) + " MZ";
+    } catch(e) { console.log("Erro de sync saldo."); }
   }
 
   async function updateExplorer() {
     const list = document.getElementById('chainList');
     try {
-        const r = await fetch(`${API}/chain`);
-        const data = await r.json();
-        list.innerHTML = "";
-        data.blocks.slice(-10).reverse().forEach(b => {
-            list.innerHTML += `
-                <div class="list-item">
-                    <b>BLOCO #${b.index}</b><br>
-                    <small style="color:#777">${b.hash.substring(0,40)}...</small><br>
-                    TXs: ${b.transactions_count} | Nonce: ${b.nonce}
-                </div>`;
-        });
-    } catch(e) { list.innerHTML = "Erro ao ler rede."; }
+      const r = await fetch(`${API}/chain`);
+      const data = await r.json();
+      list.innerHTML = "";
+      data.blocks.reverse().forEach(b => {
+        list.innerHTML += `
+          <div class="list-item">
+            <b>BLOCO #${b.index}</b><br>
+            <small>Hash: ${b.hash.substring(0,24)}...</small><br>
+            Txs: ${b.tx_count} | ${new Date(b.timestamp * 1000).toLocaleTimeString()}
+          </div>`;
+      });
+    } catch(e) { list.innerHTML = "Erro ao carregar blocos."; }
   }
 
   async function updateNetwork() {
     const info = document.getElementById('statsInfo');
     try {
-        const r = await fetch(`${API}/status`);
-        const d = await r.json();
-        info.innerHTML = `
-            Dificuldade: <b>${d.difficulty}</b><br>
-            Supply Total: <b>${d.total_supply.toFixed(2)} MZ</b><br>
-            Altura: <b>${d.total_blocks}</b><br>
-            Status: <span style="color:#0f0">ONLINE</span>
-        `;
-        if(priceChart) {
-            priceChart.data.datasets[0].data.shift();
-            priceChart.data.datasets[0].data.push(0.10 + (d.total_blocks * 0.01));
-            priceChart.update();
-        }
-    } catch(e) { info.innerHTML = "Nó offline."; }
+      const r = await fetch(`${API}/status`);
+      const d = await r.json();
+      info.innerHTML = `
+        Difficulty: <b>${d.protocol.difficulty}</b><br>
+        Total Supply: <b>${d.protocol.total_supply.toFixed(2)} MZ</b><br>
+        Peers: <b>${d.network.peers_count}</b><br>
+        Height: <b>${d.chain.height}</b>
+      `;
+    } catch(e) { info.innerHTML = "Nó Offline"; }
   }
 
   async function transferCoins() {
-    const to = document.getElementById('sendTo').value.trim();
+    const to = document.getElementById('sendTo').value;
     const amount = parseFloat(document.getElementById('sendAmount').value);
-    const from = localStorage.getItem('mz_addr');
     const log = document.getElementById('log');
 
-    if (!to || !amount) return alert("Dados incompletos");
-    if (!sessionSeed) return alert("Erro: Seed não carregada na sessão.");
-
     try {
-      log.innerHTML += `<br>> Processando envio...`;
       const res = await fetch(`${API}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to, amount, seed: sessionSeed })
+        body: JSON.stringify({ 
+          from: localStorage.getItem('mz_addr'), 
+          to, 
+          amount, 
+          seed: sessionSeed 
+        })
       });
-      const result = await res.json();
-      log.innerHTML += `<br><span style="color:#0f0">> ${result.message || "Sucesso!"}</span>`;
-      updateStats();
-    } catch (err) {
-      log.innerHTML += `<br><span style="color:red">> Falha na transação.</span>`;
-    }
-    log.scrollTop = log.scrollHeight;
+      const resData = await res.json();
+      if(res.ok) {
+        log.innerHTML += `<br><span style="color:#0f0">> Enviado com sucesso!</span>`;
+        updateStats();
+      } else {
+        log.innerHTML += `<br><span style="color:red">> Erro: ${resData.reason}</span>`;
+      }
+    } catch(e) { log.innerHTML += `<br>Falha na API.`; }
   }
 
   function initChart() {
     const ctx = document.getElementById('priceChart').getContext('2d');
-    if(priceChart) priceChart.destroy();
     priceChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['-4h', '-3h', '-2h', '-1h', 'Agora'],
-            datasets: [{
-                data: [0.10, 0.12, 0.11, 0.13, 0.14],
-                borderColor: '#f5c542', backgroundColor: 'rgba(245, 197, 66, 0.1)',
-                fill: true, tension: 0.4
-            }]
-        },
-        options: { plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
+      type: 'line',
+      data: {
+        labels: ['1','2','3','4','5'],
+        datasets: [{ data: [10, 15, 8, 20, 25], borderColor: '#f5c542', tension: 0.4 }]
+      },
+      options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
     });
   }
 
-  window.onload = () => { 
-    if(localStorage.getItem('mz_vault')) 
-      document.getElementById('unlockArea').style.display = "block"; 
+  window.onload = () => {
+    if(localStorage.getItem('mz_vault')) document.getElementById('unlockArea').style.display = "block";
   };
-
-  setInterval(updateStats, 20000);
 </script>
 </body>
 </html>

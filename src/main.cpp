@@ -17,6 +17,11 @@
     #define MKDIR(path) mkdir(path, 0777)
 #endif
 
+// DEFINIÇÃO DOS CAMINHOS ABSOLUTOS (IGUAL AO NODE)
+const std::string ABS_DATA_PATH = "/home/runner/workspace/data";
+const std::string ABS_DB_FILE = "/home/runner/workspace/data/blockchain.dat";
+const std::string ABS_MEMPOOL_FILE = "/home/runner/workspace/data/mempool.dat";
+
 void print_full_usage() {
     std::cout << "==========================================\n";
     std::cout << "          MAZECHAIN CORE v2.1              \n";
@@ -38,8 +43,8 @@ void print_full_usage() {
 }
 
 int main(int argc, char* argv[]) {
-    // 1. Garante a pasta de dados
-    MKDIR("data");
+    // 1. Garante a pasta de dados no caminho absoluto
+    MKDIR(ABS_DATA_PATH.c_str());
 
     // 2. Verificação da wordlist
     std::string wordlist_path = "wordlist.txt";
@@ -55,9 +60,7 @@ int main(int argc, char* argv[]) {
     }
     check_wordlist.close();
 
-    // 3. Inicializa Blockchain
-    // O construtor de Blockchain já chama Storage::loadChain e faz a filtragem resiliente.
-    // Não precisamos chamar Storage::loadChain aqui de novo, pois isso causaria duplicidade ou erros.
+    // 3. Inicializa Blockchain (O construtor usa caminhos absolutos agora)
     Blockchain bc;
 
     if (argc < 2) {
@@ -104,19 +107,13 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // ---------------- COMANDO MINE (REFORMULADO) ----------------
+    // ---------------- COMANDO MINE ----------------
     else if (cmd == "mine" && argc > 2) {
-        // Agora confiamos na validação interna da classe Blockchain.
-        // Se o construtor carregou a chain, o que está na memória é VÁLIDO.
-        // O mineBlock usará a chain da memória para criar o próximo bloco e 
-        // o Storage::saveChain irá limpar o lixo do arquivo .dat automaticamente.
-
         std::string minerAddress = argv[2];
         int height = (int)bc.getChain().size();
 
         std::cout << "⛏️ Preparando mineração do bloco #" << height << "...\n";
 
-        // Verificação de segurança em memória antes de minerar
         if (!bc.isChainValid()) {
             std::cout << "❌ ERRO CRÍTICO: A chain em memória está inconsistente.\n";
             return 1;
@@ -124,10 +121,9 @@ int main(int argc, char* argv[]) {
 
         bc.mineBlock(minerAddress);
 
-        // Note: bc.mineBlock já deve chamar Storage::saveChain internamente conforme seu blockchain.cpp
-        // Mas mantemos aqui para garantir a persistência imediata.
-        Storage::saveChain(bc, "data/blockchain.dat");
-        Storage::clearMempool("data/mempool.dat");
+        // Uso de caminhos absolutos para salvar
+        Storage::saveChain(bc, ABS_DB_FILE);
+        Storage::clearMempool(ABS_MEMPOOL_FILE);
 
         std::cout << "✅ Operação concluída.\n";
         return 0;
@@ -136,7 +132,7 @@ int main(int argc, char* argv[]) {
     // ---------------- COMANDO MEMPOOL ----------------
     else if (cmd == "mempool") {
         std::cout << "--- TRANSAÇÕES PENDENTES (MEMPOOL) ---\n";
-        auto pending = Storage::loadMempool("data/mempool.dat");
+        auto pending = Storage::loadMempool(ABS_MEMPOOL_FILE);
         if (pending.empty()) {
             std::cout << "Nenhuma transação aguardando mineração.\n";
         } else {
@@ -171,8 +167,6 @@ int main(int argc, char* argv[]) {
         try {
             double amount = std::stod(argv[4]);
             bc.send(argv[2], argv[3], amount, argv[5]);
-            // Transações de envio geralmente vão para o mempool e não salvam a chain direto,
-            // mas mantemos conforme sua lógica original.
             std::cout << "✅ Transação enviada para o mempool com sucesso.\n";
         } catch (const std::exception& e) {
             std::cerr << "❌ Erro na transação: " << e.what() << "\n";

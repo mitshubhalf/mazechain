@@ -2,21 +2,32 @@
 #define WALLET_H
 
 #include <string>
+#include <vector>
 
 class Wallet {
 public:
-    std::string address;
-    std::string seed;
+    std::string address;  // Endereço público (ex: MZ...)
+    std::string seed;     // As 12 palavras
+    std::string privKey;  // Chave privada derivada da seed (para assinar)
 
-    // 1. ADICIONE O CONSTRUTOR (Isso resolve o erro "implicitly-declared")
+    // Construtor padrão
     Wallet(); 
 
-    // 2. MANTENHA AS FUNÇÕES DE GERAÇÃO
+    // Gera uma nova carteira do zero
     void create(); 
+
+    // Recupera uma carteira através de uma seed existente
     void fromSeed(const std::string& existingSeed); 
 
-    // 3. ADICIONE A FUNÇÃO DE ASSINATURA (Isso resolve o erro "no declaration matches")
+    /**
+     * ASSINATURA DIGITAL (Robustez)
+     * Em vez de enviar a seed para a rede, a carteira gera um 
+     * código único (assinatura) para a transação.
+     */
     std::string sign(const std::string& message);
+
+    // Função auxiliar para verificar se a carteira está carregada
+    bool isValid() const;
 };
 
 #endif
