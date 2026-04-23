@@ -12,30 +12,63 @@ typedef struct {
     double reward;
 } MinerIdentity;
 
-// CALCULA A RECOMPENSA (Sincronizado com seu sistema atual)
-// Adicionado 'static inline' para evitar erro de múltiplas definições na linkagem
+// CALCULA A RECOMPENSA DEFINITIVA (Sincronizado com a regra de 400 MZ)
 static inline double calculate_mining_reward(int height) {
-    if (height <= 1000) {
-        return 2000.0; 
-    } else {
-        return 1000.0; // Sua regra atual para o Bloco 1001+
+    int interval = 10000;
+    int halving_count = height / interval;
+
+    if (halving_count >= 64) return 0.00000001;
+
+    double reward = 400.0; // BASE INICIAL DEFINITIVA
+
+    // FASE 1: Redução de 50% (H0 a H3)
+    if (halving_count < 4) {
+        for (int i = 0; i < halving_count; i++) {
+            reward *= 0.5;
+        }
+    } 
+    // FASE 2: Redução de 20% (H4 a H19)
+    else if (halving_count < 20) {
+        reward = 40.0; 
+        for (int i = 4; i < halving_count; i++) {
+            reward *= 0.80;
+        }
     }
+    // FASE 3: Redução de 10% (H20 a H49)
+    else if (halving_count < 50) {
+        reward = 1.407; 
+        for (int i = 20; i <= halving_count; i++) {
+            reward *= 0.90;
+        }
+    }
+    // FASE 4: Redução de 2% (H50 a H63)
+    else {
+        reward = 0.060; 
+        for (int i = 50; i < halving_count; i++) {
+            reward *= 0.98;
+        }
+    }
+
+    return reward;
 }
 
-// PREPARA A IDENTIDADE ÚNICA
-// Adicionado 'static inline' para que cada arquivo .cpp tenha sua própria referência segura
+// PREPARA A IDENTIDADE ÚNICA DO MINERADOR
 static inline MinerIdentity prepare_miner_identity(const char* address, int height) {
     MinerIdentity id;
 
     // Limpa a memória para evitar lixo de processamento
     memset(id.miner_address, 0, 64);
-    strncpy(id.miner_address, address, 63);
+    if (address != NULL) {
+        strncpy(id.miner_address, address, 63);
+    }
 
-    // ExtraNonce para garantir que seu trabalho seja único
-    srand(time(NULL) + height);
-    id.extra_nonce = rand() % 9000000 + 1000000; 
+    // ExtraNonce baseado no tempo e altura para garantir unicidade do hash
+    srand((unsigned int)(time(NULL) + height));
+    id.extra_nonce = (rand() % 9000000) + 1000000; 
 
+    // Atribui a recompensa calculada pela nova regra
     id.reward = calculate_mining_reward(height);
+
     return id;
 }
 

@@ -5,68 +5,71 @@
 #include <ctime>
 #include <iomanip>
 
-// Construtor atualizado: Agora recebe minerAddr e eNonce para garantir a unicidade
+// Construtor: Inicializa o bloco com os dados de identificação única do minerador
 Block::Block(int idx, std::string prev, std::vector<Transaction> txs, std::string minerAddr, long eNonce) {
     index = idx;
     prevHash = prev;
     transactions = txs;
-    minerAddress = minerAddr; // ADICIONADO: Atribui o endereço do minerador
-    extraNonce = eNonce;      // ADICIONADO: Atribui o extra nonce aleatório
+    minerAddress = minerAddr; 
+    extraNonce = eNonce;      
     timestamp = std::time(0);
     nonce = 0;
-    // O hash inicial já deve considerar o Merkle Root das transações e os novos campos
+
+    // O hash inicial já nasce sob a nova regra do SHA-256d
     hash = calculateHash();
 }
 
 std::string Block::calculateHash() const {
     std::stringstream ss;
 
-    // 1. Cálculo do Merkle Root: 
-    // Essencial para a integridade. Se mudar o valor de uma taxa 
-    // ou um endereço de destino, o Root muda e o Hash quebra.
+    // 1. Cálculo do Merkle Root utilizando SHA-256d
+    // Isso garante que se uma única transação for alterada, o Merkle Root muda completamente.
     std::string root = Crypto::calculateMerkleRoot(this->transactions);
 
     // 2. Montagem do Cabeçalho do Bloco (Block Header)
-    // Usamos o timestamp fixo capturado no construtor para o nonce não "competir" com o tempo
-    // ADICIONADO: minerAddress e extraNonce entram no cabeçalho para tornar o hash único por minerador
+    // A ordem dos campos é vital para a imutabilidade. Incluímos o minerAddress e o 
+    // extraNonce para garantir que dois mineradores nunca busquem o mesmo Hash (prevenindo colisão).
     ss << index 
        << timestamp 
        << prevHash 
-       << nonce 
        << root
        << minerAddress
-       << extraNonce;
+       << extraNonce
+       << nonce; // O nonce fica por último como o "contador" de tentativas
 
-    return Crypto::sha256_util(ss.str());
+    // MUDANÇA CRUCIAL: Agora utilizamos sha256d (Double SHA) conforme o padrão Bitcoin
+    return Crypto::sha256d(ss.str());
 }
 
 void Block::mine(int difficulty) {
-    // Define o alvo (target) baseado na dificuldade atual da rede
-    // Ex: Dificuldade 4 -> target = "0000"
+    // 1. Preparação do Alvo (Target)
+    // Geramos a string de zeros uma única vez fora do loop para máxima performance
     std::string target(difficulty, '0');
 
-    // Registro do início para cálculo de performance (opcional)
-    std::cout << "[MINER] Iniciando busca pelo Hash válido (Dificuldade: " << difficulty << ")" << std::endl;
+    std::cout << "[MINER] Iniciando Proof of Work (Algoritmo: SHA-256d)" << std::endl;
+    std::cout << "[MINER] Dificuldade: " << difficulty << " | Alvo: " << target << std::endl;
 
-    // --- LOOP DE PROOF OF WORK (PoW) ---
-    // É aqui que o seu computador gasta energia para validar a rede.
+    // 2. Loop de Proof of Work (PoW)
+    // Este é o processo intensivo que valida o bloco. Usando SHA-256d, 
+    // cada tentativa abaixo executa dois rounds de SHA-256 internamente.
     while (hash.substr(0, difficulty) != target) {
         nonce++;
 
-        // Recalcula o hash com o novo nonce
+        // Recalcula o hash duplo com o nonce incrementado
         hash = calculateHash();
 
-        // Monitoramento de progresso
+        // Monitoramento de progresso a cada 100 mil tentativas
         if (nonce % 100000 == 0) {
             std::cout << "[Nó] Minerando Bloco #" << index 
-                      << " | Nonce: " << nonce 
-                      << " | Hash: " << hash.substr(0, 10) << "..." << std::endl;
+                      << " | Nonce: " << std::setw(10) << nonce 
+                      << " | Hash: " << hash.substr(0, 15) << "..." << std::endl;
         }
     }
 
+    // 3. Resultado Final
     std::cout << "🎯 Bloco #" << index << " minerado com sucesso!" << std::endl;
-    std::cout << "   Hash: " << hash << std::endl;
-    std::cout << "   Nonce: " << nonce << std::endl;
-    std::cout << "   Minerador: " << minerAddress << std::endl; // Log adicional do minerador
-    std::cout << "   Transações: " << transactions.size() << " incluídas." << std::endl;
+    std::cout << "   Hash Final: " << hash << std::endl;
+    std::cout << "   Nonce:      " << nonce << std::endl;
+    std::cout << "   Minerador:  " << minerAddress << std::endl;
+    std::cout << "   Root Merkle: " << Crypto::calculateMerkleRoot(this->transactions) << std::endl;
 }

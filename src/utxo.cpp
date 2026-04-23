@@ -2,88 +2,94 @@
 #include "../include/transaction.h"
 #include <fstream>
 #include <iostream>
-#include <algorithm>
 #include <cmath>
-#include <vector>
-#include <iomanip>
-
-// Constante para comparação de valores decimais (1 Mit)
-const double EPSILON = 0.000000001;
 
 void UTXOSet::update(const Transaction& tx) {
-    for (const auto& out : tx.vout) {
-        if (out.amount > 0) {
-            // CRÉDITO: Adiciona novo UTXO
-            UTXO newUtxo;
-            newUtxo.txid = tx.id;
-            newUtxo.address = out.address;
-            newUtxo.amount = out.amount;
-            newUtxo.vout_index = 0; 
-            utxos.push_back(newUtxo);
-        } 
-        else if (out.amount < 0) {
-            // DÉBITO: Remove saldo do endereço
-            double amountToReduce = std::abs(out.amount);
-            
-            for (auto it = utxos.begin(); it != utxos.end(); ) {
-                if (it->address == out.address) {
-                    // Se o UTXO é menor que o necessário (ou igual, considerando erro de precisão)
-                    if (it->amount <= (amountToReduce + EPSILON)) {
-                        amountToReduce -= it->amount;
-                        it = utxos.erase(it);
-                    } else {
-                        // O UTXO tem saldo sobrando, apenas subtrai
-                        it->amount -= amountToReduce;
-                        amountToReduce = 0;
-                        break;
-                    }
-                } else {
-                    ++it;
-                }
-                if (amountToReduce < EPSILON) break;
+    // 1. Crédito: Adiciona novas saídas ao mapa
+    for (size_t i = 0; i < tx.vout.size(); ++i) {
+        const auto& out = tx.vout[i];
+
+        // Verificação rigorosa do valor para evitar "dust" ou valores negativos estranhos
+        if (out.amount > 0.000000001) {
+            // A chave é txid + indice da saída
+            std::string key = tx.id + ":" + std::to_string(i);
+
+            // Verificação de segurança: Se o UTXO já existe, não somamos de novo no saldo global
+            // Isso evita duplicação se o rebuild for chamado erroneamente
+            if (utxoMap.find(key) == utxoMap.end()) {
+                UTXO newUtxo = {tx.id, (int)i, out.address, out.amount};
+                utxoMap[key] = newUtxo;
+
+                // Atualiza cache de saldo
+                addressBalances[out.address] += out.amount;
             }
         }
     }
-}
 
-double UTXOSet::getBalance(std::string address) {
-    double balance = 0;
-    for (const auto& u : utxos) {
-        if (u.address == address) {
-            balance += u.amount;
+    // 2. Débito: Remove UTXOs gastos
+    for (const auto& in : tx.vin) {
+        // Usando 'in.txid' e 'in.index' conforme seu transaction.h
+        std::string key = in.txid + ":" + std::to_string(in.index);
+
+        if (utxoMap.count(key)) {
+            // Subtrai do cache de saldo antes de apagar
+            addressBalances[utxoMap[key].address] -= utxoMap[key].amount;
+
+            // Proteção para não deixar saldo negativo por erro de precisão float
+            if (addressBalances[utxoMap[key].address] < 0) {
+                addressBalances[utxoMap[key].address] = 0;
+            }
+
+            // Remove a moeda do conjunto (ela foi gasta)
+            utxoMap.erase(key);
         }
     }
-    // Retorna o saldo limpo, evitando lixo de memória decimal
-    return (balance < EPSILON) ? 0.0 : balance;
 }
 
-void UTXOSet::saveToFile(std::string filename) {
+double UTXOSet::getBalance(const std::string& address) {
+    if (addressBalances.count(address)) {
+        double b = addressBalances[address];
+        // EPSILON geralmente é 1e-9 nestes sistemas
+        return (b < 0.000000001) ? 0.0 : b;
+    }
+    return 0.0;
+}
+
+void UTXOSet::saveToFile(const std::string& filename) {
     std::ofstream file(filename, std::ios::binary);
     if (!file) return;
 
-    size_t size = utxos.size();
+    size_t size = utxoMap.size();
     file.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    
-    for (const auto& u : utxos) {
+
+    for (const auto& pair : utxoMap) {
+        const UTXO& u = pair.second;
+
+        // Salva TXID
         size_t txidLen = u.txid.length();
         file.write(reinterpret_cast<const char*>(&txidLen), sizeof(txidLen));
         file.write(u.txid.c_str(), txidLen);
 
+        // Salva Endereço
         size_t addrLen = u.address.length();
         file.write(reinterpret_cast<const char*>(&addrLen), sizeof(addrLen));
         file.write(u.address.c_str(), addrLen);
 
+        // Salva Indice e Valor
         file.write(reinterpret_cast<const char*>(&u.vout_index), sizeof(u.vout_index));
         file.write(reinterpret_cast<const char*>(&u.amount), sizeof(u.amount));
     }
     file.close();
 }
 
-void UTXOSet::loadFromFile(std::string filename) {
+void UTXOSet::loadFromFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file) return;
 
-    utxos.clear();
+    // Limpeza profunda antes de carregar
+    utxoMap.clear();
+    addressBalances.clear();
+
     size_t size;
     if(!file.read(reinterpret_cast<char*>(&size), sizeof(size))) return;
 
@@ -91,17 +97,24 @@ void UTXOSet::loadFromFile(std::string filename) {
         UTXO u;
         size_t txidLen, addrLen;
 
+        // Lê TXID
         if(!file.read(reinterpret_cast<char*>(&txidLen), sizeof(txidLen))) break;
         u.txid.resize(txidLen);
         file.read(&u.txid[0], txidLen);
 
+        // Lê Endereço
         if(!file.read(reinterpret_cast<char*>(&addrLen), sizeof(addrLen))) break;
         u.address.resize(addrLen);
         file.read(&u.address[0], addrLen);
 
+        // Lê Indice e Valor
         file.read(reinterpret_cast<char*>(&u.vout_index), sizeof(u.vout_index));
         file.read(reinterpret_cast<char*>(&u.amount), sizeof(u.amount));
-        utxos.push_back(u);
+
+        // Reconstrói os mapas
+        std::string key = u.txid + ":" + std::to_string(u.vout_index);
+        utxoMap[key] = u;
+        addressBalances[u.address] += u.amount;
     }
     file.close();
 }

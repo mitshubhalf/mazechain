@@ -20,11 +20,23 @@
       justify-content: center; 
       overflow-x: hidden; 
     }
-    .container { width: 100%; max-width: 450px; min-height: 100vh; position: relative; }
+    /* ADAPTAÇÃO DESKTOP/MOBILE */
+    .container { 
+      width: 100%; 
+      max-width: 500px; /* Um pouco mais largo para Desktop */
+      min-height: 100vh; 
+      position: relative; 
+      background: #000;
+      box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    }
+    @media (min-width: 800px) {
+      .container { max-width: 800px; border-left: 1px solid #222; border-right: 1px solid #222; }
+      .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    }
+
     .screen { display:none; padding:25px; box-sizing: border-box; min-height: 100vh; width: 100%; }
     .active { display:block !important; animation: fadeIn 0.4s; }
 
-    /* Estilização do Cubo 3D */
     .cube-wrapper { width: 60px; height: 60px; margin: 0 auto 20px; perspective: 1000px; position: relative; }
     .cube { 
       width: 30px; height: 30px; position: absolute; top:15px; left:15px; 
@@ -50,6 +62,7 @@
       color: #000; transition: 0.3s;
     }
     button:hover { background: var(--accent-light); transform: translateY(-2px); }
+    button:disabled { background: #333; color: #555; cursor: not-allowed; }
     button.secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
 
     input { 
@@ -60,21 +73,22 @@
 
     .seed-box { 
       background: #000; padding: 20px; border: 1px dashed var(--accent); 
-      margin: 15px 0; border-radius: 8px; text-align: center; font-size: 13px; color: #555; 
+      margin: 15px 0; border-radius: 8px; text-align: center; font-size: 14px; color: #fff; 
     }
-    .seed-box b { color: #fff; } 
 
     .nav { display:flex; justify-content: space-between; align-items: center; padding:15px; background: #000; border-bottom: 1px solid #222; }
     .tab-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #000; border-bottom: 1px solid #222; }
-    .tab-btn { padding: 12px; font-size: 10px; text-align: center; color: var(--text); cursor: pointer; text-transform: uppercase; }
+    .tab-btn { padding: 15px; font-size: 11px; text-align: center; color: var(--text); cursor: pointer; text-transform: uppercase; }
     .tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); background: #111; }
 
     .terminal { 
-      background: #000; color: #0f0; padding: 12px; font-size: 11px; height: 100px; 
-      overflow-y: auto; border: 1px solid #222; border-radius: 6px; font-family: monospace; 
+      background: #000; color: #0f0; padding: 12px; font-size: 11px; height: 120px; 
+      overflow-y: auto; border: 1px solid #222; border-radius: 6px; font-family: monospace; margin-top: 10px;
     }
 
-    .list-item { background: #1a1a1a; padding: 10px; border-radius: 5px; margin-bottom: 10px; font-size: 11px; border-left: 3px solid var(--accent); }
+    .list-item { background: #1a1a1a; padding: 12px; border-radius: 5px; margin-bottom: 10px; font-size: 11px; border-left: 3px solid var(--accent); }
+    .mempool-item { border-left-color: #555; background: #080808; margin-top: 5px; padding: 8px; font-size: 10px; }
+
     .chart-container { width: 100%; height: 180px; }
 
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -94,7 +108,9 @@
     <div style="margin-top: 40px;">
       <button onclick="go('create')">CRIAR NOVA WALLET</button>
       <button class="secondary" onclick="go('import')">IMPORTAR VIA SEED</button>
+
       <div id="unlockArea" style="display:none; margin-top:30px; border-top:1px solid #222; padding-top:20px;">
+        <p style="text-align:center; font-size:10px; color:var(--text)">CARTEIRA DETECTADA</p>
         <input type="password" id="unlockPass" placeholder="Senha de Desbloqueio">
         <button onclick="unlockWallet()">DESBLOQUEAR ACESSO</button>
       </div>
@@ -103,25 +119,26 @@
 
   <div id="create" class="screen">
     <h2>Backup Phrase</h2>
-    <div id="seedBox" class="seed-box">Gerando chaves...</div>
-    <input type="password" id="newPass" placeholder="Defina uma senha (mín. 4 dígitos)">
-    <button id="genBtn" onclick="generateWallet()">GERAR SEED</button>
+    <p style="font-size:11px; color:var(--text); text-align:center">Anote estas 12 palavras em ordem. Elas são a única forma de recuperar seu dinheiro.</p>
+    <div id="seedBox" class="seed-box">Defina uma senha abaixo primeiro.</div>
+    <input type="password" id="newPass" placeholder="Crie uma senha de acesso">
+    <button id="genBtn" onclick="generateWallet()">GERAR MINHA SEED</button>
     <button id="confirmBtn" class="secondary" onclick="loadDashboard()" style="display:none">JÁ ANOTEI TUDO (ENTRAR)</button>
     <button class="secondary" onclick="go('home')" style="border:none; color:#555">Voltar</button>
   </div>
 
   <div id="import" class="screen">
     <h2>Recuperar Conta</h2>
-    <input id="seedInput" placeholder="Insira suas 12 palavras...">
-    <input type="password" id="importPass" placeholder="Defina uma nova senha">
-    <button onclick="importWallet()">VALIDAR E ENTRAR</button>
+    <input id="seedInput" placeholder="Insira suas 12 palavras separadas por espaço">
+    <input type="password" id="importPass" placeholder="Crie uma nova senha para este dispositivo">
+    <button id="importBtn" onclick="importWallet()">VALIDAR E ENTRAR</button>
     <button class="secondary" onclick="go('home')" style="border:none; color:#555">Cancelar</button>
   </div>
 
   <div id="dashboard" class="screen" style="padding:0">
     <div class="nav">
       <b style="color:var(--accent)">MAZECHAIN CORE</b> 
-      <span onclick="location.reload()" style="cursor:pointer; font-size:11px; color:var(--text)">[SAIR]</span>
+      <span onclick="logout()" style="cursor:pointer; font-size:11px; color:var(--text)">[SAIR]</span>
     </div>
 
     <div class="tab-bar">
@@ -132,36 +149,42 @@
 
     <div style="padding:20px">
       <div id="content1" class="tab-content">
-        <div class="card">
-          <small style="color:var(--text); font-size:10px;">ENDEREÇO</small>
-          <p id="addrDisp" style="font-size:10px; color:var(--accent); word-break:break-all; font-family:monospace; background: #000; padding: 10px; border-radius: 5px;"></p>
-          <small style="color:var(--text); font-size:10px;">SALDO DISPONÍVEL</small>
-          <p id="balDisp" style="font-size:28px; font-weight:bold;">0.00 MZ</p>
+        <div class="dashboard-grid">
+          <div class="card">
+            <small style="color:var(--text); font-size:10px;">ENDEREÇO MZ</small>
+            <p id="addrDisp" style="font-size:11px; color:var(--accent); word-break:break-all; font-family:monospace; background: #000; padding: 10px; border-radius: 5px;"></p>
+            <small style="color:var(--text); font-size:10px;">SALDO DISPONÍVEL</small>
+            <p id="balDisp" style="font-size:28px; font-weight:bold;">0.00 MZ</p>
+          </div>
+
+          <div class="card">
+            <small style="color:var(--text); font-size:10px;">ENVIAR MOEDAS</small>
+            <input type="text" id="sendTo" placeholder="Endereço de destino">
+            <input type="number" id="sendAmount" placeholder="Quantia">
+            <button id="sendBtn" onclick="transferCoins()">CONFIRMAR ENVIO</button>
+          </div>
         </div>
 
-        <div class="card">
-          <small style="color:var(--text); font-size:10px;">ENVIAR TRANSFERÊNCIA</small>
-          <input type="text" id="sendTo" placeholder="Endereço de destino (MZ...)">
-          <input type="number" id="sendAmount" placeholder="Quantia">
-          <button class="secondary" onclick="transferCoins()">CONFIRMAR ENVIO</button>
+        <h3 style="font-size:12px; color:var(--accent); margin-top:20px;">HISTÓRICO / MEMPOOL</h3>
+        <div id="mempoolList" class="terminal" style="height: 150px;">
+          > Nenhuma transação pendente na Mempool.
         </div>
-
-        <div class="terminal" id="log">> Sincronizado com o Backend porta 10000.</div>
+        <div class="terminal" id="log">> Sessão iniciada. Pronto para transações.</div>
       </div>
 
       <div id="content2" class="tab-content" style="display:none">
-        <h3 style="font-size:12px; color:var(--accent)">ÚLTIMOS BLOCOS</h3>
+        <h3 style="font-size:12px; color:var(--accent)">ÚLTIMOS BLOCOS MINERADOS</h3>
         <div id="chainList">Carregando dados da blockchain...</div>
       </div>
 
       <div id="content3" class="tab-content" style="display:none">
         <div class="card">
-            <h3 style="font-size:12px; color:var(--accent)">ATIVIDADE DA REDE</h3>
+            <h3 style="font-size:12px; color:var(--accent)">VOLUME DE HASHES</h3>
             <div class="chart-container"><canvas id="priceChart"></canvas></div>
         </div>
         <div class="card">
-            <h3 style="font-size:12px; color:var(--accent)">STATUS DO NÓ</h3>
-            <div id="statsInfo" style="font-size:11px; line-height:2;">Obtendo estatísticas...</div>
+            <h3 style="font-size:12px; color:var(--accent)">ESTATÍSTICAS DO NÓ</h3>
+            <div id="statsInfo" style="font-size:11px; line-height:2;">Sincronizando...</div>
         </div>
       </div>
     </div>
@@ -169,16 +192,13 @@
 </div>
 
 <script>
-  /** * CONFIGURAÇÃO DE PORTAS:
-   * Frontend: 5000 (Acessado pelo navegador)
-   * Backend: 10000 (Onde a API C++ responde)
-   */
+  // CONFIGURAÇÃO DO BACKEND
   const BACKEND_PORT = "10000";
-  // Detecta o host atual (ex: replit.dev ou localhost) e força a porta do backend
   const API = window.location.protocol + "//" + window.location.hostname + ":" + BACKEND_PORT;
 
   let sessionSeed = null;
   let priceChart = null;
+  let mempoolData = [];
 
   function go(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -191,24 +211,31 @@
     document.getElementById('tab'+n).classList.add('active');
     document.getElementById('content'+n).style.display = 'block';
     if(n === 2) updateExplorer();
-    if(n === 3) updateNetwork();
+    if(n === 3) { updateNetwork(); initChart(); }
   }
 
+  // CRIPTOGRAFIA LOCAL
   function encrypt(text, password) { return CryptoJS.AES.encrypt(text, password).toString(); }
   function decrypt(cipher, password) {
     try {
       const bytes = CryptoJS.AES.decrypt(cipher, password);
-      return bytes.toString(CryptoJS.enc.Utf8) || null;
+      const original = bytes.toString(CryptoJS.enc.Utf8);
+      return original || null;
     } catch(e) { return null; }
   }
 
+  // --- CORREÇÃO: GERAR CARTEIRA ---
   async function generateWallet() {
     const pass = document.getElementById('newPass').value;
-    if(pass.length < 4) return alert("Senha muito curta!");
+    const btn = document.getElementById('genBtn');
+    if(pass.length < 4) return alert("Defina uma senha de pelo menos 4 dígitos para proteger sua Seed.");
+
+    btn.innerText = "PROCESSANDO...";
+    btn.disabled = true;
 
     try {
       const r = await fetch(`${API}/wallet/new`);
-      if(!r.ok) throw new Error("Backend Offline");
+      if(!r.ok) throw new Error();
       const data = await r.json(); 
 
       document.getElementById('seedBox').innerHTML = `<b>${data.seed}</b>`;
@@ -216,45 +243,73 @@
       localStorage.setItem('mz_addr', data.address);
       sessionSeed = data.seed; 
 
-      document.getElementById('genBtn').style.display = "none";
+      btn.style.display = "none";
       document.getElementById('confirmBtn').style.display = "block";
     } catch(e) {
-      alert("ERRO: O Backend na porta 10000 não está respondendo!");
+      alert("ERRO: O Nó C++ (Porta 10000) não respondeu. Verifique se o compilador está rodando!");
+      btn.innerText = "TENTAR NOVAMENTE";
+      btn.disabled = false;
     }
   }
 
+  // --- CORREÇÃO: IMPORTAR CARTEIRA ---
   async function importWallet() {
     const seed = document.getElementById('seedInput').value.trim();
     const pass = document.getElementById('importPass').value;
-    if(seed.split(' ').length < 12) return alert("Seed inválida");
+    const btn = document.getElementById('importBtn');
+
+    if(seed.split(' ').length < 12) return alert("A Seed deve conter 12 palavras.");
+    if(pass.length < 4) return alert("Defina uma senha para proteger o acesso local.");
+
+    btn.innerText = "VALIDANDO SEED...";
+    btn.disabled = true;
 
     try {
-      // O nó precisa validar a seed e retornar o endereço MZ correspondente
-      const r = await fetch(`${API}/balance/MZ_VALIDATE_SEED`, { 
+      const r = await fetch(`${API}/wallet/import`, { 
         method: 'POST', 
-        body: JSON.stringify({seed}) 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({seed: seed}) 
       });
-      // Lógica simplificada: para fins de teste, salvamos a seed localmente
-      localStorage.setItem('mz_vault', encrypt(seed, pass));
-      // Endereço fictício para o exemplo (no real, o backend retorna o endereço correto)
-      localStorage.setItem('mz_addr', "MZ_RECUPERADA_DE_SEED"); 
-      sessionSeed = seed;
-      loadDashboard();
-    } catch(e) { alert("Erro ao importar."); }
+
+      const data = await r.json();
+      if(data.status === "success") {
+        localStorage.setItem('mz_vault', encrypt(seed, pass));
+        localStorage.setItem('mz_addr', data.address);
+        sessionSeed = seed;
+        loadDashboard();
+      } else {
+        alert("Seed Inválida para o protocolo MazeChain.");
+        btn.disabled = false;
+        btn.innerText = "VALIDAR E ENTRAR";
+      }
+    } catch(e) { 
+      alert("Erro de conexão com o servidor."); 
+      btn.disabled = false;
+    }
   }
 
   function unlockWallet() {
     const pass = document.getElementById('unlockPass').value;
-    const decrypted = decrypt(localStorage.getItem('mz_vault'), pass);
-    if(decrypted) { sessionSeed = decrypted; loadDashboard(); }
-    else alert("Senha incorreta!");
+    const vault = localStorage.getItem('mz_vault');
+    const decrypted = decrypt(vault, pass);
+    if(decrypted) { 
+      sessionSeed = decrypted; 
+      loadDashboard(); 
+    } else {
+      alert("Senha Incorreta!");
+    }
   }
 
   function loadDashboard() {
     go('dashboard');
     document.getElementById('addrDisp').innerText = localStorage.getItem('mz_addr');
     updateStats();
-    initChart();
+    setInterval(updateStats, 15000); // Auto-update saldo
+  }
+
+  function logout() {
+    sessionSeed = null;
+    location.reload();
   }
 
   async function updateStats() {
@@ -262,45 +317,35 @@
     try {
       const r = await fetch(`${API}/balance/${addr}`);
       const d = await r.json();
-      document.getElementById('balDisp').innerText = d.balance_mz.toFixed(8) + " MZ";
-    } catch(e) { console.log("Erro de sync saldo."); }
+      document.getElementById('balDisp').innerText = d.balance_mz.toFixed(4) + " MZ";
+    } catch(e) { console.log("Sync error"); }
   }
 
-  async function updateExplorer() {
-    const list = document.getElementById('chainList');
-    try {
-      const r = await fetch(`${API}/chain`);
-      const data = await r.json();
-      list.innerHTML = "";
-      data.blocks.reverse().forEach(b => {
-        list.innerHTML += `
-          <div class="list-item">
-            <b>BLOCO #${b.index}</b><br>
-            <small>Hash: ${b.hash.substring(0,24)}...</small><br>
-            Txs: ${b.tx_count} | ${new Date(b.timestamp * 1000).toLocaleTimeString()}
-          </div>`;
-      });
-    } catch(e) { list.innerHTML = "Erro ao carregar blocos."; }
-  }
+  // MEMPOOL VISUAL
+  function addToMempool(to, amount) {
+    const now = new Date();
+    const timeStr = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
+    const list = document.getElementById('mempoolList');
 
-  async function updateNetwork() {
-    const info = document.getElementById('statsInfo');
-    try {
-      const r = await fetch(`${API}/status`);
-      const d = await r.json();
-      info.innerHTML = `
-        Difficulty: <b>${d.protocol.difficulty}</b><br>
-        Total Supply: <b>${d.protocol.total_supply.toFixed(2)} MZ</b><br>
-        Peers: <b>${d.network.peers_count}</b><br>
-        Height: <b>${d.chain.height}</b>
-      `;
-    } catch(e) { info.innerHTML = "Nó Offline"; }
+    const entry = `<div class="mempool-item">
+      [${timeStr}] TX PENDENTE: ${amount} MZ -> ${to.substring(0,10)}...<br>
+      Status: Aguardando Mineração no próximo bloco.
+    </div>`;
+
+    mempoolData.push(entry);
+    list.innerHTML = mempoolData.join('');
   }
 
   async function transferCoins() {
     const to = document.getElementById('sendTo').value;
     const amount = parseFloat(document.getElementById('sendAmount').value);
+    const btn = document.getElementById('sendBtn');
     const log = document.getElementById('log');
+
+    if(!to || isNaN(amount)) return alert("Preencha os dados de envio");
+
+    btn.disabled = true;
+    btn.innerText = "ASSINANDO...";
 
     try {
       const res = await fetch(`${API}/send`, {
@@ -315,28 +360,70 @@
       });
       const resData = await res.json();
       if(res.ok) {
-        log.innerHTML += `<br><span style="color:#0f0">> Enviado com sucesso!</span>`;
+        log.innerHTML += `<br><span style="color:#0f0">> Transação Broadcasted!</span>`;
+        addToMempool(to, amount);
         updateStats();
       } else {
         log.innerHTML += `<br><span style="color:red">> Erro: ${resData.reason}</span>`;
       }
-    } catch(e) { log.innerHTML += `<br>Falha na API.`; }
+    } catch(e) { log.innerHTML += `<br>Erro de conexão API.`; }
+
+    btn.disabled = false;
+    btn.innerText = "CONFIRMAR ENVIO";
+  }
+
+  async function updateExplorer() {
+    const list = document.getElementById('chainList');
+    try {
+      const r = await fetch(`${API}/chain`);
+      const data = await r.json();
+      list.innerHTML = "";
+      data.blocks.reverse().forEach(b => {
+        list.innerHTML += `
+          <div class="list-item">
+            <b>BLOCO #${b.index}</b> <small style="float:right">${new Date(b.timestamp * 1000).toLocaleTimeString()}</small><br>
+            <small style="color:var(--text)">Hash: ${b.hash.substring(0,32)}...</small><br>
+            <div style="margin-top:5px">Transações: ${b.tx_count} | Dificuldade: Fixa</div>
+          </div>`;
+      });
+    } catch(e) { list.innerHTML = "O Nó ainda não minerou blocos."; }
+  }
+
+  async function updateNetwork() {
+    const info = document.getElementById('statsInfo');
+    try {
+      const r = await fetch(`${API}/status`);
+      const d = await r.json();
+      info.innerHTML = `
+        Protocolo: <b>MAZECHAIN v2.1</b><br>
+        Dificuldade Atual: <b>${d.protocol.difficulty} Zeros</b><br>
+        Supply Total: <b>${d.protocol.total_supply.toFixed(2)} MZ</b><br>
+        Peers Conectados: <b>${d.network.peers_count}</b><br>
+        Altura da Rede: <b>${d.chain.height}</b>
+      `;
+    } catch(e) { info.innerHTML = "Nó em modo Offline."; }
   }
 
   function initChart() {
+    if(priceChart) priceChart.destroy();
     const ctx = document.getElementById('priceChart').getContext('2d');
     priceChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: ['1','2','3','4','5'],
-        datasets: [{ data: [10, 15, 8, 20, 25], borderColor: '#f5c542', tension: 0.4 }]
+        labels: ['10:00','10:05','10:10','10:15','10:20'],
+        datasets: [{ data: [5, 12, 10, 18, 15], borderColor: '#f5c542', backgroundColor: 'rgba(245,197,66,0.1)', fill: true, tension: 0.4 }]
       },
-      options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+      options: { 
+        plugins: { legend: { display: false } }, 
+        scales: { x: { grid: {display:false} }, y: { grid: {color:'#222'} } } 
+      }
     });
   }
 
   window.onload = () => {
-    if(localStorage.getItem('mz_vault')) document.getElementById('unlockArea').style.display = "block";
+    if(localStorage.getItem('mz_vault')) {
+      document.getElementById('unlockArea').style.display = "block";
+    }
   };
 </script>
 </body>

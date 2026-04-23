@@ -2,10 +2,8 @@
 #define UTXO_H
 
 #include <string>
+#include <unordered_map>
 #include <vector>
-
-// Forward declaration: Avisa que a struct existe antes de tentar usar
-struct Transaction; 
 
 struct UTXO {
     std::string txid;
@@ -14,14 +12,21 @@ struct UTXO {
     double amount;
 };
 
-// Agora sim, a classe que usa a Transaction
 class UTXOSet {
 public:
-    std::vector<UTXO> utxos;
-    void update(const Transaction& tx); // O compilador agora sabe que Transaction é um tipo
-    double getBalance(std::string address);
-    void saveToFile(std::string filename);
-    void loadFromFile(std::string filename);
+    // Mapeia "txid:index" para o objeto UTXO (Busca O(1))
+    std::unordered_map<std::string, UTXO> utxoMap;
+
+    // Cache de saldos por endereço para o Dashboard carregar instantâneo
+    std::unordered_map<std::string, double> addressBalances;
+
+    void update(const struct Transaction& tx);
+    double getBalance(const std::string& address);
+    void saveToFile(const std::string& filename);
+    void loadFromFile(const std::string& filename);
+
+private:
+    const double EPSILON = 0.000000001;
 };
 
 #endif
