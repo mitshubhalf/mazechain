@@ -4,7 +4,8 @@
 #include <iostream>
 #include <cmath>
 
-void UTXOSet::update(const Transaction& tx) {
+// Atualizado para receber blockHeight para controle de maturidade
+void UTXOSet::update(const Transaction& tx, int blockHeight) {
     // 1. Crédito: Adiciona novas saídas ao mapa
     for (size_t i = 0; i < tx.vout.size(); ++i) {
         const auto& out = tx.vout[i];
@@ -15,12 +16,22 @@ void UTXOSet::update(const Transaction& tx) {
             std::string key = tx.id + ":" + std::to_string(i);
 
             // Verificação de segurança: Se o UTXO já existe, não somamos de novo no saldo global
-            // Isso evita duplicação se o rebuild for chamado erroneamente
             if (utxoMap.find(key) == utxoMap.end()) {
-                UTXO newUtxo = {tx.id, (int)i, out.address, out.amount};
+                // Identifica se é uma recompensa de mineração (Coinbase)
+                bool isCoinbase = (tx.signature == "coinbase");
+
+                // Criamos o novo UTXO com os dados de altura e tipo
+                UTXO newUtxo;
+                newUtxo.txid = tx.id;
+                newUtxo.vout_index = (int)i;
+                newUtxo.address = out.address;
+                newUtxo.amount = out.amount;
+                newUtxo.isCoinbase = isCoinbase;
+                newUtxo.blockHeight = blockHeight;
+
                 utxoMap[key] = newUtxo;
 
-                // Atualiza cache de saldo
+                // Atualiza cache de saldo global (saldo total, incluindo imaturos)
                 addressBalances[out.address] += out.amount;
             }
         }
@@ -46,13 +57,27 @@ void UTXOSet::update(const Transaction& tx) {
     }
 }
 
-double UTXOSet::getBalance(const std::string& address) {
-    if (addressBalances.count(address)) {
-        double b = addressBalances[address];
-        // EPSILON geralmente é 1e-9 nestes sistemas
-        return (b < 0.000000001) ? 0.0 : b;
+// getBalance atualizado para considerar a regra de maturidade de 50 blocos
+double UTXOSet::getBalance(const std::string& address, int currentHeight) {
+    double spendableBalance = 0.0;
+    const int MATURITY_THRESHOLD = 50;
+
+    // Percorremos os UTXOs para somar apenas o que pode ser gasto agora
+    for (auto const& [key, u] : utxoMap) {
+        if (u.address == address) {
+            if (u.isCoinbase) {
+                // Se for moeda de mineração, só libera após 50 blocos
+                if (currentHeight - u.blockHeight >= MATURITY_THRESHOLD) {
+                    spendableBalance += u.amount;
+                }
+            } else {
+                // Transações normais entre usuários não têm bloqueio
+                spendableBalance += u.amount;
+            }
+        }
     }
-    return 0.0;
+
+    return (spendableBalance < 0.000000001) ? 0.0 : spendableBalance;
 }
 
 void UTXOSet::saveToFile(const std::string& filename) {
@@ -78,6 +103,10 @@ void UTXOSet::saveToFile(const std::string& filename) {
         // Salva Indice e Valor
         file.write(reinterpret_cast<const char*>(&u.vout_index), sizeof(u.vout_index));
         file.write(reinterpret_cast<const char*>(&u.amount), sizeof(u.amount));
+
+        // NOVOS CAMPOS: Salva flags de Coinbase e Altura do Bloco
+        file.write(reinterpret_cast<const char*>(&u.isCoinbase), sizeof(u.isCoinbase));
+        file.write(reinterpret_cast<const char*>(&u.blockHeight), sizeof(u.blockHeight));
     }
     file.close();
 }
@@ -110,6 +139,10 @@ void UTXOSet::loadFromFile(const std::string& filename) {
         // Lê Indice e Valor
         file.read(reinterpret_cast<char*>(&u.vout_index), sizeof(u.vout_index));
         file.read(reinterpret_cast<char*>(&u.amount), sizeof(u.amount));
+
+        // NOVOS CAMPOS: Lê flags de Coinbase e Altura do Bloco
+        file.read(reinterpret_cast<char*>(&u.isCoinbase), sizeof(u.isCoinbase));
+        file.read(reinterpret_cast<char*>(&u.blockHeight), sizeof(u.blockHeight));
 
         // Reconstrói os mapas
         std::string key = u.txid + ":" + std::to_string(u.vout_index);

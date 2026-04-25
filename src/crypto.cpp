@@ -6,6 +6,8 @@
 #include <openssl/ecdsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/evp.h> // Adicionado para AES/EVP
+#include <openssl/aes.h> // ADICIONADO PARA DEFINIÇÃO DE AES_BLOCK_SIZE
 #include <iomanip>
 #include <sstream>
 #include <vector>
@@ -149,6 +151,55 @@ bool verify_signature(const std::string& data, const std::string& signature_hex,
     EC_KEY_free(key);
 
     return (result == 1);
+}
+
+// --- MELHORIA: CRIPTOGRAFIA DE WALLET (AES-256-CBC) ---
+
+std::string encrypt_data(const std::string& plaintext, const std::string& password) {
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    unsigned char key[32], iv[16];
+
+    // Deriva chave e IV da senha de forma simples para a MazeChain
+    EVP_BytesToKey(EVP_aes_256_cbc(), EVP_sha256(), NULL, (unsigned char*)password.c_str(), password.length(), 1, key, iv);
+
+    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
+
+    std::vector<unsigned char> ciphertext(plaintext.length() + AES_BLOCK_SIZE);
+    int len, ciphertext_len;
+
+    EVP_EncryptUpdate(ctx, ciphertext.data(), &len, (unsigned char*)plaintext.c_str(), plaintext.length());
+    ciphertext_len = len;
+
+    EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
+    ciphertext_len += len;
+
+    EVP_CIPHER_CTX_free(ctx);
+    return to_hex(ciphertext.data(), ciphertext_len);
+}
+
+std::string decrypt_data(const std::string& ciphertext_hex, const std::string& password) {
+    std::vector<unsigned char> ciphertext = from_hex(ciphertext_hex);
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    unsigned char key[32], iv[16];
+
+    EVP_BytesToKey(EVP_aes_256_cbc(), EVP_sha256(), NULL, (unsigned char*)password.c_str(), password.length(), 1, key, iv);
+
+    EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
+
+    std::vector<unsigned char> plaintext(ciphertext.size());
+    int len, plaintext_len;
+
+    if (EVP_DecryptUpdate(ctx, plaintext.data(), &len, ciphertext.data(), ciphertext.size()) <= 0) return "ERROR";
+    plaintext_len = len;
+
+    if (EVP_DecryptFinal_ex(ctx, plaintext.data() + len, &len) <= 0) {
+        EVP_CIPHER_CTX_free(ctx);
+        return "DECRYPT_FAIL"; // Senha incorreta
+    }
+    plaintext_len += len;
+
+    EVP_CIPHER_CTX_free(ctx);
+    return std::string((char*)plaintext.data(), plaintext_len);
 }
 
 } // namespace Crypto

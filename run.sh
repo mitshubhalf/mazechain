@@ -16,8 +16,9 @@ mkdir -p data
 
 # 3. COMPILAÇÃO DO BACKEND (C++)
 echo "[BUILD] Compilando Backend MazeChain..."
+# Detecta caminhos das bibliotecas no ambiente Nix/Replit
 ASIO_INC=$(pkg-config --cflags asio 2>/dev/null || echo "-I/usr/include")
-OPENSSL_FLAGS=$(pkg-config --cflags --libs openssl)
+OPENSSL_FLAGS=$(pkg-config --cflags --libs openssl 2>/dev/null || echo "-lssl -lcrypto")
 
 g++ -O2 -std=c++17 \
   src/blockchain.cpp \
@@ -34,18 +35,19 @@ g++ -O2 -std=c++17 \
   $ASIO_INC \
   $OPENSSL_FLAGS \
   -lpthread \
+  -lcurl \
   -Wno-deprecated-declarations \
   -o mazechain_api
 
 echo "[BUILD] Compilação finalizada."
 
 # 4. INICIALIZAÇÃO DO FRONTEND (Porta 5000)
-# Usamos o Python para servir o index.html na porta 5000 em segundo plano (&)
+# Serve os arquivos da pasta atual (onde deve estar seu index.html)
 echo "[START] Iniciando Interface Web em http://localhost:$FRONTEND_PORT"
 python3 -m http.server $FRONTEND_PORT > /dev/null 2>&1 &
 
 # 5. INICIALIZAÇÃO DO BACKEND (Porta 10000)
 echo "[START] Iniciando Nó MazeChain em http://localhost:$BACKEND_PORT"
-# O backend assume o controle do terminal para você ver os logs
+# O backend assume o controle do terminal para você ver os logs em tempo real
 export PORT=$BACKEND_PORT
 ./mazechain_api

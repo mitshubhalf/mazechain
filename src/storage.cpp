@@ -199,3 +199,34 @@ void Storage::clearMempool(const std::string& filename) {
     std::ofstream file(filename, std::ios::trunc);
     file.close();
 }
+
+// --- MELHORIA: SISTEMA DE STORAGE PARA WALLET CRIPTOGRAFADA ---
+
+void Storage::saveWallet(const std::string& address, const std::string& encryptedKey, const std::string& filename) {
+    ensure_directory();
+    // Salva em formato texto simples (JSON-like) para facilitar a leitura futura
+    std::ofstream file(filename, std::ios::trunc);
+    if (!file.is_open()) return;
+
+    file << "address=" << address << "\n";
+    file << "encrypted_key=" << encryptedKey << "\n";
+
+    file.close();
+}
+
+bool Storage::loadWallet(std::string& address, std::string& encryptedKey, const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) return false;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.find("address=") == 0) {
+            address = line.substr(8);
+        } else if (line.find("encrypted_key=") == 0) {
+            encryptedKey = line.substr(14);
+        }
+    }
+
+    file.close();
+    return (!address.empty() && !encryptedKey.empty());
+}

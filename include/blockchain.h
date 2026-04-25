@@ -25,6 +25,11 @@ public:
 
     Blockchain();
 
+    // --- NOVAS FUNÇÕES DE SEGURANÇA E ECONOMIA ---
+    double getDynamicFeePercentage(int height); 
+    int getSafetyFloor(); // ESSA LINHA RESOLVE O ERRO DE COMPILAÇÃO
+    // --------------------------------------------
+
     // Funções de lógica central (Públicas para serem acessadas pela API/Main)
     void mineBlock(std::string minerAddress); 
     void adjustDifficulty(); // Mudado para public para facilitar o gerenciamento do Nó
