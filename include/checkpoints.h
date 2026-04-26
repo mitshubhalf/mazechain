@@ -5,18 +5,13 @@
 #include <string>
 
 namespace Checkpoints {
-    // Mapa de Altura -> Hash Oficial
-    // Uma vez que um bloco entra aqui, a rede NUNCA aceitará um hash diferente para essa altura.
-    const std::map<int, std::string> mapCheckpoints = {
-        {0, "0"}, // Hash do Gênesis
-        // Quando você tiver o hash real do bloco 5000, coloque-o aqui:
-        // {5000, "0000xxxxx..."} 
-    };
+    // Definimos o tipo para facilitar
+    typedef std::map<int, std::string> MapCheckpoints;
 
-    // Verifica se o hash de um bloco recebido bate com o checkpoint oficial
+    // 'extern' diz ao compilador: "A lista real está em outro lugar (no .cpp)"
+    extern const MapCheckpoints mapCheckpoints;
+
     bool CheckBlock(int height, const std::string& hash);
-    
-    // Retorna a altura do último checkpoint cadastrado
     int GetLastCheckpointHeight();
 }
 

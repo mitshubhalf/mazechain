@@ -1,5 +1,5 @@
 // Copyright (c) 2026 mits
-// Copyright (c) present The Bitcoin Core developers
+// Copyright (c) present The MAZECHAIN developers
 // Copyright (c) 2026-present The MazeChain developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.

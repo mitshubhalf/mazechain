@@ -61,6 +61,12 @@ Blockchain::Blockchain() {
         std::string zeroHash(64, '0');
         Block genesis(0, zeroHash, genesisTxs, "GENESIS_BLOCK", 0);
         genesis.hash = genesis.calculateHash(); 
+
+        // ====================================================================
+        // LINHA DE DEBUG: Capture este valor no terminal para colocar no checkpoints.cpp
+        std::cout << "\n[DEBUG] NOVO HASH DO BLOCO GENESIS: " << genesis.hash << "\n" << std::endl;
+        // ====================================================================
+
         chain.push_back(genesis);
 
         std::cout << "[SISTEMA] Novo Bloco Gênesis estabelecido (400 MZ)." << std::endl;
