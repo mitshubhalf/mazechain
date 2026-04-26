@@ -2,3 +2,5 @@ mazechain
 *.o
 *.dat
 data/
+build/
+maze_node
