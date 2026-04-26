@@ -272,17 +272,24 @@ CMakeFiles/mazechain_node.dir/src/blockchain.cpp.o: \
  /nix/store/6i862vz60awrlsila8vw18rg4d4l66iy-gcc-14.2.1.20250322/include/c++/14.2.1.20250322/bits/stl_vector.h \
  /nix/store/6i862vz60awrlsila8vw18rg4d4l66iy-gcc-14.2.1.20250322/include/c++/14.2.1.20250322/bits/stl_bvector.h \
  /nix/store/6i862vz60awrlsila8vw18rg4d4l66iy-gcc-14.2.1.20250322/include/c++/14.2.1.20250322/bits/vector.tcc \
- /home/runner/workspace/src/../include/blockchain.h \
- /home/runner/workspace/src/../include/block.h \
- /home/runner/workspace/src/../include/transaction.h \
- /home/runner/workspace/src/../include/utxo.h \
+ /home/runner/workspace/include/blockchain.h \
+ /home/runner/workspace/include/block.h \
+ /home/runner/workspace/include/transaction.h \
+ /home/runner/workspace/include/utxo.h \
  /nix/store/6i862vz60awrlsila8vw18rg4d4l66iy-gcc-14.2.1.20250322/include/c++/14.2.1.20250322/unordered_map \
  /nix/store/6i862vz60awrlsila8vw18rg4d4l66iy-gcc-14.2.1.20250322/include/c++/14.2.1.20250322/bits/unordered_map.h \
  /nix/store/6i862vz60awrlsila8vw18rg4d4l66iy-gcc-14.2.1.20250322/include/c++/14.2.1.20250322/bits/hashtable.h \
  /nix/store/6i862vz60awrlsila8vw18rg4d4l66iy-gcc-14.2.1.20250322/include/c++/14.2.1.20250322/bits/hashtable_policy.h \
  /nix/store/6i862vz60awrlsila8vw18rg4d4l66iy-gcc-14.2.1.20250322/include/c++/14.2.1.20250322/bits/enable_special_members.h \
- /home/runner/workspace/src/../include/mining_utils.h \
+ /home/runner/workspace/include/mining_utils.h \
  /nix/store/6i862vz60awrlsila8vw18rg4d4l66iy-gcc-14.2.1.20250322/include/c++/14.2.1.20250322/stdlib.h \
- /home/runner/workspace/src/../include/storage.h \
- /home/runner/workspace/src/../include/crypto.h \
- /home/runner/workspace/src/../include/mining_utils.h
+ /home/runner/workspace/include/storage.h \
+ /home/runner/workspace/include/crypto.h \
+ /home/runner/workspace/include/mining_utils.h \
+ /home/runner/workspace/include/checkpoints.h \
+ /home/runner/workspace/include/db_integrity.h \
+ /home/runner/workspace/include/difficulty.h \
+ /home/runner/workspace/include/mempool_limit.h \
+ /home/runner/workspace/include/mempool_audit.h \
+ /home/runner/workspace/include/blockchain.h \
+ /home/runner/workspace/include/storage.h

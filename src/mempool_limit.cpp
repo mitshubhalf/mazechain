@@ -1,24 +1,33 @@
 #include "mempool_limit.h"
 #include <algorithm>
+#include <vector>
 
-// Use o namespace que você definiu no .h
 namespace MempoolLimit {
 
-    // Mude o nome de 'Prune' para 'TrimMempool' para casar com o .h
+    // Função para calcular a taxa de uma transação dinamicamente
+    // Já que o compilador disse que 'fee' não existe na struct
+    double GetTransactionFee(const Transaction& tx) {
+        double input = 0;
+        double output = 0;
+        for (const auto& out : tx.vout) {
+            if (out.amount < 0) input += std::abs(out.amount);
+            else output += out.amount;
+        }
+        return input - output;
+    }
+
     void TrimMempool(std::vector<Transaction>& txs) {
-        // Use a constante MAX_TX_COUNT que você definiu no .h
         if (txs.size() <= MAX_TX_COUNT) return;
 
-        // Ordena para manter as que pagam mais taxas
+        // Ordena para manter as que pagam mais taxas (calculando a taxa real)
         std::sort(txs.begin(), txs.end(), [](const Transaction& a, const Transaction& b) {
-            return a.fee > b.fee;
+            return GetTransactionFee(a) > GetTransactionFee(b);
         });
 
-        // Remove o excesso
+        // Remove as transações excedentes (as de menor taxa)
         txs.erase(txs.begin() + MAX_TX_COUNT, txs.end());
     }
 
-    // Não esqueça de implementar a outra função que está no .h
     bool CanAcceptTransaction(int currentCount) {
         return currentCount < MAX_TX_COUNT;
     }

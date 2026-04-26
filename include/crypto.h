@@ -44,6 +44,15 @@ namespace Crypto {
     // Permite que mineradores confirmem a autenticidade sem possuir a chave privada
     bool verify_signature(const std::string& data, const std::string& signature, const std::string& public_key);
 
+    // --- MELHORIA: Funções de Criptografia de Wallet (AES-256-CBC) ---
+    // Estas funções são necessárias para a API gerir seeds protegidas por password
+
+    // Encripta dados sensíveis (como a Seed) usando uma password
+    std::string encrypt_data(const std::string& plaintext, const std::string& password);
+
+    // Desencripta os dados (como a Seed encriptada) usando a password
+    std::string decrypt_data(const std::string& ciphertext_hex, const std::string& password);
+
 } // namespace Crypto
 
 #endif

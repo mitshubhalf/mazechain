@@ -201,6 +201,30 @@ src/blockchain.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/blockchain.cpp.s
 .PHONY : src/blockchain.cpp.s
 
+src/checkpoints.o: src/checkpoints.cpp.o
+.PHONY : src/checkpoints.o
+
+# target to build an object file
+src/checkpoints.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o
+.PHONY : src/checkpoints.cpp.o
+
+src/checkpoints.i: src/checkpoints.cpp.i
+.PHONY : src/checkpoints.i
+
+# target to preprocess a source file
+src/checkpoints.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.i
+.PHONY : src/checkpoints.cpp.i
+
+src/checkpoints.s: src/checkpoints.cpp.s
+.PHONY : src/checkpoints.s
+
+# target to generate assembly for a file
+src/checkpoints.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.s
+.PHONY : src/checkpoints.cpp.s
+
 src/crypto.o: src/crypto.cpp.o
 .PHONY : src/crypto.o
 
@@ -224,6 +248,54 @@ src/crypto.s: src/crypto.cpp.s
 src/crypto.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/crypto.cpp.s
 .PHONY : src/crypto.cpp.s
+
+src/db_integrity.o: src/db_integrity.cpp.o
+.PHONY : src/db_integrity.o
+
+# target to build an object file
+src/db_integrity.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o
+.PHONY : src/db_integrity.cpp.o
+
+src/db_integrity.i: src/db_integrity.cpp.i
+.PHONY : src/db_integrity.i
+
+# target to preprocess a source file
+src/db_integrity.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.i
+.PHONY : src/db_integrity.cpp.i
+
+src/db_integrity.s: src/db_integrity.cpp.s
+.PHONY : src/db_integrity.s
+
+# target to generate assembly for a file
+src/db_integrity.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.s
+.PHONY : src/db_integrity.cpp.s
+
+src/mempool_limit.o: src/mempool_limit.cpp.o
+.PHONY : src/mempool_limit.o
+
+# target to build an object file
+src/mempool_limit.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o
+.PHONY : src/mempool_limit.cpp.o
+
+src/mempool_limit.i: src/mempool_limit.cpp.i
+.PHONY : src/mempool_limit.i
+
+# target to preprocess a source file
+src/mempool_limit.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.i
+.PHONY : src/mempool_limit.cpp.i
+
+src/mempool_limit.s: src/mempool_limit.cpp.s
+.PHONY : src/mempool_limit.s
+
+# target to generate assembly for a file
+src/mempool_limit.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.s
+.PHONY : src/mempool_limit.cpp.s
 
 src/node_manager.o: src/node_manager.cpp.o
 .PHONY : src/node_manager.o
@@ -387,9 +459,18 @@ help:
 	@echo "... src/blockchain.o"
 	@echo "... src/blockchain.i"
 	@echo "... src/blockchain.s"
+	@echo "... src/checkpoints.o"
+	@echo "... src/checkpoints.i"
+	@echo "... src/checkpoints.s"
 	@echo "... src/crypto.o"
 	@echo "... src/crypto.i"
 	@echo "... src/crypto.s"
+	@echo "... src/db_integrity.o"
+	@echo "... src/db_integrity.i"
+	@echo "... src/db_integrity.s"
+	@echo "... src/mempool_limit.o"
+	@echo "... src/mempool_limit.i"
+	@echo "... src/mempool_limit.s"
 	@echo "... src/node_manager.o"
 	@echo "... src/node_manager.i"
 	@echo "... src/node_manager.s"

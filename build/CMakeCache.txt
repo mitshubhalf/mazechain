@@ -110,7 +110,7 @@ CMAKE_INSTALL_PREFIX:PATH=/var/empty/local
 CMAKE_LINKER:FILEPATH=/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/ld
 
 //Path to a program.
-CMAKE_MAKE_PROGRAM:FILEPATH=/nix/store/8dl5ryfna3hjqhvnkw7srm6wnka6agxl-gnumake-4.4.1/bin/make
+CMAKE_MAKE_PROGRAM:FILEPATH=/nix/store/sjknb41ia8lpxszww85gyhy1xdhcl57d-gnumake-4.4.1/bin/make
 
 //Flags used by the linker during the creation of modules during
 // all build types.
@@ -215,6 +215,18 @@ CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 // Studio IDE projects all commands are done without /nologo.
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
+//The directory containing a CMake configuration file for CURL.
+CURL_DIR:PATH=CURL_DIR-NOTFOUND
+
+//Path to a file.
+CURL_INCLUDE_DIR:PATH=/nix/store/hkxgmb75798m9ksgyyqlrzyknj23vav7-curl-8.14.1-dev/include
+
+//Path to a library.
+CURL_LIBRARY_DEBUG:FILEPATH=CURL_LIBRARY_DEBUG-NOTFOUND
+
+//Path to a library.
+CURL_LIBRARY_RELEASE:FILEPATH=/nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1/lib/libcurl.so
+
 //Value Computed by CMake
 MazeChain_BINARY_DIR:STATIC=/home/runner/workspace/build
 
@@ -238,6 +250,9 @@ PKG_CONFIG_ARGN:STRING=
 
 //pkg-config executable
 PKG_CONFIG_EXECUTABLE:FILEPATH=/nix/store/d667kdfbfn17905f7kmdl33r9gvwzaji-pkg-config-wrapper-0.29.2/bin/pkg-config
+
+//Path to a library.
+pkgcfg_lib_PC_CURL_curl:FILEPATH=/nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1/lib/libcurl.so
 
 //Path to a library.
 pkgcfg_lib__OPENSSL_crypto:FILEPATH=/nix/store/5xmcl9wr18g6ym3dh3363hv8hp6jyxqd-openssl-3.4.1/lib/libcrypto.so
@@ -397,6 +412,16 @@ CMAKE_TAPI-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/nix/store/mp7ba85zcqdj2sqwa29pql02s6nqpcxy-coreutils-9.7/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CURL_DIR
+CURL_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CURL_INCLUDE_DIR
+CURL_INCLUDE_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CURL_LIBRARY_DEBUG
+CURL_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: CURL_LIBRARY_RELEASE
+CURL_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
+//Details about finding CURL
+FIND_PACKAGE_MESSAGE_DETAILS_CURL:INTERNAL=[/nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1/lib/libcurl.so][/nix/store/hkxgmb75798m9ksgyyqlrzyknj23vav7-curl-8.14.1-dev/include][c ][v8.14.1()]
 //Details about finding OpenSSL
 FIND_PACKAGE_MESSAGE_DETAILS_OpenSSL:INTERNAL=[/nix/store/5xmcl9wr18g6ym3dh3363hv8hp6jyxqd-openssl-3.4.1/lib/libcrypto.so][/nix/store/0225zs9jl9s2y3ai1arbg0h9z7z4bmfi-openssl-3.4.1-dev/include][c ][v3.4.1()]
 //Details about finding Threads
@@ -407,6 +432,41 @@ OPENSSL_CRYPTO_LIBRARY-ADVANCED:INTERNAL=1
 OPENSSL_INCLUDE_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: OPENSSL_SSL_LIBRARY
 OPENSSL_SSL_LIBRARY-ADVANCED:INTERNAL=1
+PC_CURL_CFLAGS:INTERNAL=-I/nix/store/hkxgmb75798m9ksgyyqlrzyknj23vav7-curl-8.14.1-dev/include
+PC_CURL_CFLAGS_I:INTERNAL=
+PC_CURL_CFLAGS_OTHER:INTERNAL=
+PC_CURL_FOUND:INTERNAL=1
+PC_CURL_INCLUDEDIR:INTERNAL=/nix/store/hkxgmb75798m9ksgyyqlrzyknj23vav7-curl-8.14.1-dev/include
+PC_CURL_INCLUDE_DIRS:INTERNAL=/nix/store/hkxgmb75798m9ksgyyqlrzyknj23vav7-curl-8.14.1-dev/include
+PC_CURL_LDFLAGS:INTERNAL=-L/nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1/lib;-lcurl
+PC_CURL_LDFLAGS_OTHER:INTERNAL=
+PC_CURL_LIBDIR:INTERNAL=/nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1/lib
+PC_CURL_LIBRARIES:INTERNAL=curl
+PC_CURL_LIBRARY_DIRS:INTERNAL=/nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1/lib
+PC_CURL_LIBS:INTERNAL=
+PC_CURL_LIBS_L:INTERNAL=
+PC_CURL_LIBS_OTHER:INTERNAL=
+PC_CURL_LIBS_PATHS:INTERNAL=
+PC_CURL_MODULE_NAME:INTERNAL=libcurl
+PC_CURL_PREFIX:INTERNAL=/nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1
+PC_CURL_STATIC_CFLAGS:INTERNAL=-I/nix/store/hkxgmb75798m9ksgyyqlrzyknj23vav7-curl-8.14.1-dev/include
+PC_CURL_STATIC_CFLAGS_I:INTERNAL=
+PC_CURL_STATIC_CFLAGS_OTHER:INTERNAL=
+PC_CURL_STATIC_INCLUDE_DIRS:INTERNAL=/nix/store/hkxgmb75798m9ksgyyqlrzyknj23vav7-curl-8.14.1-dev/include
+PC_CURL_STATIC_LDFLAGS:INTERNAL=-L/nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1/lib;-L/nix/store/xdczp4bkrp2dff2apb1vbybbfmfi8f7d-brotli-1.1.0-dev/lib;-L/nix/store/wbv7b4dc17n1azxan5m5mm07fifai44a-zstd-1.5.7/lib;-L/nix/store/5xmcl9wr18g6ym3dh3363hv8hp6jyxqd-openssl-3.4.1/lib;-L/nix/store/nzvqgcida8m881mgjsys47lnxij5lqri-libpsl-0.21.5/lib;-L/nix/store/pl2sf8yd2ydpmxfv3am14h0y2d6n9n2z-libssh2-1.11.1-dev/lib;-L/nix/store/a9n4wcqd6mvjp9n9g6nw81ir91bpwyp3-libidn2-2.3.8/lib;-L/nix/store/yws02r4b9g9fr7vzg6zgasfcga523cc8-nghttp2-1.65.0-lib/lib;-L/nix/store/h2l1ivmfpsm9q573q4ah5wxp33q01lv9-krb5-1.21.3-lib/lib;-L/nix/store/zb406965xij4m5f793xvrr16sjaixi00-brotli-1.1.0-lib/lib;-L/nix/store/h2l1ivmfpsm9q573q4ah5wxp33q01lv9-krb5-1.21.3-lib/lib;-L/nix/store/yws02r4b9g9fr7vzg6zgasfcga523cc8-nghttp2-1.65.0-lib/lib;-L/nix/store/a9n4wcqd6mvjp9n9g6nw81ir91bpwyp3-libidn2-2.3.8/lib;-L/nix/store/5xmcl9wr18g6ym3dh3363hv8hp6jyxqd-openssl-3.4.1/lib;-L/nix/store/nzvqgcida8m881mgjsys47lnxij5lqri-libpsl-0.21.5/lib;-L/nix/store/a9n4wcqd6mvjp9n9g6nw81ir91bpwyp3-libidn2-2.3.8/lib;-L/nix/store/j42g8qqn7vdaz8qmacy44sr7gbacrvv3-libssh2-1.11.1/lib;-L/nix/store/jl19fdc7gdxqz9a1s368r9d15vpirnqy-zlib-1.3.1/lib;-L/nix/store/wbv7b4dc17n1azxan5m5mm07fifai44a-zstd-1.5.7/lib;-lcurl;-lnghttp2;-lidn2;-lssh2;-lpsl;-lssl;-lcrypto;-lssl;-lcrypto;-lgssapi_krb5;-lzstd;-lbrotlidec;-lz;-lidn2;-lunistring;-lbrotlidec;-lbrotlicommon;-lzstd;-lgssapi_krb5;-lkrb5;-lk5crypto;-lcom_err;-lkrb5support;-lssl;-lpsl;-lunistring;-lidn2;-lssh2;-lssl;-lcrypto;-lz;-lcrypto;-ldl;-pthread;-lz;-lnghttp2
+PC_CURL_STATIC_LDFLAGS_OTHER:INTERNAL=-pthread
+PC_CURL_STATIC_LIBDIR:INTERNAL=
+PC_CURL_STATIC_LIBRARIES:INTERNAL=curl;nghttp2;idn2;ssh2;psl;ssl;crypto;ssl;crypto;gssapi_krb5;zstd;brotlidec;z;idn2;unistring;brotlidec;brotlicommon;zstd;gssapi_krb5;krb5;k5crypto;com_err;krb5support;ssl;psl;unistring;idn2;ssh2;ssl;crypto;z;crypto;dl;z;nghttp2
+PC_CURL_STATIC_LIBRARY_DIRS:INTERNAL=/nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1/lib;/nix/store/xdczp4bkrp2dff2apb1vbybbfmfi8f7d-brotli-1.1.0-dev/lib;/nix/store/wbv7b4dc17n1azxan5m5mm07fifai44a-zstd-1.5.7/lib;/nix/store/5xmcl9wr18g6ym3dh3363hv8hp6jyxqd-openssl-3.4.1/lib;/nix/store/nzvqgcida8m881mgjsys47lnxij5lqri-libpsl-0.21.5/lib;/nix/store/pl2sf8yd2ydpmxfv3am14h0y2d6n9n2z-libssh2-1.11.1-dev/lib;/nix/store/a9n4wcqd6mvjp9n9g6nw81ir91bpwyp3-libidn2-2.3.8/lib;/nix/store/yws02r4b9g9fr7vzg6zgasfcga523cc8-nghttp2-1.65.0-lib/lib;/nix/store/h2l1ivmfpsm9q573q4ah5wxp33q01lv9-krb5-1.21.3-lib/lib;/nix/store/zb406965xij4m5f793xvrr16sjaixi00-brotli-1.1.0-lib/lib;/nix/store/h2l1ivmfpsm9q573q4ah5wxp33q01lv9-krb5-1.21.3-lib/lib;/nix/store/yws02r4b9g9fr7vzg6zgasfcga523cc8-nghttp2-1.65.0-lib/lib;/nix/store/a9n4wcqd6mvjp9n9g6nw81ir91bpwyp3-libidn2-2.3.8/lib;/nix/store/5xmcl9wr18g6ym3dh3363hv8hp6jyxqd-openssl-3.4.1/lib;/nix/store/nzvqgcida8m881mgjsys47lnxij5lqri-libpsl-0.21.5/lib;/nix/store/a9n4wcqd6mvjp9n9g6nw81ir91bpwyp3-libidn2-2.3.8/lib;/nix/store/j42g8qqn7vdaz8qmacy44sr7gbacrvv3-libssh2-1.11.1/lib;/nix/store/jl19fdc7gdxqz9a1s368r9d15vpirnqy-zlib-1.3.1/lib;/nix/store/wbv7b4dc17n1azxan5m5mm07fifai44a-zstd-1.5.7/lib
+PC_CURL_STATIC_LIBS:INTERNAL=
+PC_CURL_STATIC_LIBS_L:INTERNAL=
+PC_CURL_STATIC_LIBS_OTHER:INTERNAL=
+PC_CURL_STATIC_LIBS_PATHS:INTERNAL=
+PC_CURL_VERSION:INTERNAL=8.14.1
+PC_CURL_libcurl_INCLUDEDIR:INTERNAL=
+PC_CURL_libcurl_LIBDIR:INTERNAL=
+PC_CURL_libcurl_PREFIX:INTERNAL=
+PC_CURL_libcurl_VERSION:INTERNAL=
 //ADVANCED property for variable: PKG_CONFIG_ARGN
 PKG_CONFIG_ARGN-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: PKG_CONFIG_EXECUTABLE
@@ -452,11 +512,15 @@ _OPENSSL_openssl_INCLUDEDIR:INTERNAL=
 _OPENSSL_openssl_LIBDIR:INTERNAL=
 _OPENSSL_openssl_PREFIX:INTERNAL=
 _OPENSSL_openssl_VERSION:INTERNAL=
+__pkg_config_arguments_PC_CURL:INTERNAL=QUIET;libcurl
 __pkg_config_arguments__OPENSSL:INTERNAL=QUIET;openssl
+__pkg_config_checked_PC_CURL:INTERNAL=1
 __pkg_config_checked__OPENSSL:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_PC_CURL_curl
+pkgcfg_lib_PC_CURL_curl-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib__OPENSSL_crypto
 pkgcfg_lib__OPENSSL_crypto-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib__OPENSSL_ssl
 pkgcfg_lib__OPENSSL_ssl-ADVANCED:INTERNAL=1
-prefix_result:INTERNAL=/nix/store/5xmcl9wr18g6ym3dh3363hv8hp6jyxqd-openssl-3.4.1/lib
+prefix_result:INTERNAL=alt-svc;AsynchDNS;brotli;GSS-API;HSTS;HTTP2;HTTPS-proxy;IDN;IPv6;Kerberos;Largefile;libz;NTLM;PSL;SPNEGO;SSL;threadsafe;TLS-SRP;UnixSockets;zstd
 

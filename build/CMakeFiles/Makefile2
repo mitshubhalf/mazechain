@@ -85,12 +85,12 @@ clean: CMakeFiles/mazechain_node.dir/clean
 CMakeFiles/mazechain_node.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/workspace/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11 "Built target mazechain_node"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/workspace/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14 "Built target mazechain_node"
 .PHONY : CMakeFiles/mazechain_node.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/mazechain_node.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/workspace/build/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/workspace/build/CMakeFiles 14
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/mazechain_node.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/workspace/build/CMakeFiles 0
 .PHONY : CMakeFiles/mazechain_node.dir/rule
@@ -102,7 +102,7 @@ mazechain_node: CMakeFiles/mazechain_node.dir/rule
 # codegen rule for target.
 CMakeFiles/mazechain_node.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/mazechain_node.dir/build.make CMakeFiles/mazechain_node.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/workspace/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11 "Finished codegen for target mazechain_node"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/workspace/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14 "Finished codegen for target mazechain_node"
 .PHONY : CMakeFiles/mazechain_node.dir/codegen
 
 # clean rule for target.

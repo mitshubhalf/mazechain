@@ -6,8 +6,8 @@
 #include <openssl/ecdsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
-#include <openssl/evp.h> // Adicionado para AES/EVP
-#include <openssl/aes.h> // ADICIONADO PARA DEFINIÇÃO DE AES_BLOCK_SIZE
+#include <openssl/evp.h> 
+#include <openssl/aes.h> 
 #include <iomanip>
 #include <sstream>
 #include <vector>
@@ -70,11 +70,9 @@ std::string calculateMerkleRoot(const std::vector<Transaction>& txs) {
 KeyPair generate_keys_from_seed(const std::string& seed) {
     KeyPair kp;
 
-    // 1. Gerar Chave Privada a partir da Seed (Determinística)
     std::string hashed_seed = sha256d(seed);
     kp.private_key = hashed_seed;
 
-    // 2. Usar OpenSSL para derivar a Chave Pública usando a curva secp256k1
     EC_KEY* key = EC_KEY_new_by_curve_name(NID_secp256k1);
     BIGNUM* priv_bn = BN_new();
     BN_hex2bn(&priv_bn, hashed_seed.c_str());
@@ -82,16 +80,13 @@ KeyPair generate_keys_from_seed(const std::string& seed) {
     EC_GROUP* group = (EC_GROUP*)EC_KEY_get0_group(key);
     EC_POINT* pub_point = EC_POINT_new(group);
 
-    // pub_key = group_G * priv_key
     EC_POINT_mul(group, pub_point, priv_bn, NULL, NULL, NULL);
     EC_KEY_set_private_key(key, priv_bn);
     EC_KEY_set_public_key(key, pub_point);
 
-    // Converter ponto da chave pública para Hex (Formato Comprimido)
     char* pub_hex = EC_POINT_point2hex(group, pub_point, POINT_CONVERSION_COMPRESSED, NULL);
     kp.public_key = std::string(pub_hex);
 
-    // Limpeza
     OPENSSL_free(pub_hex);
     EC_POINT_free(pub_point);
     BN_free(priv_bn);
@@ -107,7 +102,6 @@ std::string sign_data(const std::string& data, const std::string& private_key_he
     BN_hex2bn(&priv_bn, private_key_hex.c_str());
     EC_KEY_set_private_key(key, priv_bn);
 
-    // O dado a ser assinado deve ser o Hash do conteúdo
     std::string message_hash_str = sha256d(data);
     std::vector<unsigned char> message_hash = from_hex(message_hash_str);
 
@@ -130,21 +124,17 @@ std::string sign_data(const std::string& data, const std::string& private_key_he
 // --- VERIFICAÇÃO RIGOROSA ---
 bool verify_signature(const std::string& data, const std::string& signature_hex, const std::string& public_key_hex) {
     EC_KEY* key = EC_KEY_new_by_curve_name(NID_secp256k1);
+    if (!key) return false;
     EC_GROUP* group = (EC_GROUP*)EC_KEY_get0_group(key);
 
-    // Carregar a chave pública a partir do Hex
     EC_POINT* pub_point = EC_POINT_new(group);
     EC_POINT_hex2point(group, public_key_hex.c_str(), pub_point, NULL);
     EC_KEY_set_public_key(key, pub_point);
 
-    // Hash do dado original
     std::string message_hash_str = sha256d(data);
     std::vector<unsigned char> message_hash = from_hex(message_hash_str);
-
-    // Converter assinatura de Hex para bytes
     std::vector<unsigned char> sig_bytes = from_hex(signature_hex);
 
-    // Verificação matemática
     int result = ECDSA_verify(0, message_hash.data(), message_hash.size(), sig_bytes.data(), sig_bytes.size(), key);
 
     EC_POINT_free(pub_point);
@@ -159,7 +149,7 @@ std::string encrypt_data(const std::string& plaintext, const std::string& passwo
     EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
     unsigned char key[32], iv[16];
 
-    // Deriva chave e IV da senha de forma simples para a MazeChain
+    // Usa SHA256 para derivar chave
     EVP_BytesToKey(EVP_aes_256_cbc(), EVP_sha256(), NULL, (unsigned char*)password.c_str(), password.length(), 1, key, iv);
 
     EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
@@ -186,15 +176,18 @@ std::string decrypt_data(const std::string& ciphertext_hex, const std::string& p
 
     EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
 
-    std::vector<unsigned char> plaintext(ciphertext.size());
+    std::vector<unsigned char> plaintext(ciphertext.size() + AES_BLOCK_SIZE);
     int len, plaintext_len;
 
-    if (EVP_DecryptUpdate(ctx, plaintext.data(), &len, ciphertext.data(), ciphertext.size()) <= 0) return "ERROR";
+    if (EVP_DecryptUpdate(ctx, plaintext.data(), &len, ciphertext.data(), ciphertext.size()) <= 0) {
+        EVP_CIPHER_CTX_free(ctx);
+        return "ERROR";
+    }
     plaintext_len = len;
 
     if (EVP_DecryptFinal_ex(ctx, plaintext.data() + len, &len) <= 0) {
         EVP_CIPHER_CTX_free(ctx);
-        return "DECRYPT_FAIL"; // Senha incorreta
+        return "DECRYPT_FAIL"; 
     }
     plaintext_len += len;
 

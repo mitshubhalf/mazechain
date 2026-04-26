@@ -212,6 +212,48 @@ CMakeFiles/mazechain_node.dir/src/node_manager.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/mazechain_node.dir/src/node_manager.cpp.s"
 	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/runner/workspace/src/node_manager.cpp -o CMakeFiles/mazechain_node.dir/src/node_manager.cpp.s
 
+CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o: CMakeFiles/mazechain_node.dir/flags.make
+CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o: /home/runner/workspace/src/checkpoints.cpp
+CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o: CMakeFiles/mazechain_node.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/workspace/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o"
+	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o -MF CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o.d -o CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o -c /home/runner/workspace/src/checkpoints.cpp
+
+CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.i"
+	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/runner/workspace/src/checkpoints.cpp > CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.i
+
+CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.s"
+	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/runner/workspace/src/checkpoints.cpp -o CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.s
+
+CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o: CMakeFiles/mazechain_node.dir/flags.make
+CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o: /home/runner/workspace/src/mempool_limit.cpp
+CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o: CMakeFiles/mazechain_node.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/workspace/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building CXX object CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o"
+	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o -MF CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o.d -o CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o -c /home/runner/workspace/src/mempool_limit.cpp
+
+CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.i"
+	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/runner/workspace/src/mempool_limit.cpp > CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.i
+
+CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.s"
+	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/runner/workspace/src/mempool_limit.cpp -o CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.s
+
+CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o: CMakeFiles/mazechain_node.dir/flags.make
+CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o: /home/runner/workspace/src/db_integrity.cpp
+CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o: CMakeFiles/mazechain_node.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/workspace/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building CXX object CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o"
+	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o -MF CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o.d -o CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o -c /home/runner/workspace/src/db_integrity.cpp
+
+CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.i"
+	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/runner/workspace/src/db_integrity.cpp > CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.i
+
+CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.s"
+	/nix/store/a0d7m3zn9p2dfa1h7ag9h2wzzr2w25sn-gcc-wrapper-14.2.1.20250322/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/runner/workspace/src/db_integrity.cpp -o CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.s
+
 # Object files for target mazechain_node
 mazechain_node_OBJECTS = \
 "CMakeFiles/mazechain_node.dir/api/main.cpp.o" \
@@ -223,7 +265,10 @@ mazechain_node_OBJECTS = \
 "CMakeFiles/mazechain_node.dir/src/wallet.cpp.o" \
 "CMakeFiles/mazechain_node.dir/src/crypto.cpp.o" \
 "CMakeFiles/mazechain_node.dir/src/p2p.cpp.o" \
-"CMakeFiles/mazechain_node.dir/src/node_manager.cpp.o"
+"CMakeFiles/mazechain_node.dir/src/node_manager.cpp.o" \
+"CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o" \
+"CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o" \
+"CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o"
 
 # External object files for target mazechain_node
 mazechain_node_EXTERNAL_OBJECTS =
@@ -238,12 +283,16 @@ mazechain_node: CMakeFiles/mazechain_node.dir/src/wallet.cpp.o
 mazechain_node: CMakeFiles/mazechain_node.dir/src/crypto.cpp.o
 mazechain_node: CMakeFiles/mazechain_node.dir/src/p2p.cpp.o
 mazechain_node: CMakeFiles/mazechain_node.dir/src/node_manager.cpp.o
+mazechain_node: CMakeFiles/mazechain_node.dir/src/checkpoints.cpp.o
+mazechain_node: CMakeFiles/mazechain_node.dir/src/mempool_limit.cpp.o
+mazechain_node: CMakeFiles/mazechain_node.dir/src/db_integrity.cpp.o
 mazechain_node: CMakeFiles/mazechain_node.dir/build.make
 mazechain_node: CMakeFiles/mazechain_node.dir/compiler_depend.ts
 mazechain_node: /nix/store/5xmcl9wr18g6ym3dh3363hv8hp6jyxqd-openssl-3.4.1/lib/libssl.so
 mazechain_node: /nix/store/5xmcl9wr18g6ym3dh3363hv8hp6jyxqd-openssl-3.4.1/lib/libcrypto.so
+mazechain_node: /nix/store/qg8y4bwgsjgwj1s3g3kzn4674ly1ws7c-curl-8.14.1/lib/libcurl.so
 mazechain_node: CMakeFiles/mazechain_node.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/runner/workspace/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Linking CXX executable mazechain_node"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/runner/workspace/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Linking CXX executable mazechain_node"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/mazechain_node.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
