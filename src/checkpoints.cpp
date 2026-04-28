@@ -12,7 +12,8 @@ namespace Checkpoints {
      */
     const MapCheckpoints mapCheckpoints = {
         // { altura, "hash_oficial" }
-        { 0, "f174fa8fdb08a30b11009cd943ad97f54e6a6193ec0ffe383080958aa5486614" } // Substitua pelo hash real do seu terminal
+        { 0, "8c6a56813b90f33cce1ec54afba2ef689fcccf24d7a35521ff02b57bd3075309" },
+        { 5000, "000016b71ee286beb76896db80010a5f8ad2a3bfdd41e2125774316050bab21f" }
     };
 
     bool CheckBlock(int height, const std::string& hash) {

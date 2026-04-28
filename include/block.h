@@ -23,6 +23,10 @@ public:
     // Construtor atualizado: Agora recebe minerAddress e extraNonce para garantir a unicidade desde a criação
     Block(int idx, std::string prev, std::vector<Transaction> txs, std::string minerAddr, long eNonce);
 
+    // Concatena os dados do bloco em uma string para ser processada pelo SHA256
+    // Essencial para o funcionamento do motor CSHA256 externo
+    std::string toHashString() const;
+
     // Calcula o SHA256 combinando: index + timestamp + prevHash + nonce + merkleRoot + minerAddress + extraNonce
     std::string calculateHash() const;
 

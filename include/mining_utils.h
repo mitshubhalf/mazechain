@@ -5,6 +5,11 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <atomic> // Adicionado para suporte a flags atômicas
+
+// Referência externa para a flag que criamos no main.cpp
+// Isso permite que as funções de mineração saibam se o programa deve fechar
+extern std::atomic<bool> global_keep_running;
 
 typedef struct {
     char miner_address[64];
@@ -19,7 +24,7 @@ static inline double calculate_mining_reward(int height) {
 
     if (halving_count >= 64) return 0.00000001;
 
-    double reward = 400.0; // BASE INICIAL DEFINITIVA
+    double reward = 400.0; // BASE INICIAL
 
     // FASE 1: Redução de 50% (H0 a H3)
     if (halving_count < 4) {
@@ -62,14 +67,25 @@ static inline MinerIdentity prepare_miner_identity(const char* address, int heig
         strncpy(id.miner_address, address, 63);
     }
 
-    // ExtraNonce baseado no tempo e altura para garantir unicidade do hash
-    srand((unsigned int)(time(NULL) + height));
+    // MELHORIA: Unicidade do ExtraNonce
+    // Usamos o tempo em microssegundos (se disponível) ou uma combinação mais complexa
+    // para garantir que dois mineradores no mesmo bloco não gerem hashes idênticos.
+    static std::atomic<int> counter{0};
+    int unique_seed = (int)time(NULL) + height + (++counter);
+    srand(unique_seed);
+
     id.extra_nonce = (rand() % 9000000) + 1000000; 
 
-    // Atribui a recompensa calculada pela nova regra
+    // Atribui a recompensa calculada pela regra
     id.reward = calculate_mining_reward(height);
 
     return id;
+}
+
+// FUNÇÃO DE UTILIDADE PARA O LOOP DE MINERAÇÃO
+// Use isso dentro do seu while(hash > target) para checar se deve parar
+static inline bool should_stop_mining() {
+    return !global_keep_running.load();
 }
 
 #endif
