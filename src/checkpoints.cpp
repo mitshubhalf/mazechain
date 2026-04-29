@@ -4,30 +4,34 @@ namespace Checkpoints {
 
     /**
      * MAPA DE CHECKPOINTS (Estilo Bitcoin Core)
-     * * Para resolver o erro de "Falha de Checkpoint", siga estes passos:
-     * 1. Deixe o mapa vazio: { };
-     * 2. Compile e rode o nó.
-     * 3. Pegue o hash do bloco #0 no log do terminal.
-     * 4. Cole o hash aqui no lugar do exemplo abaixo.
+     * Estes hashes servem como a "verdade absoluta" da rede.
+     * Mesmo que alguém apague os dados, o nó só aceitará a chain se 
+     * passar por esses pontos de verificação.
      */
     const MapCheckpoints mapCheckpoints = {
-        // { altura, "hash_oficial" }
-        { 0, "f174fa8fdb08a30b11009cd943ad97f54e6a6193ec0ffe383080958aa5486614" } // Substitua pelo hash real do seu terminal
+        // Bloco Genesis: O marco zero da sua MazeChain
+        { 0, "8c6a56813b90f33cce1ec54afba2ef689fcccf24d7a35521ff02b57bd3075309" },
+
+        // Checkpoint do Bloco 5000:
+        // Assim que você minerar o bloco 5001 pela primeira vez e ele for aceito,
+        // o hash do 5000 se tornará permanente aqui para proteção da rede.
+        // { 5000, "COLE_AQUI_O_HASH_DO_NOVO_BLOCO_5000" }
     };
 
     bool CheckBlock(int height, const std::string& hash) {
-        // Se o mapa estiver vazio, ignoramos a verificação (bom para testes iniciais)
+        // Se o mapa estiver vazio, ignoramos a verificação
         if (mapCheckpoints.empty()) return true;
 
         auto it = mapCheckpoints.find(height);
 
         // Se não houver um checkpoint definido para esta altura, 
-        // o bloco é aceito (a validação de PoW fará o trabalho pesado)
+        // o bloco é aceito (a validação de PoW/Blockchain.cpp fará o resto)
         if (it == mapCheckpoints.end()) {
             return true;
         }
 
-        // Se houver um checkpoint, o hash PRECISA ser idêntico
+        // PROTEÇÃO: Se houver um checkpoint, o hash RECEBIDO precisa ser 
+        // exatamente igual ao hash OFICIAL definido no mapa.
         if (hash != it->second) {
             return false;
         }
