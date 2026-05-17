@@ -848,6 +848,54 @@ int main(int argc, char* argv[]) {
         }
     });
 
+    // ─── External Miner: block template ──────────────────────────────────────
+    // GET /getblocktemplate/<address>
+    // Returns everything a remote miner needs to mine a block and submit it via POST /block
+    CROW_ROUTE(app, "/getblocktemplate/<string>")
+    ([&bc](std::string miner_addr){
+        if (miner_addr.length() < 30 || miner_addr.substr(0, 2) != "MZ") {
+            crow::json::wvalue err;
+            err["error"] = "Endereço inválido. Use um endereço MZ válido.";
+            return crow::response(400, err.dump());
+        }
+
+        bc.adjustDifficulty();
+        int  next_index = bc.getHeight();
+        std::string prev_hash = bc.getLastBlock().hash;
+        int  diff    = bc.getDifficulty();
+        double reward = bc.getBlockReward(next_index);
+
+        double remaining = 20000000.0 - bc.getTotalSupply();
+        if (reward > remaining) reward = (remaining > 0 ? remaining : 0);
+
+        long long now = (long long)std::time(nullptr);
+        std::string coinbase_id = "coinbase_h" + std::to_string(next_index) + "_" + std::to_string(now);
+
+        crow::json::wvalue tmpl;
+        tmpl["index"]      = next_index;
+        tmpl["prevHash"]   = prev_hash;
+        tmpl["difficulty"] = diff;
+        tmpl["target"]     = std::string(diff, '0');
+        tmpl["reward"]     = reward;
+        tmpl["timestamp"]  = now;
+        tmpl["miner"]      = miner_addr;
+
+        crow::json::wvalue cb;
+        cb["id"]  = coinbase_id;
+        cb["sig"] = "coinbase";
+        cb["pub"] = "MAZE_BITCOIN_CORE_ENGINE_V1";
+        crow::json::wvalue::list vout_list;
+        crow::json::wvalue vout0;
+        vout0["addr"] = miner_addr;
+        vout0["amt"]  = reward;
+        vout_list.push_back(std::move(vout0));
+        cb["vout"] = std::move(vout_list);
+
+        tmpl["coinbase"] = std::move(cb);
+
+        return crow::response(tmpl.dump());
+    });
+
     int port = 10000;
     const char* port_env = std::getenv("PORT");
     if (port_env && port_env[0] != '\0') {

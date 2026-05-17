@@ -1,0 +1,24 @@
+ 1. REGRAS DE AJUSTE DE DIFICULDADE (CLASSES DE ERA)
+O motor automático de ajuste do Proof of Work (PoW) opera em três fases distintas baseadas na altura atual da cadeia ('chain.size()'):
+
+* *Era Inicial (Blocos 0 a 9.999):** A dificuldade é estritamente FIXA em 4. Serve para estabilizar a rede no lançamento e permitir mineração rápida e previsível sem oscilações bruscas de hashrate.
+* *Era de Transição (Blocos 10.000 a 19.999):** A dificuldade é estritamente FIXA em 5. Funciona como um porto seguro intermediário após o primeiro corte de emissão.
+* *Era Dinâmica Avançada (Blocos 20.000 em diante):** A dificuldade passa a ser totalmente DINÂMICA. O cálculo utiliza o algoritmo contido em 'Difficulty::calculate_next_difficulty' avaliando uma janela flutuante ('window') dos últimos 100 blocos. O piso mínimo de segurança (mecanismo antiqueda de hashrate) é fixado em 6.
+
+---
+
+### 2. POLÍTICA MONETÁRIA E RECOMPENSAS (HALVING DE 8%)
+A MazeChain possui um modelo econômico deflacionário matemático projetado para gerar escassez orgânica com base em intervalos de 10.000 blocos:
+
+* **Emissão Base (Blocos 0 a 9.999):** Recompensa de 150 MZ por bloco minerado.
+* **Fórmula do Decaimento:** A recompensa sofre uma redução (Halving) de 8% a cada virada de Era (intervalo de 10.000 blocos), calculada pela função exponencial: Reward = 150.0 * pow(0.92, halving_count).
+     *Exemplo:* No bloco 10.001 (Era 1), o fator de decaimento é aplicado 1 vez (150 * 0.92), reduzindo a recompensa para exatamente 138 MZ por bloco.
+* *Teto Absoluto (Max Supply):** O limite intransponível de moedas em circulação é de 20.000.000 MZ (20 Milhões). Nova emissão via subsídio é permanentemente zerada se o suprimento total ('totalSupply') atingir este teto ou se a rede ultrapassar o Halving de número 64.
+
+---
+
+### 3. FASE DE SUSTENTABILIDADE (PÓS-EMISSÃO)
+Quando o teto de 20 milhões de moedas é atingido ou o Halving 64 é superado, o protocolo ativa o modo de sustentabilidade para manter os mineradores incentivados:
+1.  **Taxas de Transação (Dynamic Fees):** O minerador absorve todas as taxas variáveis geradas pelas transações contidas no bloco (mecanismo de queima invertida/coleta).
+2.  **Injeção do Fundo de Reserva:** O motor realiza um raspagem cirúrgica de 0.01% (0.0001) do saldo acumulado no endereço especial e imutável 'MZ_SYSTEM_RESERVE_FUND_NON_EXPENDABLE' e injeta como recompensa adicional do bloco.
+3.  **Mínimo Técnico:** Se o fundo de reserva esgotar por completo, o protocolo assegura uma recompensa base residual mínima de 0.00000001 MZ (1 Mit) por bloco para evitar o travamento físico do motor de consenso.

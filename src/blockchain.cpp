@@ -170,40 +170,30 @@ double Blockchain::getBlockReward(int height) const {
 void Blockchain::adjustDifficulty() {
     int nextHeight = static_cast<int>(chain.size());
 
-    if (nextHeight > 0 && nextHeight < 10000) {
+    // Era Inicial (blocos 0-9999): dificuldade FIXA em 4
+    if (nextHeight < 10000) {
+        difficulty = 4;
+        return;
+    }
+
+    // Era de Transição (blocos 10000-19999): dificuldade FIXA em 5
+    if (nextHeight < 20000) {
         difficulty = 5;
         return;
     }
 
-    if (nextHeight >= 10000 && nextHeight < 20000) {
-        int window = 100;
-        if (nextHeight > window) {
-            const Block& lastBlock = chain.back();
-            const Block& startBlock = chain[chain.size() - window];
-
-            difficulty = Difficulty::calculate_next_difficulty(
-                nextHeight, 5, lastBlock.timestamp, startBlock.timestamp
-            );
-        } else {
-            difficulty = 5;
-        }
-        return;
+    // Era Dinâmica Avançada (blocos 20000+): dificuldade DINÂMICA, piso mínimo de 6
+    int window = 100;
+    if (nextHeight > window) {
+        const Block& lastBlock = chain.back();
+        const Block& startBlock = chain[chain.size() - window];
+        difficulty = Difficulty::calculate_next_difficulty(
+            nextHeight, difficulty, lastBlock.timestamp, startBlock.timestamp
+        );
+    } else {
+        difficulty = 6;
     }
-
-    if (nextHeight >= 20000) {
-        int window = 100;
-        if (nextHeight > (20000 + window)) {
-            const Block& lastBlock = chain.back();
-            const Block& startBlock = chain[chain.size() - window];
-
-            difficulty = Difficulty::calculate_next_difficulty(
-                nextHeight, 6, lastBlock.timestamp, startBlock.timestamp
-            );
-        } else {
-            difficulty = 6;
-        }
-        return;
-    }
+    if (difficulty < 6) difficulty = 6;
 }
 
 void Blockchain::rebuildUTXO() {
