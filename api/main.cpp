@@ -169,13 +169,16 @@ void async_mine(Blockchain& bc, P2P& p2p, std::string addr) {
 }
 
 // 🔥 LOOP DE MINERAÇÃO AUTOMÁTICA
+// Retry imediato: se um bloco for inválido/rejeitado, minera o mesmo height novamente
+// sem pausa — garante que blocos inválidos nunca avancem na cadeia.
 void worker_mineracao_continua(Blockchain& bc, P2P& p2p, std::string local_addr) {
     std::cout << "[SISTEMA] Motor automático iniciado. Recompensas para: " << local_addr << std::endl;
     while (global_keep_running) {
         if (!is_mining.load()) {
             async_mine(bc, p2p, local_addr);
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        // 100ms: permite retry quase imediato após rejeição, sem busy-loop
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -319,16 +322,59 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
+        if (cmd == "wallet") {
+            std::cout.rdbuf(orig_buf);
+            std::string subcmd = (argc >= 3) ? std::string(argv[2]) : "show";
+            if (subcmd == "new") {
+                Wallet w;
+                w.generateKey();
+                std::cout << "\n======================================" << std::endl;
+                std::cout << "  NOVA CARTEIRA MAZECHAIN GERADA" << std::endl;
+                std::cout << "======================================" << std::endl;
+                std::cout << "  Endereço : " << w.address << std::endl;
+                std::cout << "  Seed     : " << w.seed << std::endl;
+                std::cout << "======================================" << std::endl;
+                std::cout << "  ⚠️  Guarde sua Seed em lugar seguro!" << std::endl;
+                std::cout << "  Nunca a compartilhe com ninguém." << std::endl;
+            } else {
+                std::cout << "Endereço do nó : " << wallet_cli->getAddress() << std::endl;
+                std::cout << "Uso: ./mazechain wallet new   — cria uma nova carteira" << std::endl;
+            }
+            return 0;
+        }
+
+        if (cmd == "checkpoints") {
+            std::cout.rdbuf(orig_buf);
+            std::cout << "\n=== CHECKPOINTS MAZECHAIN ===" << std::endl;
+            std::cout << "  Bloco #0 (Gênesis): 8c6a56813b90f33cce1ec54afba2ef689fcccf24d7a35521ff02b57bd3075309" << std::endl;
+            std::ifstream cpf("data/checkpoints.dat");
+            if (cpf.is_open()) {
+                int h; std::string hash;
+                while (cpf >> h >> hash) {
+                    if (h > 0) {
+                        std::cout << "  Bloco #" << h << " (Halving): " << hash << std::endl;
+                    }
+                }
+            } else {
+                std::cout << "  (Nenhum checkpoint de halving ainda registrado)" << std::endl;
+            }
+            return 0;
+        }
+
         if (cmd == "help" || cmd == "--help") {
             std::cout << "\n=== MAZECHAIN CLI - COMANDOS DISPONÍVEIS ===" << std::endl;
-            std::cout << "  mine [addr]               : Minera um bloco manualmente" << std::endl;
-            std::cout << "  send [from] [to] [amt] [seed] : Envia moedas validando com a seed" << std::endl;
-            std::cout << "  balance [addr]            : Consulta o saldo" << std::endl;
-            std::cout << "  history [addr]            : Lista transações enviadas e recebidas" << std::endl;
-            std::cout << "  address                   : Mostra seu endereço de recebimento" << std::endl;
-            std::cout << "  stats                     : Exibe altura e último hash" << std::endl;
-            std::cout << "  chain                     : Lista todos os blocos minerados" << std::endl;
-            std::cout << "  verify                    : Valida a integridade dos dados" << std::endl;
+            std::cout << "  mine [addr]                    : Minera um bloco manualmente" << std::endl;
+            std::cout << "  send [from] [to] [amt] [seed]  : Envia moedas validando com a seed" << std::endl;
+            std::cout << "  balance [addr]                 : Consulta o saldo" << std::endl;
+            std::cout << "  history [addr]                 : Lista transações enviadas e recebidas" << std::endl;
+            std::cout << "  wallet new                     : Cria uma nova carteira (seed + endereço)" << std::endl;
+            std::cout << "  wallet show                    : Mostra endereço do nó atual" << std::endl;
+            std::cout << "  address                        : Mostra seu endereço de recebimento" << std::endl;
+            std::cout << "  stats                          : Exibe altura e último hash" << std::endl;
+            std::cout << "  chain                          : Lista todos os blocos minerados" << std::endl;
+            std::cout << "  verify                         : Valida a integridade dos dados" << std::endl;
+            std::cout << "  mempool                        : Exibe transações pendentes" << std::endl;
+            std::cout << "  checkpoints                    : Lista todos os pontos seguros registrados" << std::endl;
             return 0;
         }
 

@@ -52,7 +52,7 @@ const double MITS_PER_COIN = 100000000.0;
 const double MIN_FEE_RELAY = 0.00001; 
 
 Blockchain::Blockchain() {
-    difficulty = 5; 
+    difficulty = 4; 
     totalSupply = 0;
     interruptMining.store(false); 
 
@@ -60,6 +60,9 @@ Blockchain::Blockchain() {
     if (!fs::exists(BLOCKS_DIR)) {
         fs::create_directories(BLOCKS_DIR);
     }
+
+    // Carrega pontos de controle de halvings anteriores do disco
+    Checkpoints::LoadCheckpoints("data/checkpoints.dat");
 
     this->chain.clear();
 
@@ -302,7 +305,7 @@ bool Blockchain::mineBlock(std::string minerAddress) {
 
     chain.push_back(newBlock);
 
-    // MELHORIA: Em vez de salvar a chain toda, anexamos apenas o novo bloco (Bitcoin Style)
+    // Salva apenas o novo bloco (Bitcoin Style)
     Storage::saveBlockToDisk(newBlock, DB_PATH); 
     DBIntegrity::UpdateHash(DB_PATH, HASH_DB_PATH);
 
@@ -314,6 +317,12 @@ bool Blockchain::mineBlock(std::string minerAddress) {
 
     utxoSet.saveToFile(UTXO_PATH);
     Storage::clearMempool(MEMPOOL_PATH);
+
+    // Salva checkpoint a cada halving (blocos múltiplos de 10.000)
+    if (Checkpoints::IsHalvingBlock(newBlock.index)) {
+        Checkpoints::AddRuntimeCheckpoint(newBlock.index, newBlock.hash);
+        Checkpoints::SaveCheckpoints("data/checkpoints.dat");
+    }
 
     std::cout << "🎯 Bloco #" << newBlock.index << " Minerado! Subsídio: " << subsidy << " MZ | Taxas : " << totalFees << " MZ" << std::endl;
 

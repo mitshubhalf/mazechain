@@ -46,7 +46,10 @@ g++ -O2 -std=c++17 \
 
 echo "[BUILD] Compilação finalizada."
 
-# 4. INICIALIZAÇÃO DO NÓ MAZECHAIN (Porta 10000 - serve API + index.html)
+# 4. SCRIPTS DE ACESSO — mazechain (CLI) e mazechain_node (nó completo)
+chmod +x mazechain mazechain_node 2>/dev/null || true
+
+# 5. INICIALIZAÇÃO DO NÓ MAZECHAIN (Porta 10000 - serve API + index.html)
 echo "[START] Iniciando Nó MazeChain em http://localhost:$BACKEND_PORT"
 export PORT=$BACKEND_PORT
 ./mazechain_api
