@@ -357,6 +357,14 @@ void Blockchain::addBlock(const Block& block) {
         utxoSet.update(tx, block.index);
     }
 
+    // Salva checkpoint se for bloco de halving — protege contra reescrita mesmo em nós que receberam via P2P
+    if (Checkpoints::IsHalvingBlock(block.index)) {
+        Checkpoints::AddRuntimeCheckpoint(block.index, block.hash);
+        Checkpoints::SaveCheckpoints("data/checkpoints.dat");
+        std::cout << "🔒 [CHECKPOINT SALVO via P2P] Bloco #" << block.index
+                  << " agora é ponto seguro imutável." << std::endl;
+    }
+
     std::cout << "✅ Bloco externo aceito. Nova altura: " << chain.size() << std::endl;
 }
 
