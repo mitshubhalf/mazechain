@@ -73,7 +73,8 @@ void UTXOSet::update(const Transaction& tx, int blockHeight) {
 }
 
 // getBalance atualizado para considerar a regra de maturidade e débitos negativos
-double UTXOSet::getBalance(const std::string& address, int currentHeight) {
+// 🔥 ADICIONADO 'const' PARA COMPATIBILIDADE COM O NOVO MAIN E BLOCKCHAIN
+double UTXOSet::getBalance(const std::string& address, int currentHeight) const {
     double spendableBalance = 0.0;
     const int MATURITY_THRESHOLD = 50;
 

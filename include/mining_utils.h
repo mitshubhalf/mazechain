@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include <atomic> // Adicionado para suporte a flags atômicas
+#include <math.h>   // Necessário para std::pow
+#include <atomic> 
 
-// Referência externa para a flag que criamos no main.cpp
-// Isso permite que as funções de mineração saibam se o programa deve fechar
+// Flag global para controle de interrupção
 extern std::atomic<bool> global_keep_running;
 
 typedef struct {
@@ -17,73 +17,66 @@ typedef struct {
     double reward;
 } MinerIdentity;
 
-// CALCULA A RECOMPENSA DEFINITIVA (Sincronizado com a regra de 400 MZ)
-static inline double calculate_mining_reward(int height) {
-    int interval = 10000;
+/**
+ * CALCULA A RECOMPENSA OFICIAL (Base 150 MZ + Decaimento de 8% + Sustentabilidade)
+ * Implementação matemática rigorosa para garantir o teto de 20.000.000 MZ.
+ */
+static inline double calculate_mining_reward(int height, double current_total_supply, double reserve_balance) {
+    const double MAX_SUPPLY_LIMIT = 20000000.0;
+    const int interval = 10000;
     int halving_count = height / interval;
 
-    if (halving_count >= 64) return 0.00000001;
+    // FASE DE SUSTENTABILIDADE PERPÉTUA (Pós-20M ou Era 64+)
+    // O fornecimento novo esgotou. O minerador agora "pesca" da reserva de taxas.
+    if (current_total_supply >= MAX_SUPPLY_LIMIT || halving_count >= 64) {
+        if (reserve_balance > 0.0001) {
+            // Retira exatos 0.01% da reserva acumulada por taxas históricas
+            return reserve_balance * 0.0001; 
+        }
+        return 0.00000001; // Subsídio mínimo de segurança (1 mit)
+    }
 
-    double reward = 400.0; // BASE INICIAL
+    // --- FASE DE EMISSÃO (MINTING) ---
+    // Regra: 150 * (0.92 ^ halving_count)
+    // Isso gera o decaimento suave de 8% a cada 10.000 blocos.
+    double reward = 150.0 * pow(0.92, (double)halving_count);
 
-    // FASE 1: Redução de 50% (H0 a H3)
-    if (halving_count < 4) {
-        for (int i = 0; i < halving_count; i++) {
-            reward *= 0.5;
-        }
-    } 
-    // FASE 2: Redução de 20% (H4 a H19)
-    else if (halving_count < 20) {
-        reward = 40.0; 
-        for (int i = 4; i < halving_count; i++) {
-            reward *= 0.80;
-        }
+    // Proteção de Teto: Garante que o subsídio não ultrapasse o limite de 20M
+    if (current_total_supply + reward > MAX_SUPPLY_LIMIT) {
+        reward = MAX_SUPPLY_LIMIT - current_total_supply;
     }
-    // FASE 3: Redução de 10% (H20 a H49)
-    else if (halving_count < 50) {
-        reward = 1.407; 
-        for (int i = 20; i <= halving_count; i++) {
-            reward *= 0.90;
-        }
-    }
-    // FASE 4: Redução de 2% (H50 a H63)
-    else {
-        reward = 0.060; 
-        for (int i = 50; i < halving_count; i++) {
-            reward *= 0.98;
-        }
-    }
+
+    // Garante que a recompensa nunca seja negativa ou menor que 1 satoshi/mit
+    if (reward < 0.00000001) reward = 0.00000001;
 
     return reward;
 }
 
-// PREPARA A IDENTIDADE ÚNICA DO MINERADOR
-static inline MinerIdentity prepare_miner_identity(const char* address, int height) {
+/**
+ * PREPARA A IDENTIDADE ÚNICA DO MINERADOR
+ * Integra o Supply atual e a Reserva para exibir a recompensa correta no log de mineração.
+ */
+static inline MinerIdentity prepare_miner_identity(const char* address, int height, double total_supply, double reserve_fund) {
     MinerIdentity id;
 
-    // Limpa a memória para evitar lixo de processamento
     memset(id.miner_address, 0, 64);
     if (address != NULL) {
         strncpy(id.miner_address, address, 63);
     }
 
-    // MELHORIA: Unicidade do ExtraNonce
-    // Usamos o tempo em microssegundos (se disponível) ou uma combinação mais complexa
-    // para garantir que dois mineradores no mesmo bloco não gerem hashes idênticos.
+    // Unicidade do ExtraNonce para evitar colisões de hash (Prevenção de Duplicate Hashes)
     static std::atomic<int> counter{0};
     int unique_seed = (int)time(NULL) + height + (++counter);
     srand(unique_seed);
 
     id.extra_nonce = (rand() % 9000000) + 1000000; 
 
-    // Atribui a recompensa calculada pela regra
-    id.reward = calculate_mining_reward(height);
+    // Calcula a recompensa baseada na nova regra matemática de 150 MZ e decay de 8%
+    id.reward = calculate_mining_reward(height, total_supply, reserve_fund);
 
     return id;
 }
 
-// FUNÇÃO DE UTILIDADE PARA O LOOP DE MINERAÇÃO
-// Use isso dentro do seu while(hash > target) para checar se deve parar
 static inline bool should_stop_mining() {
     return !global_keep_running.load();
 }

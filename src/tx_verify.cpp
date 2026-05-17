@@ -3,7 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <consensus/tx_verify.h>
+#include "../include/tx_verify.h"
 #include <chain.h>
 #include <coins.h>
 #include <consensus/amount.h>

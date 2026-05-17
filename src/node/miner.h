@@ -1,5 +1,5 @@
-// Copyright (c) 2026
-// Copyright (c) 2026-present The MAZECHAIN developers
+// Copyright (c) 2026 mits
+// Copyright (c) 2009-present mazechain Core developers
 // Copyright (c) 2026-present The MazeChain developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -35,12 +35,13 @@ class KernelNotifications;
 
 /** * MAZECHAIN - CBlockTemplate
  * Estrutura que contém o bloco em construção e os metadados de taxas.
+ * Na MazeChain, as taxas coletadas são separadas do subsídio do minerador.
  */
 struct CBlockTemplate
 {
     CBlock block;
     // Taxas por transação (excluindo a coinbase). 
-    // Na MazeChain, estas taxas serão destinadas ao Fundo de Reserva.
+    // Na MazeChain, estas taxas serão destinadas integralmente ao Fundo de Reserva.
     std::vector<CAmount> vTxFees;
     std::vector<int64_t> vTxSigOpsCost;
     std::vector<FeePerVSize> m_package_feerates;
@@ -51,6 +52,8 @@ struct CBlockTemplate
 
 /** * MAZECHAIN - BlockAssembler
  * O "Arquiteto" do bloco. Ele seleciona as transações e aplica as leis da MazeChain.
+ * Responsável por garantir que a recompensa de 150 MZ vá para o minerador 
+ * e as taxas MZ (1-7%) sigam para o Fundo de Reserva.
  */
 class BlockAssembler
 {
@@ -61,7 +64,7 @@ private:
     uint64_t nBlockWeight;
     uint64_t nBlockTx;
     uint64_t nBlockSigOpsCost;
-    CAmount nFees; // Total de taxas que irá para o Fundo de Reserva
+    CAmount nFees; // Total de taxas acumuladas que irá para o Fundo de Reserva
 
     int nHeight;
     int64_t m_lock_time_cutoff;
@@ -80,10 +83,12 @@ public:
 
     explicit BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool, const Options& options);
 
-    /** Constrói o novo template do bloco seguindo a regra: 400 MZ (Miner) + Taxas (Reserva) */
+    /** * Constrói o novo template do bloco seguindo a regra MazeChain: 
+     * Subsídio Fixo (150 MZ) para o Miner + Taxas Totais para a Reserva. 
+     */
     std::unique_ptr<CBlockTemplate> CreateNewBlock();
 
-    // Estatísticas do último bloco
+    // Estatísticas do último bloco processado
     inline static std::optional<int64_t> m_last_block_num_txs{};
     inline static std::optional<int64_t> m_last_block_weight{};
 
@@ -105,7 +110,9 @@ private:
 int64_t GetMinimumTime(const CBlockIndex* pindexPrev, int64_t difficulty_adjustment_interval);
 
 /**
- * Atualiza o timestamp e recalcula a dificuldade necessária (Níveis 4, 6 ou Dinâmico).
+ * MAZECHAIN - UpdateTime
+ * Atualiza o timestamp e recalcula a dificuldade necessária.
+ * Suporta os níveis de dificuldade MazeChain (Nível 4, 6 ou Dinâmico).
  */
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev);
 
@@ -113,7 +120,7 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
 void RegenerateCommitments(CBlock& block, ChainstateManager& chainman);
 void AddMerkleRootAndCoinbase(CBlock& block, CTransactionRef coinbase, uint32_t version, uint32_t timestamp, uint32_t nonce);
 
-// Funções de sincronização e espera de novos blocos/tips
+/** Funções de sincronização e espera de novos blocos/tips para o processo de mineração */
 std::optional<BlockRef> WaitTipChanged(ChainstateManager& chainman, KernelNotifications& kernel_notifications, const uint256& current_tip, MillisecondsDouble& timeout, bool& interrupt);
 bool CooldownIfHeadersAhead(ChainstateManager& chainman, KernelNotifications& kernel_notifications, const BlockRef& last_tip, bool& interrupt_mining);
 

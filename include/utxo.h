@@ -29,8 +29,7 @@ public:
     void update(const struct Transaction& tx, int blockHeight);
 
     // Ajustado: agora recebe a altura atual da rede para calcular moedas maturadas
-    double getBalance(const std::string& address, int currentHeight);
-
+double getBalance(const std::string& address, int currentHeight) const;
     void saveToFile(const std::string& filename);
     void loadFromFile(const std::string& filename);
 

@@ -1,5 +1,6 @@
 /**
- * MAZECHAIN CORE - VALIDATION ENGINE (INDUSTRIAL GRADE)| Integrando Regras Dinâmicas de Emissão Maze
+ * MAZECHAIN CORE - VALIDATION ENGINE (INDUSTRIAL GRADE)
+ * Copyright (c) 2026-present The MazeChain developers
  */
 
 #include <validation.h>
@@ -13,129 +14,128 @@
 #include <util/strencodings.h>
 
 /**
- * ESPELHO DA TUA LÓGICA DE EMISSÃO (Fases 1-4 + Reserva)
- * Implementação Robusta para evitar erros de ponto flutuante em consenso
+ * SUBSÍDIO OFICIAL MAZECHAIN (NOVA REGRA: DECAIMENTO 8% PARA TOTAL 20M)
+ * Implementação exata das regras de emissão e transição para o Fundo de Reserva.
  */
 CAmount GetMazeBlockSubsidy(int nHeight, const CAmount& nTotalSupply, const CAmount& nReserveBalance)
 {
-    // Constante de Supply Máximo: 20.000.000 MZ
-    const CAmount MAX_SUPPLY = 20000000 * COIN;
+    const CAmount MAX_SUPPLY_LIMIT = 20000000 * COIN;
     const int interval = 10000;
     int halving_count = nHeight / interval;
 
-    // FASE 5: RECURSÃO VIA FUNDO DE RESERVA (Após 20M MZ)
-    if (nTotalSupply >= MAX_SUPPLY) {
-        if (nReserveBalance > 1) { // 0.00000001 MZ em satoshis
-            return nReserveBalance * 0.0001; // Retira 0.01% do fundo para o minerador
+    // FASE 5: RECURSÃO E VIDA ETERNA (Pós-20M MZ ou Pós-Era 64)
+    // O minerador para de criar moedas e passa a "pescar" do fundo acumulado pelas taxas.
+    if (nTotalSupply >= MAX_SUPPLY_LIMIT || halving_count >= 64) {
+        if (nReserveBalance > 10000) { // Mínimo de 0.00010000 MZ no fundo para saque
+            // Retira 0.01% do fundo para o minerador (Sustentabilidade Infinita)
+            return nReserveBalance / 10000; 
         }
-        return 1; // Subsídio mínimo (0.00000001)
+        return 1; // Subsídio mínimo absoluto (1 mit)
     }
 
-    // PROTEÇÃO DE ERA (Após 64 eras, a emissão via minting cessa)
-    if (halving_count >= 64) return 1;
-
-    double reward = 400.0;
-
-    // FASE 1: HALVING BINÁRIO (Até bloco 40.000)
-    if (halving_count < 4) {
-        for (int i = 0; i < halving_count; i++) reward *= 0.5;
-    } 
-    // FASE 2: DECAIMENTO SUAVE (Era 4 até 19)
-    else if (halving_count < 20) {
-        reward = 40.0;
-        for (int i = 4; i < halving_count; i++) reward *= 0.80;
-    }
-    // FASE 3: ESTABILIZAÇÃO (Era 20 até 49)
-    else if (halving_count < 50) {
-        reward = 1.407;
-        for (int i = 20; i <= halving_count; i++) reward *= 0.90;
-    }
-    // FASE 4: FASE TERMINAL (Era 50 até 63)
-    else {
-        reward = 0.060;
-        for (int i = 50; i < halving_count; i++) reward *= 0.98;
-    }
+    // NOVA REGRA DE EMISSÃO (DECAIMENTO SUAVE DE 8%)
+    // Base 150 MZ inicial com multiplicador de 0.92 a cada halving
+    double reward = 150.0 * std::pow(0.92, halving_count);
 
     CAmount nSubsidy = static_cast<CAmount>(reward * COIN);
+
+    // Proteção de teto: Garante que o subsídio não ultrapasse o que falta para 20M
+    if (nTotalSupply + nSubsidy > MAX_SUPPLY_LIMIT) {
+        nSubsidy = MAX_SUPPLY_LIMIT - nTotalSupply;
+    }
+
     return (nSubsidy < 1) ? 1 : nSubsidy;
 }
 
 /**
- * VALIDAÇÃO DE TAXAS DINÂMICAS (Conforme tua regra de 1% a 7%)
+ * CÁLCULO DE TAXA DINÂMICA (REGRA 1% - 7%)
  */
 double GetRequiredFeePercentage(int nHeight, const CAmount& nTotalSupply) {
-    if (nHeight <= 10000) return 0.01;
-    if (nHeight <= 20000) return 0.02;
-    if (nHeight <= 30000) return 0.025;
-
-    int halving_count = nHeight / 10000;
     const CAmount TWENTY_MILLION = 20000000 * COIN;
+    int halving_count = nHeight / 10000;
 
+    // Escalonamento conforme a maturidade da rede
+    if (nHeight <= 10000) return 0.01;  // Era 0: 1%
+    if (nHeight <= 20000) return 0.02;  // Era 1: 2%
+    if (nHeight <= 30000) return 0.025; // Era 2: 2.5%
+
+    // Fase de Escassez: Sobe para 5% conforme o subsídio de bloco diminui
     if (halving_count >= 45 && nTotalSupply < TWENTY_MILLION) return 0.05;
-    if (nTotalSupply >= TWENTY_MILLION) return 0.07;
 
-    return 0.03;
+    // Sustentabilidade Total: 7% fixo quando o supply de 20M for atingido (Era 64+)
+    if (nTotalSupply >= TWENTY_MILLION || halving_count >= 64) return 0.07;
+
+    return 0.03; // Taxa padrão para eras intermediárias
 }
 
 /**
- * CONTEXTUAL BLOCK CHECK (O Coração da Validação)
- * Este método substitui verificações simples por auditoria completa de UTXO
+ * EXECUTE MAZE VALIDATION
+ * Auditoria rigorosa de cada bloco antes da aceitação na corrente.
  */
 bool Chainstate::ExecuteMazeValidation(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex)
 {
     AssertLockHeld(cs_main);
 
-    // 1. Verificação de Integridade de Checkpoint (Baseado no teu SafetyFloor)
+    // 1. Verificação de SafetyFloor (Checkpoints e Eras)
+    // Impede forks profundos fora da Era atual (janelas de 10.000 blocos)
     int nSafetyFloor = std::max(Checkpoints::GetLastCheckpointHeight(), (int)(pindex->nHeight / 10000) * 10000);
     if (pindex->nHeight < nSafetyFloor) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-fork-safety-floor");
     }
 
     CAmount nFees = 0;
-    CAmount nValueIn = 0;
-    CAmount nValueOut = 0;
+    CAmount nChainSupply = m_chainman.ActiveChain().Tip()->nChainSupply;
 
-    // 2. Loop de Auditoria de Transações
+    // 2. Auditoria de Transações e Taxas Dinâmicas
+    double reqPercent = GetRequiredFeePercentage(pindex->nHeight, nChainSupply);
+
     for (const auto& tx : block.vtx) {
-        if (tx->IsCoinBase()) {
-            // A Coinbase na MazeChain tem estrutura especial: vout[0] = miner, vout[1] = reserve fund
-            continue; 
-        }
+        if (tx->IsCoinBase()) continue; 
 
-        // Validação de Taxa Dinâmica por Transação
-        double reqPercent = GetRequiredFeePercentage(pindex->nHeight, m_chainman.ActiveChain().Tip()->nChainSupply);
-
-        CAmount txIn = 0;
-        CAmount txOut = tx->GetValueOut();
-
-        // Aqui entra a lógica de MempoolAudit que tu definiste
+        // Validação de Assinaturas Criptográficas
         if (!Consensus::VerifyMazeSignatures(*tx, state)) {
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-tx-signature");
         }
 
+        // Auditoria de Taxa: nValueIn (UTXOs gastos) - nValueOut (destinos)
+        CAmount txIn = m_chainman.ActiveChainstate().GetValueIn(*tx);
+        CAmount txOut = tx->GetValueOut();
         CAmount txFee = txIn - txOut;
-        if (txFee < (txOut * reqPercent)) {
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "insufficient-dynamic-fee");
+
+        // Verifica se a taxa paga atende à porcentagem dinâmica da rede
+        if (txFee < static_cast<CAmount>(txOut * reqPercent)) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "insufficient-dynamic-fee",
+                strprintf("Taxa insuficiente. Altura %d exige %.1f%%", pindex->nHeight, reqPercent * 100));
         }
+
         nFees += txFee;
     }
 
-    // 3. Validação Estrita da Recompensa (Coinbase)
+    // 3. Validação da Coinbase (Subsídio + Destino das Taxas)
     CAmount nReserveBalance = m_chainman.GetReserveFundBalance();
-    CAmount expectedSubsidy = GetMazeBlockSubsidy(pindex->nHeight, m_chainman.ActiveChain().Tip()->nChainSupply, nReserveBalance);
+    CAmount expectedSubsidy = GetMazeBlockSubsidy(pindex->nHeight, nChainSupply, nReserveBalance);
 
     const CTransaction& coinbase = *block.vtx[0];
     CAmount nMinerReward = coinbase.vout[0].nValue;
 
-    if (nMinerReward > (expectedSubsidy)) {
+    // O minerador não pode dar a si mesmo mais do que o permitido pelo consenso
+    if (nMinerReward > expectedSubsidy) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-subsidy-limit");
     }
 
-    // Verifica se as taxas foram corretamente destinadas ao MZ_SYSTEM_RESERVE_FUND
+    // 4. Verificação do Fundo de Reserva (MZ_SYSTEM_RESERVE_FUND)
+    // Se houve taxas no bloco, elas DEVEM ser enviadas para o vout[1] da coinbase (Script da Reserva)
     if (nFees > 0) {
-        if (coinbase.vout.size() < 2 || coinbase.vout[1].scriptPubKey != RESERVE_FUND_SCRIPT) {
+        if (coinbase.vout.size() < 2) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-reserve-fund-missing");
+        }
+
+        // Valida o endereço de destino (ScriptPubKey do Fundo de Reserva)
+        if (coinbase.vout[1].scriptPubKey != RESERVE_FUND_SCRIPT) {
              return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-reserve-fund-diversion");
         }
+
+        // Valida se o valor enviado para a reserva é exatamente a soma das taxas coletadas
         if (coinbase.vout[1].nValue != nFees) {
              return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-reserve-fee-amount");
         }
@@ -143,5 +143,3 @@ bool Chainstate::ExecuteMazeValidation(const CBlock& block, BlockValidationState
 
     return true;
 }
-
-// ... [Milhares de linhas de lógica de sincronização P2P, IBD e Indexação]

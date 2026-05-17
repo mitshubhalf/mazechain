@@ -14,16 +14,17 @@
     #define MKDIR(dir) mkdir(dir, 0777)
 #endif
 
-// Definimos a base do caminho para nunca mais haver dúvida
+// Base do caminho absoluto para consistência total
 const std::string BASE_PATH = "/home/runner/workspace/data";
 
 void ensure_directory() { 
     struct stat info;
-    // Tenta criar a pasta no caminho absoluto
     if (stat(BASE_PATH.c_str(), &info) != 0) {
         MKDIR(BASE_PATH.c_str());
     }
 }
+
+// --- GESTÃO DA MEMPOOL ---
 
 void Storage::saveMempool(const Transaction& tx, const std::string& filename) {
     ensure_directory();
@@ -89,16 +90,18 @@ std::vector<Transaction> Storage::loadMempool(const std::string& filename) {
     return txs;
 }
 
+// --- PERSISTÊNCIA DA CHAIN ---
+
 void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     ensure_directory();
+    // saveChain sobrescreve o arquivo para limpar dados corrompidos e salvar a lista atual limpa
     std::ofstream file(filename, std::ios::binary | std::ios::trunc);
     if (!file.is_open()) return;
 
     auto chain = bc.getChain();
-    int chainSize = chain.size();
-    file.write((char*)&chainSize, sizeof(int));
-
     for (const auto& block : chain) {
+        // Chamamos a lógica de escrita de bloco para manter o padrão sem repetir código
+        // Note: aqui não escrevemos o chainSize no topo para permitir leitura contínua (stream)
         file.write((char*)&block.index, sizeof(int));
         long long ts = block.timestamp;
         file.write((char*)&ts, sizeof(long long));
@@ -140,28 +143,85 @@ void Storage::saveChain(const Blockchain& bc, const std::string& filename) {
     file.close();
 }
 
+void Storage::saveBlockToDisk(const Block& block, const std::string& filename) {
+    ensure_directory();
+    // ios::app anexa o bloco. Sem gravar chainSize no topo, o arquivo vira uma lista linear de blocos.
+    std::ofstream file(filename, std::ios::binary | std::ios::app);
+    if (!file.is_open()) {
+        std::cerr << " [ERRO] Falha ao abrir storage para anexar bloco!" << std::endl;
+        return;
+    }
+
+    file.write((char*)&block.index, sizeof(int));
+    long long ts = block.timestamp;
+    file.write((char*)&ts, sizeof(long long));
+
+    int hSize = block.hash.size();
+    file.write((char*)&hSize, sizeof(int));
+    file.write(block.hash.c_str(), hSize);
+
+    int phSize = block.prevHash.size();
+    file.write((char*)&phSize, sizeof(int));
+    file.write(block.prevHash.c_str(), phSize);
+
+    file.write((char*)&block.nonce, sizeof(int));
+
+    int mSize = block.minerAddress.size();
+    file.write((char*)&mSize, sizeof(int));
+    file.write(block.minerAddress.c_str(), mSize);
+    file.write((char*)&block.extraNonce, sizeof(long));
+
+    int txCount = block.transactions.size();
+    file.write((char*)&txCount, sizeof(int));
+
+    for (const auto& tx : block.transactions) {
+        int idS = tx.id.size(); file.write((char*)&idS, sizeof(int));
+        file.write(tx.id.c_str(), idS);
+        int sS = tx.signature.size(); file.write((char*)&sS, sizeof(int));
+        file.write(tx.signature.c_str(), sS);
+        int pS = tx.publicKey.size(); file.write((char*)&pS, sizeof(int));
+        file.write(tx.publicKey.c_str(), pS);
+
+        int outCount = tx.vout.size(); file.write((char*)&outCount, sizeof(int));
+        for (const auto& out : tx.vout) {
+            int aSize = out.address.size(); file.write((char*)&aSize, sizeof(int));
+            file.write(out.address.c_str(), aSize);
+            file.write((char*)&out.amount, sizeof(double));
+        }
+    }
+
+    file.flush();
+    file.close();
+    std::cout << " [STORAGE] Bloco #" << block.index << " anexado ao disco com sucesso." << std::endl;
+}
+
 bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) return false;
 
-    int chainSize;
-    if (!file.read((char*)&chainSize, sizeof(int))) return false;
-
     bc.clearChain();
-    for (int i = 0; i < chainSize; i++) {
+
+    // Loop de leitura contínua: lê enquanto houver dados (estilo Stream)
+    while (true) {
         int idx, nonce, txC;
         long long ts;
-        file.read((char*)&idx, sizeof(int));
+
+        // Se falhar ao ler o índice, chegamos ao fim do arquivo
+        if (!file.read((char*)&idx, sizeof(int))) break;
+
         file.read((char*)&ts, sizeof(long long));
 
         int hS; file.read((char*)&hS, sizeof(int));
         std::string h(hS, '\0'); file.read(&h[0], hS);
+
         int phS; file.read((char*)&phS, sizeof(int));
         std::string ph(phS, '\0'); file.read(&ph[0], phS);
+
         file.read((char*)&nonce, sizeof(int));
 
         int mS; file.read((char*)&mS, sizeof(int));
         std::string mAddr(mS, '\0'); file.read(&mAddr[0], mS);
+
         long eNonce; file.read((char*)&eNonce, sizeof(long));
         file.read((char*)&txC, sizeof(int));
 
@@ -191,8 +251,9 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
         b.hash = h; b.timestamp = ts; b.nonce = nonce;
         bc.addBlock(b);
     }
+
     file.close();
-    return true;
+    return !bc.getChain().empty();
 }
 
 void Storage::clearMempool(const std::string& filename) {
@@ -200,17 +261,15 @@ void Storage::clearMempool(const std::string& filename) {
     file.close();
 }
 
-// --- MELHORIA: SISTEMA DE STORAGE PARA WALLET CRIPTOGRAFADA ---
+// --- GESTÃO DE CARTEIRA ---
 
 void Storage::saveWallet(const std::string& address, const std::string& encryptedKey, const std::string& filename) {
     ensure_directory();
-    // Salva em formato texto simples (JSON-like) para facilitar a leitura futura
     std::ofstream file(filename, std::ios::trunc);
     if (!file.is_open()) return;
 
     file << "address=" << address << "\n";
     file << "encrypted_key=" << encryptedKey << "\n";
-
     file.close();
 }
 

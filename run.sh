@@ -6,10 +6,10 @@ export BACKEND_PORT=10000
 export FRONTEND_PORT=5000
 
 # 1. LIMPEZA TOTAL
-echo "[CLEANUP] Liberando portas $BACKEND_PORT e $FRONTEND_PORT..."
+echo "[CLEANUP] Encerrando processos anteriores..."
+pkill -f mazechain_api 2>/dev/null || true
 fuser -k $BACKEND_PORT/tcp 2>/dev/null || true
-fuser -k $FRONTEND_PORT/tcp 2>/dev/null || true
-sleep 1
+sleep 2
 
 # 2. PREPARAÇÃO
 mkdir -p data
@@ -20,6 +20,8 @@ echo "[BUILD] Compilando Backend MazeChain..."
 ASIO_INC=$(pkg-config --cflags asio 2>/dev/null || echo "-I/usr/include")
 OPENSSL_FLAGS=$(pkg-config --cflags --libs openssl 2>/dev/null || echo "-lssl -lcrypto")
 
+CURL_FLAGS=$(pkg-config --libs libcurl 2>/dev/null || echo "-lcurl")
+
 g++ -O2 -std=c++17 \
   src/blockchain.cpp \
   src/block.cpp \
@@ -28,26 +30,23 @@ g++ -O2 -std=c++17 \
   src/storage.cpp \
   src/wallet.cpp \
   src/crypto.cpp \
+  src/sha.cpp \
+  src/checkpoints.cpp \
+  src/db_integrity.cpp \
   src/p2p.cpp \
   src/node_manager.cpp \
   api/main.cpp \
-  -Iinclude \
+  -Iinclude -Isrc \
   $ASIO_INC \
   $OPENSSL_FLAGS \
+  $CURL_FLAGS \
   -lpthread \
-  -lcurl \
   -Wno-deprecated-declarations \
   -o mazechain_api
 
 echo "[BUILD] Compilação finalizada."
 
-# 4. INICIALIZAÇÃO DO FRONTEND (Porta 5000)
-# Serve os arquivos da pasta atual (onde deve estar seu index.html)
-echo "[START] Iniciando Interface Web em http://localhost:$FRONTEND_PORT"
-python3 -m http.server $FRONTEND_PORT > /dev/null 2>&1 &
-
-# 5. INICIALIZAÇÃO DO BACKEND (Porta 10000)
+# 4. INICIALIZAÇÃO DO NÓ MAZECHAIN (Porta 10000 - serve API + index.html)
 echo "[START] Iniciando Nó MazeChain em http://localhost:$BACKEND_PORT"
-# O backend assume o controle do terminal para você ver os logs em tempo real
 export PORT=$BACKEND_PORT
 ./mazechain_api

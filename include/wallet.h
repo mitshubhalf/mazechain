@@ -3,31 +3,80 @@
 
 #include <string>
 #include <vector>
+#include "blockchain.h" // Necessário para o método getBalance acessar a chain
 
+/**
+ * MAZECHAIN - Wallet System
+ * Gerencia chaves privadas, endereços e persistência de dados.
+ */
 class Wallet {
 public:
+    // Atributos Públicos (Acesso direto para simplificar o main.cpp)
     std::string address;  // Endereço público (ex: MZ...)
-    std::string seed;     // As 12 palavras
-    std::string privKey;  // Chave privada derivada da seed (para assinar)
+    std::string seed;     // As 12 palavras mnemônicas
+    std::string privKey;  // Chave privada derivada da seed
 
     // Construtor padrão
     Wallet(); 
 
-    // Gera uma nova carteira do zero
-    void create(); 
+    /**
+     * GERAÇÃO DE CHAVES
+     */
+
+    // Gera uma nova carteira do zero (padrão BIP-39)
+    void generateKey();
 
     // Recupera uma carteira através de uma seed existente
     void fromSeed(const std::string& existingSeed); 
 
+    // 🔥 ADICIONADO: Método necessário para o comando 'send' do main.cpp
+    // Faz a mesma função do fromSeed, mas com o nome esperado pelo compilador
+    void generateKeyFromSeed(const std::string& seed_phrase);
+
     /**
-     * ASSINATURA DIGITAL (Robustez)
-     * Em vez de enviar a seed para a rede, a carteira gera um 
-     * código único (assinatura) para a transação.
+     * PERSISTÊNCIA
      */
+
+    // Carrega os dados da carteira de um arquivo
+    bool loadFromFile(const std::string& path);
+
+    // Salva os dados da carteira em um arquivo local
+    bool saveToFile(const std::string& path);
+
+    /**
+     * MÉTODOS DE ACESSO (Compatibilidade com main.cpp)
+     */
+
+    // Retorna o endereço (MZ...)
+    std::string getAddress() const { return address; }
+
+    // Retorna a Seed Phrase
+    std::string getSeed() const { return seed; }
+
+    // Retorna a Chave Privada (Necessário para assinar transações no main.cpp)
+    std::string getPrivateKey() const { return privKey; }
+
+    // Retorna o endereço público (Antigo padrão)
+    std::string getPublicKey() const { return address; }
+
+    /**
+     * MÉTODOS FINANCEIROS
+     */
+
+    // Retorna o saldo atual desta carteira consultando a Blockchain
+    double getBalance(const Blockchain& bc) const {
+        return bc.getBalance(this->address);
+    }
+
+    /**
+     * ASSINATURA DIGITAL
+     */
+
+    // Assina uma mensagem (ou hash de transação) usando a chave privada
     std::string sign(const std::string& message);
 
-    // Função auxiliar para verificar se a carteira está carregada
+    // Verifica se a carteira possui chaves válidas carregadas
     bool isValid() const;
 };
 
-#endif
+#endif // WALLET_H completo

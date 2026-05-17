@@ -7,7 +7,7 @@
 #ifndef MAZECHAIN_CONSENSUS_PARAMS_H
 #define MAZECHAIN_CONSENSUS_PARAMS_H
 
-#include <script/verify_flags.h>
+#include <script.h>
 #include <uint256.h>
 
 #include <array>

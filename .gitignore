@@ -4,3 +4,5 @@ mazechain
 data/
 build/
 maze_node
+blockchain.dat
+*.bak

@@ -89,22 +89,21 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock()
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0; // BIP34
 
-    // Cálculo da Recompensa Fixa (400 MZ)
+    // Cálculo da Recompensa Fixa (Atualizado para 150 MZ conforme a nova regra)
     CAmount nReward = GetBlockSubsidy(nHeight, chainparams.GetConsensus());
 
     /**
-     * LOGICA DE DIVISÃO:
-     * vout[0] -> Minerador (400 MZ Fixos)
-     * vout[1] -> Fundo de Reserva (Total de nFees coletadas)
+     * LOGICA DE DIVISÃO MAZECHAIN:
+     * vout[0] -> Minerador (150 MZ Fixos do Subsídio)
+     * vout[1] -> Fundo de Reserva (Total de nFees coletadas no bloco)
      */
     coinbaseTx.vout.resize(2);
 
-    // Output 0: Minerador (Apenas a recompensa de bloco)
+    // Output 0: Minerador (Recebe apenas o subsídio/recompensa do bloco)
     coinbaseTx.vout[0].scriptPubKey = m_options.coinbase_output_script;
     coinbaseTx.vout[0].nValue = nReward;
 
-    // Output 1: Fundo de Reserva (Recebe todas as taxas MZ acumuladas no bloco)
-    // O endereço é puxado automaticamente do chainparams.cpp
+    // Output 1: Fundo de Reserva (Recebe todas as taxas MZ acumuladas das transações)
     const std::string& reserveAddr = chainparams.GetConsensus().m_maze_reserve_fund_address;
     coinbaseTx.vout[1].scriptPubKey = GetScriptForDestination(DecodeDestination(reserveAddr));
     coinbaseTx.vout[1].nValue = nFees;
@@ -116,13 +115,14 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock()
     pblock->hashPrevBlock = pindexPrev->GetBlockHash();
     UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
 
-    // Aplica o ajuste de dificuldade (Pisos Nível 4, 6 ou Dinâmico 10min)
+    // Aplica o ajuste de dificuldade (PoW)
     pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
     pblock->nNonce = 0;
 
+    // Preenche o Merkle Root
+    pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
+
     return std::move(pblocktemplate);
 }
-
-// ... (Restante das funções auxiliares de mempool permanecem similares ao Core para manter performance)
 
 } // namespace node

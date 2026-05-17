@@ -45,7 +45,7 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     if (tx.IsCoinBase())
     {
         // Coinbase deve ter scriptSig entre 2 e 100 bytes (BIP34 + ExtraNonce)
-        if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
+        if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 150)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cb-length");
     }
     else
