@@ -692,6 +692,49 @@ int main(int argc, char* argv[]) {
         return crow::response(bv.dump());
     });
 
+    // Busca bloco por hash — usado pelo explorer do frontend
+    CROW_ROUTE(app, "/block/hash/<string>")
+    ([&bc](std::string hash){
+        auto chain = bc.getChain();
+        for (const auto& b : chain) {
+            if (b.hash == hash) {
+                crow::json::wvalue bv;
+                bv["index"]     = b.index;
+                bv["hash"]      = b.hash;
+                bv["prevHash"]  = b.prevHash;
+                bv["timestamp"] = (long long)b.timestamp;
+                bv["miner"]     = b.minerAddress;
+                bv["tx_count"]  = (int)b.transactions.size();
+                crow::json::wvalue::list txlist;
+                for (const auto& tx : b.transactions) {
+                    crow::json::wvalue tv;
+                    tv["id"]   = tx.id.empty() ? tx.hash : tx.id;
+                    bool isCoinbase = (tx.signature == "coinbase");
+                    tv["type"] = isCoinbase ? "coinbase" : "transfer";
+                    if (isCoinbase) {
+                        if (!tx.vout.empty()) { tv["to"] = tx.vout[0].address; tv["amount"] = tx.vout[0].amount; }
+                        tv["fee"] = 0.0;
+                    } else if (tx.vout.size() >= 2) {
+                        tv["to"]     = tx.vout[0].address;
+                        tv["from"]   = tx.vout[1].address;
+                        double sent  = tx.vout[0].amount;
+                        double debit = std::abs(tx.vout[1].amount);
+                        tv["amount"] = sent;
+                        tv["fee"]    = debit - sent;
+                    } else if (!tx.vout.empty()) {
+                        tv["to"] = tx.vout[0].address; tv["amount"] = tx.vout[0].amount; tv["fee"] = 0.0;
+                    }
+                    txlist.push_back(std::move(tv));
+                }
+                bv["transactions"] = std::move(txlist);
+                return crow::response(bv.dump());
+            }
+        }
+        crow::json::wvalue err;
+        err["error"] = "Hash nao encontrado";
+        return crow::response(404, err.dump());
+    });
+
     CROW_ROUTE(app, "/mempool")
     ([&bc]{
         crow::json::wvalue x;
