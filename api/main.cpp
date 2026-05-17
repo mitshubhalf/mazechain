@@ -245,6 +245,18 @@ int main(int argc, char* argv[]) {
         }
 
         if (cmd == "mine") {
+            // mine looping [addr]
+            if (argc >= 3 && std::string(argv[2]) == "looping") {
+                std::string target_addr = (argc < 4) ? wallet_cli->getAddress() : argv[3];
+                std::cout << "⛏️  Mineração em loop iniciada para: " << target_addr << std::endl;
+                std::cout << "   (pressione Ctrl+C para parar)" << std::endl;
+                while (true) {
+                    async_mine(*bc_cli, *p2p_cli, target_addr);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+                return 0;
+            }
+            // mine [addr]  — minera um único bloco
             std::string target_addr = (argc < 3) ? wallet_cli->getAddress() : argv[2];
             std::cout << "⛏️  Iniciando mineração manual para: " << target_addr << std::endl;
             async_mine(*bc_cli, *p2p_cli, target_addr);
@@ -363,7 +375,8 @@ int main(int argc, char* argv[]) {
 
         if (cmd == "help" || cmd == "--help") {
             std::cout << "\n=== MAZECHAIN CLI - COMANDOS DISPONÍVEIS ===" << std::endl;
-            std::cout << "  mine [addr]                    : Minera um bloco manualmente" << std::endl;
+            std::cout << "  mine [addr]                    : Minera um único bloco" << std::endl;
+            std::cout << "  mine looping [addr]            : Minera em loop contínuo (Ctrl+C para parar)" << std::endl;
             std::cout << "  send [from] [to] [amt] [seed]  : Envia moedas validando com a seed" << std::endl;
             std::cout << "  balance [addr]                 : Consulta o saldo" << std::endl;
             std::cout << "  history [addr]                 : Lista transações enviadas e recebidas" << std::endl;
@@ -420,13 +433,9 @@ int main(int argc, char* argv[]) {
         }).detach();
     }
 
-    std::thread auto_miner(
-        worker_mineracao_continua, 
-        std::ref(bc), 
-        std::ref(p2p), 
-        local_miner_address
-    );
-    auto_miner.detach();
+    // Motor automático DESATIVADO — mineração apenas por comandos manuais:
+    //   ./mazechain mine [address]          — minera um bloco
+    //   ./mazechain mine looping [address]  — minera em loop
 
     crow::App<CORS> app;
 
