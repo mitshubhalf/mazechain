@@ -70,8 +70,18 @@ struct Transaction {
 
     /**
      * Verifica se a assinatura da transação é válida.
+     * Usa o txid (que NÃO inclui a assinatura) como dado verificado.
+     * Padrão anti-maleabilidade: terceiros não podem alterar assinatura e mudar txid.
      */
     bool verifySignature() const;
+
+    /**
+     * Witness ID (wtxid) — inclui a assinatura, como SegWit no Bitcoin.
+     * txid  (id)        = hash(vout + publicKey)         — não inclui assinatura
+     * witnessId()       = hash(txid + signature + pubkey) — inclui assinatura
+     * Use witnessId() para rastreamento interno; use id para referência pública.
+     */
+    std::string witnessId() const;
 };
 
 #endif

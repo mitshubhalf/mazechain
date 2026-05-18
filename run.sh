@@ -43,6 +43,8 @@ g++ -O2 -std=c++17 \
   -lpthread \
   -Wno-deprecated-declarations \
   -o mazechain_api
+  # Módulos: mempool_expiry (header-only), hd_wallet (header-only),
+  #          multisig (header-only), testnet (header-only)
 
 echo "[BUILD] Compilação finalizada."
 

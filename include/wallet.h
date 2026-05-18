@@ -3,7 +3,8 @@
 
 #include <string>
 #include <vector>
-#include "blockchain.h" // Necessário para o método getBalance acessar a chain
+#include "blockchain.h"
+#include "hd_wallet.h"  // BIP-32 HD Wallet
 
 /**
  * MAZECHAIN - Wallet System
@@ -77,6 +78,13 @@ public:
 
     // Verifica se a carteira possui chaves válidas carregadas
     bool isValid() const;
+
+    // ── HD Wallet (BIP-32) ────────────────────────────────────────────────────
+    // Deriva um endereço filho no caminho m/44'/1611'/0'/0/<index>
+    HDWallet::HDKey deriveChild(uint32_t index) const;
+
+    // Gera N endereços filhos a partir desta seed (gap limit)
+    std::vector<HDWallet::HDKey> deriveAddresses(int count = 20) const;
 };
 
 #endif // WALLET_H completo

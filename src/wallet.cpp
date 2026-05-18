@@ -109,11 +109,20 @@ bool Wallet::isValid() const {
     return !address.empty() && !seed.empty();
 }
 
-/** * NOTA DE COMPILAÇÃO:
- * Se o seu wallet.h já contém "{ return address; }" etc., 
- * as funções abaixo devem ser removidas para evitar o erro de "redefinition".
- * Se no wallet.h elas terminam apenas com ";", mantenha as linhas abaixo.
- */
-// std::string Wallet::getAddress() const { return address; }
-// std::string Wallet::getSeed() const { return seed; }
-// std::string Wallet::getPrivateKey() const { return privKey; }
+// ── HD Wallet — BIP-32 Derivação de Endereços ────────────────────────────────
+
+// Deriva um endereço filho no caminho m/44'/1611'/0'/0/<index>
+HDWallet::HDKey Wallet::deriveChild(uint32_t index) const {
+    if (seed.empty()) {
+        throw std::runtime_error("Carteira sem seed — não é possível derivar endereços HD.");
+    }
+    return HDWallet::deriveAddress(seed, index);
+}
+
+// Gera N endereços filhos (gap limit padrão = 20)
+std::vector<HDWallet::HDKey> Wallet::deriveAddresses(int count) const {
+    if (seed.empty()) {
+        throw std::runtime_error("Carteira sem seed — não é possível derivar endereços HD.");
+    }
+    return HDWallet::generateAddresses(seed, count);
+}

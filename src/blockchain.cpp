@@ -33,6 +33,7 @@
 #include "difficulty.h"           
 #include "mempool_limit.h" 
 #include "mempool_audit.h" 
+#include "mempool_expiry.h"
 #include "crypto/sha256.h"
 
 namespace fs = std::filesystem;
@@ -251,13 +252,27 @@ bool Blockchain::mineBlock(std::string minerAddress) {
         return false;
     }
 
+    // Remove transações expiradas do mempool (TTL 24h)
+    MempoolExpiry::purgeExpired(MEMPOOL_PATH);
+
     std::vector<Transaction> pending = Storage::loadMempool(MEMPOOL_PATH);
+
+    // Filtra em memória também (garante consistência)
+    pending = MempoolExpiry::filter(pending);
+
     std::vector<Transaction> validTransactions;
     double totalFees = 0;
     double feePercent = getDynamicFeePercentage(nextIndex);
 
     for (const auto& tx : pending) {
         if (!verifyTransaction(tx)) continue;
+
+        // ── Limite de tamanho de bloco na montagem ────────────────────────────
+        if ((int)validTransactions.size() >= MAX_BLOCK_TXS - 1) {
+            std::cout << "⚠️ [BLOCKSIZE] Mempool truncado em " << MAX_BLOCK_TXS << " txs por bloco." << std::endl;
+            break;
+        }
+
         validTransactions.push_back(tx);
 
         for(const auto& out : tx.vout) {
@@ -342,7 +357,7 @@ bool Blockchain::mineBlock(std::string minerAddress) {
     return true;
 }
 
-void Blockchain::addBlock(const Block& block) {
+void Blockchain::addBlock(const Block& block, bool trusted) {
     std::lock_guard<std::mutex> lock(g_blockchain_mutex);
 
     if (block.index < (int)chain.size()) return;
@@ -350,6 +365,48 @@ void Blockchain::addBlock(const Block& block) {
     if (block.index != (int)chain.size()) {
         std::cout << "⚠️ Index inválido: " << block.index << " esperado: " << chain.size() << std::endl;
         return;
+    }
+
+    // ── Validações de Consenso (somente para blocos recebidos via rede) ───────
+    // Blocos carregados do disco (trusted=true) já foram validados anteriormente
+    if (!trusted) {
+        long long now = (long long)std::time(nullptr);
+
+        // 1. Rejeita blocos com timestamp mais de 2h no futuro
+        if (block.timestamp > now + MAX_CLOCK_DRIFT) {
+            std::cout << "❌ [TIMESTAMP] Bloco " << block.index
+                      << " rejeitado: " << (block.timestamp - now) << "s no futuro." << std::endl;
+            return;
+        }
+
+        // 2. Rejeita blocos com timestamp <= Median Time Past (anti-replay / anti-manipulação)
+        long long mtp = getMedianTimePast();
+        if (block.timestamp <= mtp && block.index > 0) {
+            std::cout << "❌ [TIMESTAMP] Bloco " << block.index
+                      << " rejeitado: timestamp " << block.timestamp
+                      << " <= MTP " << mtp << std::endl;
+            return;
+        }
+
+        // 3. Limite de número de transações por bloco
+        if ((int)block.transactions.size() > MAX_BLOCK_TXS) {
+            std::cout << "❌ [BLOCKSIZE] Bloco " << block.index
+                      << " rejeitado: " << block.transactions.size()
+                      << " txs excede " << MAX_BLOCK_TXS << std::endl;
+            return;
+        }
+
+        // 4. Estimativa de tamanho em bytes
+        size_t estimated_size = 256;
+        for (const auto& tx : block.transactions) {
+            estimated_size += tx.id.size() + tx.signature.size() + tx.publicKey.size();
+            for (const auto& out : tx.vout) estimated_size += out.address.size() + 16;
+        }
+        if ((int)estimated_size > MAX_BLOCK_SIZE) {
+            std::cout << "❌ [BLOCKSIZE] Bloco " << block.index
+                      << " rejeitado: ~" << estimated_size << " bytes > 1MB" << std::endl;
+            return;
+        }
     }
 
     adjustDifficulty();
@@ -509,4 +566,85 @@ void Blockchain::printAddressHistory(const std::string& targetAddress) {
 std::vector<Block> Blockchain::getChain() const { return chain; }
 int Blockchain::getDifficulty() const { return difficulty; }
 double Blockchain::getTotalSupply() const { return totalSupply; }
-double Blockchain::getMaxSupply() const { return 20000000.0; }
+double Blockchain::getMaxSupply() const { return MAX_SUPPLY; }
+
+// ── Median Time Past ──────────────────────────────────────────────────────────
+// Mediana dos últimos MEDIAN_TIME_WINDOW (11) timestamps.
+// Blocos com timestamp <= MTP são rejeitados (como no Bitcoin).
+long long Blockchain::getMedianTimePast() const {
+    if (chain.empty()) return 0;
+    int n = std::min((int)chain.size(), MEDIAN_TIME_WINDOW);
+    std::vector<long long> times;
+    times.reserve(n);
+    for (int i = (int)chain.size() - n; i < (int)chain.size(); i++) {
+        times.push_back(chain[i].timestamp);
+    }
+    std::sort(times.begin(), times.end());
+    return times[times.size() / 2];
+}
+
+// ── Longest Chain Rule + Reorganização ───────────────────────────────────────
+// Substitui a cadeia local se newChain for válida e mais longa.
+// Reconstrói o UTXO set atomicamente após o reorg.
+bool Blockchain::replaceChain(const std::vector<Block>& newChain) {
+    if (newChain.empty()) return false;
+
+    // Só troca se a nova cadeia for MAIS LONGA (mais trabalho acumulado)
+    if ((long long)newChain.size() <= getChainWork()) {
+        std::cout << "🔗 [REORG] Nova cadeia não é mais longa — ignorada." << std::endl;
+        return false;
+    }
+
+    // Genesis deve ser o mesmo (mesma rede)
+    if (!chain.empty() && newChain[0].hash != chain[0].hash) {
+        std::cout << "🚨 [REORG] Genesis mismatch — cadeia de rede diferente!" << std::endl;
+        return false;
+    }
+
+    // Valida toda a nova cadeia: hash chaining + PoW válido
+    for (size_t i = 1; i < newChain.size(); i++) {
+        if (newChain[i].prevHash != newChain[i-1].hash) {
+            std::cout << "❌ [REORG] Hash chain quebrada em bloco " << i << std::endl;
+            return false;
+        }
+        std::string computed = calculateProofOfWork(newChain[i].toHashString());
+        if (computed != newChain[i].hash) {
+            std::cout << "❌ [REORG] PoW inválido em bloco " << i << std::endl;
+            return false;
+        }
+    }
+
+    // Valida checkpoints (blocos de halving não podem ser substituídos)
+    for (const auto& b : newChain) {
+        if (!Checkpoints::CheckBlock(b.index, b.hash)) {
+            std::cout << "🚨 [REORG] Checkpoint violado em bloco " << b.index << std::endl;
+            return false;
+        }
+    }
+
+    // Realiza o reorg
+    {
+        std::lock_guard<std::mutex> lock(g_blockchain_mutex);
+        chain = newChain;
+
+        // Reconstrói UTXO do zero
+        utxoSet.utxoMap.clear();
+        utxoSet.addressBalances.clear();
+        totalSupply = 0;
+
+        for (const auto& block : chain) {
+            double reward = getBlockReward(block.index);
+            if (totalSupply + reward > MAX_SUPPLY) reward = MAX_SUPPLY - totalSupply;
+            if (reward < 0) reward = 0;
+            totalSupply += reward;
+            for (const auto& tx : block.transactions) {
+                utxoSet.update(tx, block.index);
+            }
+        }
+        utxoSet.saveToFile(UTXO_PATH);
+    }
+
+    std::cout << "🔄 [REORG] Cadeia reorganizada! Nova altura: " << chain.size()
+              << " | Supply: " << totalSupply << " MZ" << std::endl;
+    return true;
+}

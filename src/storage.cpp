@@ -249,7 +249,7 @@ bool Storage::loadChain(Blockchain& bc, const std::string& filename) {
 
         Block b(idx, ph, txs, mAddr, eNonce);
         b.hash = h; b.timestamp = ts; b.nonce = nonce;
-        bc.addBlock(b);
+        bc.addBlock(b, /*trusted=*/true); // Dados do disco: pula validação de timestamp
     }
 
     file.close();

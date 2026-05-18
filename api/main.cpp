@@ -8,6 +8,10 @@
 #include "p2p.h"
 #include "node_manager.h"
 #include "crypto.h"
+#include "hd_wallet.h"
+#include "multisig.h"
+#include "testnet.h"
+#include "mempool_expiry.h"
 
 #include <vector>
 #include <string>
@@ -424,12 +428,18 @@ int main(int argc, char* argv[]) {
 
     NodeManager node_manager(bc, p2p);
 
-    // Load persisted peers and start background sync
-    p2p.load_peers("data/peers.dat");
-    if (!p2p.peers.empty()) {
-        std::thread([&bc, &p2p](){
-            std::this_thread::sleep_for(std::chrono::seconds(3)); // wait for server to start
-            p2p.sync_with_peers(bc, DB_PATH);
+    // Bootstrap: carrega peers + tenta seed nodes + troca listas
+    {
+        std::string genesis_hash = "";
+        auto ch = bc.getChain();
+        if (!ch.empty()) genesis_hash = ch[0].hash;
+
+        std::thread([&bc, &p2p, genesis_hash](){
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            p2p.bootstrap("data/peers.dat", genesis_hash);
+            if (!p2p.peers.empty()) {
+                p2p.sync_with_peers(bc, DB_PATH);
+            }
         }).detach();
     }
 
@@ -764,14 +774,66 @@ int main(int argc, char* argv[]) {
 
     CROW_ROUTE(app, "/status")
     ([&bc, &p2p]{
+        auto net_cfg = NetworkConfig::getConfig();
         crow::json::wvalue x;
-        x["protocol"]["difficulty"] = bc.getDifficulty();
-        x["protocol"]["total_supply"] = bc.getTotalSupply();
-        x["protocol"]["max_supply"] = bc.getMaxSupply();
-        x["chain"]["height"] = bc.getHeight();
-        x["network"]["peers_count"] = (int)p2p.peers.size();
-        x["node"]["version"] = "2.1.0";
+        x["protocol"]["difficulty"]     = bc.getDifficulty();
+        x["protocol"]["total_supply"]   = bc.getTotalSupply();
+        x["protocol"]["max_supply"]     = bc.getMaxSupply();
+        x["chain"]["height"]            = bc.getHeight();
+        x["chain"]["chain_work"]        = (long long)bc.getChainWork();
+        x["network"]["peers_count"]     = (int)p2p.peers.size();
+        x["network"]["name"]            = net_cfg.name;
+        x["network"]["magic"]           = net_cfg.magic_bytes;
+        x["node"]["version"]            = net_cfg.protocol_version;
+        x["node"]["max_block_size"]     = MAX_BLOCK_SIZE;
+        x["node"]["max_block_txs"]      = MAX_BLOCK_TXS;
         return x;
+    });
+
+    // ─── GET /version — Handshake de identificação de rede ───────────────────
+    CROW_ROUTE(app, "/version")
+    ([&bc]{
+        auto net_cfg = NetworkConfig::getConfig();
+        std::string genesis_hash = "";
+        auto ch = bc.getChain();
+        if (!ch.empty()) genesis_hash = ch[0].hash;
+
+        crow::json::wvalue x;
+        x["version"]      = net_cfg.protocol_version;
+        x["network"]      = net_cfg.name;
+        x["genesis_hash"] = genesis_hash;
+        x["height"]       = bc.getHeight();
+        x["magic"]        = net_cfg.magic_bytes;
+        x["services"]     = "FULL_NODE,MINER";
+        return x;
+    });
+
+    // ─── P2P: troca de listas de peers (peer exchange) ────────────────────────
+    CROW_ROUTE(app, "/peers/exchange").methods(crow::HTTPMethod::POST)
+    ([&p2p](const crow::request& req){
+        auto j = crow::json::load(req.body);
+        if (!j) return crow::response(400, "JSON invalido");
+
+        // Adiciona peers que o remetente conhece
+        int added = 0;
+        if (j.has("peers")) {
+            for (const auto& pv : j["peers"]) {
+                std::string purl = (std::string)pv.s();
+                if (!purl.empty() && p2p.peers.find(purl) == p2p.peers.end()) {
+                    p2p.add_peer(purl);
+                    added++;
+                }
+            }
+            if (added > 0) p2p.save_peers("data/peers.dat");
+        }
+
+        // Retorna nossa lista de peers
+        crow::json::wvalue x;
+        crow::json::wvalue::list list;
+        for (const auto& peer : p2p.peers) list.push_back(peer);
+        x["peers"] = std::move(list);
+        x["added"] = added;
+        return crow::response(x.dump());
     });
 
     // ─── P2P: list peers ──────────────────────────────────────────────────────
@@ -944,6 +1006,253 @@ int main(int argc, char* argv[]) {
         } catch (...) {
             return crow::response(400, "Bad transaction data");
         }
+    });
+
+    // ─── HD Wallet: derive address from seed + index ─────────────────────────
+    // GET /wallet/hd/<seed>/<index>
+    // Retorna o endereço HD no caminho m/44'/1611'/0'/0/<index>
+    CROW_ROUTE(app, "/wallet/hd/<string>/<int>")
+    ([](std::string seed, int index){
+        if (seed.empty() || seed.find(' ') == std::string::npos) {
+            crow::json::wvalue e;
+            e["error"] = "Seed deve ser uma frase de 12 palavras separadas por espaço.";
+            return crow::response(400, e.dump());
+        }
+        if (index < 0 || index > 1000000) {
+            crow::json::wvalue e;
+            e["error"] = "Index deve ser entre 0 e 1.000.000";
+            return crow::response(400, e.dump());
+        }
+        try {
+            auto key = HDWallet::deriveAddress(seed, (uint32_t)index);
+            crow::json::wvalue x;
+            x["address"]    = key.address;
+            x["path"]       = key.path;
+            x["index"]      = index;
+            x["public_key"] = key.publicKey;
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err;
+            err["error"] = std::string(e.what());
+            return crow::response(500, err.dump());
+        }
+    });
+
+    // POST /wallet/hd/batch — gera múltiplos endereços de uma vez
+    CROW_ROUTE(app, "/wallet/hd/batch").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("seed")) return crow::response(400, "Campo 'seed' obrigatorio");
+        std::string seed = (std::string)j["seed"].s();
+        int count = j.has("count") ? (int)j["count"].i() : 20;
+        if (count < 1 || count > 100) count = 20;
+        try {
+            auto keys = HDWallet::generateAddresses(seed, count);
+            crow::json::wvalue x;
+            crow::json::wvalue::list list;
+            for (const auto& k : keys) {
+                crow::json::wvalue entry;
+                entry["address"] = k.address;
+                entry["path"]    = k.path;
+                entry["index"]   = (int)k.index;
+                list.push_back(std::move(entry));
+            }
+            x["addresses"] = std::move(list);
+            x["count"]     = count;
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err;
+            err["error"] = std::string(e.what());
+            return crow::response(500, err.dump());
+        }
+    });
+
+    // ─── Multi-Sig: criar carteira M-de-N ────────────────────────────────────
+    // POST /multisig/create
+    // Body: { "signers": ["MZ...", "MZ..."], "required": 2 }
+    CROW_ROUTE(app, "/multisig/create").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("signers") || !j.has("required")) {
+            return crow::response(400, "Campos obrigatorios: signers (array), required (int)");
+        }
+        std::vector<std::string> signers;
+        for (const auto& sv : j["signers"]) signers.push_back((std::string)sv.s());
+        int required = (int)j["required"].i();
+
+        try {
+            auto wallet = Multisig::createMultisigWallet(signers, required);
+            crow::json::wvalue x;
+            x["address"]  = wallet.address;
+            x["required"] = wallet.required;
+            x["total"]    = wallet.total;
+            crow::json::wvalue::list sl;
+            for (const auto& s : wallet.signers) sl.push_back(s);
+            x["signers"]  = std::move(sl);
+            x["type"]     = std::to_string(required) + "-de-" + std::to_string((int)signers.size());
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err;
+            err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // POST /multisig/propose — cria transação multisig aguardando assinaturas
+    // Body: { "from": "MZms...", "to": "MZ...", "amount": 1.0, "required": 2 }
+    CROW_ROUTE(app, "/multisig/propose").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("from") || !j.has("to") || !j.has("amount") || !j.has("required")) {
+            return crow::response(400, "Campos: from, to, amount, required");
+        }
+        std::string from   = (std::string)j["from"].s();
+        std::string to     = (std::string)j["to"].s();
+        double amount      = j["amount"].d();
+        int required       = (int)j["required"].i();
+
+        Multisig::PendingMultisig p;
+        p.txid      = Crypto::sha256_util(from + to + std::to_string(amount) + std::to_string(std::time(nullptr)));
+        p.from      = from;
+        p.to        = to;
+        p.amount    = amount;
+        p.required  = required;
+        p.timestamp = (long)std::time(nullptr);
+
+        Multisig::savePending(p, "data/multisig_pending.dat");
+
+        crow::json::wvalue x;
+        x["txid"]     = p.txid;
+        x["status"]   = "pending";
+        x["required"] = required;
+        x["message"]  = "Transação criada. Aguardando " + std::to_string(required) + " assinatura(s).";
+        return crow::response(x.dump());
+    });
+
+    // POST /multisig/sign — adiciona uma assinatura parcial
+    // Body: { "txid": "...", "signer": "MZ...", "seed": "12 palavras..." }
+    CROW_ROUTE(app, "/multisig/sign").methods(crow::HTTPMethod::POST)
+    ([&bc](const crow::request& req){
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("txid") || !j.has("signer") || !j.has("seed")) {
+            return crow::response(400, "Campos: txid, signer, seed");
+        }
+        std::string txid   = (std::string)j["txid"].s();
+        std::string signer = (std::string)j["signer"].s();
+        std::string seed   = (std::string)j["seed"].s();
+
+        // Gera a assinatura com a seed do signatário
+        std::string signature = Crypto::sha256_util(txid + signer + seed + "MAZE_MULTISIG_V1");
+
+        try {
+            bool ready = Multisig::addSignature(txid, signer, signature, "data/multisig_pending.dat");
+            crow::json::wvalue x;
+            x["txid"]      = txid;
+            x["signer"]    = signer;
+            x["signature"] = signature.substr(0, 16) + "...";
+            x["ready"]     = ready;
+            x["status"]    = ready ? "complete — pronto para broadcast" : "aguardando mais assinaturas";
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err;
+            err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // GET /multisig/pending — lista transações aguardando assinaturas
+    CROW_ROUTE(app, "/multisig/pending")
+    ([]{
+        auto all = Multisig::loadPending("data/multisig_pending.dat");
+        crow::json::wvalue x;
+        crow::json::wvalue::list list;
+        for (const auto& p : all) {
+            crow::json::wvalue pv;
+            pv["txid"]            = p.txid;
+            pv["from"]            = p.from;
+            pv["to"]              = p.to;
+            pv["amount"]          = p.amount;
+            pv["required"]        = p.required;
+            pv["sigs_collected"]  = (int)p.collected_sigs.size();
+            pv["ready"]           = ((int)p.collected_sigs.size() >= p.required);
+            pv["timestamp"]       = (long long)p.timestamp;
+            crow::json::wvalue::list signed_by;
+            for (const auto& s : p.signed_by) signed_by.push_back(s);
+            pv["signed_by"]       = std::move(signed_by);
+            list.push_back(std::move(pv));
+        }
+        x["pending"] = std::move(list);
+        x["count"]   = (int)all.size();
+        return x;
+    });
+
+    // POST /multisig/broadcast — transmite tx multisig com M assinaturas coletadas
+    // Body: { "txid": "..." }
+    CROW_ROUTE(app, "/multisig/broadcast").methods(crow::HTTPMethod::POST)
+    ([&bc](const crow::request& req){
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("txid")) return crow::response(400, "Campo 'txid' obrigatorio");
+        std::string txid = (std::string)j["txid"].s();
+
+        auto all = Multisig::loadPending("data/multisig_pending.dat");
+        for (const auto& p : all) {
+            if (p.txid != txid) continue;
+
+            if ((int)p.collected_sigs.size() < p.required) {
+                crow::json::wvalue e;
+                e["error"] = "Assinaturas insuficientes: " + std::to_string(p.collected_sigs.size())
+                           + "/" + std::to_string(p.required);
+                return crow::response(400, e.dump());
+            }
+
+            // Constrói a transação final e coloca no mempool
+            Transaction tx;
+            tx.id        = p.txid;
+            tx.signature = p.collected_sigs[0]; // assinatura primária
+            tx.publicKey = "MAZE_MULTISIG_" + std::to_string(p.required) + "of" + std::to_string((int)p.collected_sigs.size());
+            tx.vout.push_back({p.to,   p.amount});
+            tx.vout.push_back({p.from, -(p.amount * 1.01)}); // 1% fee
+            tx.timestamp = (long)std::time(nullptr);
+
+            Storage::saveMempool(tx, "data/mempool.dat");
+            Multisig::removePending(txid, "data/multisig_pending.dat");
+
+            crow::json::wvalue x;
+            x["status"] = "broadcast";
+            x["txid"]   = txid;
+            x["message"] = "Transação multisig enviada ao mempool com sucesso!";
+            return crow::response(x.dump());
+        }
+
+        crow::json::wvalue e;
+        e["error"] = "Transação não encontrada nas pendências.";
+        return crow::response(404, e.dump());
+    });
+
+    // ─── Mempool: purgar transações expiradas ─────────────────────────────────
+    CROW_ROUTE(app, "/mempool/purge").methods(crow::HTTPMethod::POST)
+    ([]{
+        int removed = MempoolExpiry::purgeExpired("data/mempool.dat");
+        crow::json::wvalue x;
+        x["status"]  = "ok";
+        x["removed"] = removed;
+        x["message"] = std::to_string(removed) + " transações expiradas removidas do mempool.";
+        return crow::response(x.dump());
+    });
+
+    // ─── Testnet info ─────────────────────────────────────────────────────────
+    CROW_ROUTE(app, "/network")
+    ([&bc]{
+        auto cfg = NetworkConfig::getConfig();
+        crow::json::wvalue x;
+        x["name"]            = cfg.name;
+        x["prefix"]          = cfg.address_prefix;
+        x["magic"]           = cfg.magic_bytes;
+        x["version"]         = cfg.protocol_version;
+        x["min_difficulty"]  = cfg.min_difficulty;
+        x["is_testnet"]      = NetworkConfig::isTestnet();
+        x["height"]          = bc.getHeight();
+        return x;
     });
 
     // ─── External Miner: block template ──────────────────────────────────────

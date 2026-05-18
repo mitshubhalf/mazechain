@@ -8,7 +8,7 @@ rm -f mazechain_api
 
 # Compilação completa incluindo os novos módulos (sha.cpp, checkpoints.cpp, etc)
 # Adicionamos -I para os headers e os arquivos que causavam erro de Linker
-g++ -O3 -I./include -I./src -I./api \
+g++ -O3 -std=c++17 -I./include -I./src -I./api \
 api/main.cpp \
 src/blockchain.cpp \
 src/block.cpp \

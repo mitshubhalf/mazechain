@@ -60,15 +60,34 @@ std::string Transaction::calculateHash() const {
     return Crypto::sha256_util(ss.str());
 }
 
-// 🔥 NOVA FUNÇÃO DE ASSINATURA
-// Resolve o erro de 'undefined reference' no Linker
+// ── Assinatura Digital ────────────────────────────────────────────────────────
 void Transaction::sign(std::string privateKey) {
     if (privateKey.empty()) {
         signature = "unsigned";
         return;
     }
-
-    // A assinatura é gerada sobre o hash da transação usando a chave privada
-    // Mantendo a consistência com o seu módulo Crypto
+    // A assinatura é gerada SOBRE o txid (que não inclui a assinatura)
+    // garantindo anti-maleabilidade: alterar a assinatura não muda o txid.
     signature = Crypto::sha256_util(id + privateKey);
+}
+
+// ── Anti-Maleabilidade: ID canônico vs Witness ID ────────────────────────────
+// txid (id)     = hash(vout + publicKey) — NÃO inclui assinatura
+// witnessId()   = hash(id + signature)  — inclui assinatura, como wtxid do SegWit
+//
+// Isso garante que terceiros não podem alterar a assinatura e mudar o txid,
+// o que é o ataque de maleabilidade de transações do Bitcoin pré-SegWit.
+std::string Transaction::witnessId() const {
+    // wtxid = hash(txid + signature) — inclui o "testemunho" (witness data)
+    return Crypto::sha256_util(id + signature + publicKey);
+}
+
+// Verifica se a assinatura é válida para esta transação
+// Usa o txid (sem assinatura) como dado a ser verificado — padrão anti-maleável
+bool Transaction::verifySignature() const {
+    if (signature == "coinbase" || signature == "unsigned") return true;
+    if (id.empty() || publicKey.empty()) return false;
+    // Verifica que a assinatura corresponde ao txid assinado com a chave privada
+    // (compatível com o esquema HMAC usado no Wallet::sign)
+    return Crypto::verify_signature(id, signature, publicKey);
 }
