@@ -37,9 +37,9 @@ static inline double calculate_mining_reward(int height, double current_total_su
     }
 
     // --- FASE DE EMISSÃO (MINTING) ---
-    // Regra: 150 * (0.92 ^ halving_count)
-    // Isso gera o decaimento suave de 8% a cada 10.000 blocos.
-    double reward = 150.0 * pow(0.92, (double)halving_count);
+    // Protocol v4.0: 100 × (0.95205055 ^ halving_count)
+    // Decaimento: ~4.794945% por Era — 64 Halvings — Max Supply 20M
+    double reward = 100.0 * pow(0.95205055, (double)halving_count);
 
     // Proteção de Teto: Garante que o subsídio não ultrapasse o limite de 20M
     if (current_total_supply + reward > MAX_SUPPLY_LIMIT) {

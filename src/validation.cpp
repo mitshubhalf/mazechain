@@ -33,9 +33,9 @@ CAmount GetMazeBlockSubsidy(int nHeight, const CAmount& nTotalSupply, const CAmo
         return 1; // Subsídio mínimo absoluto (1 mit)
     }
 
-    // NOVA REGRA DE EMISSÃO (DECAIMENTO SUAVE DE 8%)
-    // Base 150 MZ inicial com multiplicador de 0.92 a cada halving
-    double reward = 150.0 * std::pow(0.92, halving_count);
+    // Protocol v4.0: 100 × (0.95205055 ^ halving_count)
+    // Decaimento: ~4.794945% por Era — 64 Halvings — Max Supply 20M
+    double reward = 100.0 * std::pow(0.95205055, halving_count);
 
     CAmount nSubsidy = static_cast<CAmount>(reward * COIN);
 

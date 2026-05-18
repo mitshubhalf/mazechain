@@ -5,15 +5,12 @@
 
 namespace Checkpoints {
 
-    // Bloco Gênesis: imutável, hardcoded para sempre
-    const MapCheckpoints genesisCheckpoints = {
-        { 0, "8c6a56813b90f33cce1ec54afba2ef689fcccf24d7a35521ff02b57bd3075309" }
-    };
+    // Genesis checkpoint: definido dinamicamente na primeira criação do bloco genesis
+    // (não hardcoded — muda conforme os dados do protocolo evoluem)
+    const MapCheckpoints genesisCheckpoints = {};
 
-    // Mapa dinâmico: começa com o gênesis e cresce com cada halving
-    static MapCheckpoints runtimeCheckpoints = {
-        { 0, "8c6a56813b90f33cce1ec54afba2ef689fcccf24d7a35521ff02b57bd3075309" }
-    };
+    // Mapa dinâmico: carregado do disco (checkpoints.dat) ou preenchido em runtime
+    static MapCheckpoints runtimeCheckpoints = {};
 
     bool IsHalvingBlock(int height) {
         return (height > 0 && height % 10000 == 0);

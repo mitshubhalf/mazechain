@@ -79,7 +79,7 @@ Blockchain::Blockchain() {
         Transaction coinbase;
 
         coinbase.id = "coinbase_genesis_1714158289"; 
-        coinbase.vout.push_back({"MZ_GENESIS_ADDRESS", 150.0}); 
+        coinbase.vout.push_back({"MZ_GENESIS_ADDRESS", 100.0}); // Protocol v4.0: Era Genesis = 100 MZ
         coinbase.signature = "coinbase";
         coinbase.publicKey = "MAZE_GENESIS_MESSAGE: The Times 21/Apr/2026 MazeChain reborn.";
         genesisTxs.push_back(coinbase);
@@ -94,6 +94,10 @@ Blockchain::Blockchain() {
         std::cout << "\n[SISTEMA] HASH DO BLOCO GENESIS: " << genesis.hash << "\n" << std::endl;
 
         chain.push_back(genesis);
+
+        // Salva checkpoint dinâmico do genesis (hash calculado, não hardcoded)
+        Checkpoints::AddRuntimeCheckpoint(0, genesis.hash);
+        Checkpoints::SaveCheckpoints("data/checkpoints.dat");
 
         // No genesis, salvamos o arquivo inicial
         Storage::saveChain(*this, DB_PATH);
@@ -153,50 +157,59 @@ double Blockchain::getDynamicFeePercentage(int height) {
 }
 
 double Blockchain::getBlockReward(int height) const {
-    int interval = 10000; 
-    int halving_count = height / interval;
+    // ── MazeChain Protocol v4.0 ─ Política Monetária Deflacionária ────────────
+    // Fórmula oficial: 100.0 × (0.95205055 ^ halving_count)
+    // Decaimento: ~4.794945% por Era (10.000 blocos)
+    // 64 Halvings — Max Supply: 20.000.000 MZ
+    const double MAX_SUPPLY    = 20000000.0;
+    const int    interval      = 10000;
+    int          halving_count = height / interval;
 
-    if (this->totalSupply >= 20000000.0 || halving_count >= 64) {
+    // Modo de Sustentabilidade Pós-Emissão (atingiu 20M ou Halving 64)
+    if (this->totalSupply >= MAX_SUPPLY || halving_count >= 64) {
         double reserveBalance = getBalance(MAZE_RESERVE_FUND);
         if (reserveBalance > 0.00000100) {
-            return reserveBalance * 0.0001; 
+            return reserveBalance * 0.0001; // 0.01% do fundo por bloco
         }
-        return 0.00000001; 
+        return 0.00000001; // 1 Mit — garante consenso eterno
     }
 
-    double reward = 150.0 * std::pow(0.92, halving_count);
+    // Fase de Emissão Principal
+    double reward = 100.0 * std::pow(0.95205055, halving_count);
+
+    // Fechamento matemático do Max Supply: última recompensa ajustada ao restante
+    if (this->totalSupply + reward > MAX_SUPPLY) {
+        reward = MAX_SUPPLY - this->totalSupply;
+    }
 
     if (reward < 0.00000001) reward = 0.00000001;
     return reward;
 }
 
 void Blockchain::adjustDifficulty() {
+    // ── MazeChain Protocol v4.0 ─ Eras de Dificuldade ─────────────────────────
     int nextHeight = static_cast<int>(chain.size());
+    const int window = 100;
 
-    // Era Inicial (blocos 0-9999): dificuldade FIXA em 4
-    if (nextHeight < 10000) {
-        difficulty = 4;
-        return;
-    }
+    // Piso mínimo absoluto da Era vigente
+    int era_floor;
+    if      (nextHeight < 10000) era_floor = 4;  // Era Genesis
+    else if (nextHeight < 20000) era_floor = 5;  // Era Expansão
+    else if (nextHeight < 30000) era_floor = 8;  // Era Consolidação
+    else                          era_floor = 9;  // Era Soberana
 
-    // Era de Transição (blocos 10000-19999): dificuldade FIXA em 5
-    if (nextHeight < 20000) {
-        difficulty = 5;
-        return;
-    }
-
-    // Era Dinâmica Avançada (blocos 20000+): dificuldade DINÂMICA, piso mínimo de 6
-    int window = 100;
-    if (nextHeight > window) {
-        const Block& lastBlock = chain.back();
+    if ((int)chain.size() > window) {
+        const Block& lastBlock  = chain.back();
         const Block& startBlock = chain[chain.size() - window];
         difficulty = Difficulty::calculate_next_difficulty(
             nextHeight, difficulty, lastBlock.timestamp, startBlock.timestamp
         );
     } else {
-        difficulty = 6;
+        difficulty = era_floor;
     }
-    if (difficulty < 6) difficulty = 6;
+
+    // Nunca cai abaixo do piso da Era — regra imutável do protocolo
+    if (difficulty < era_floor) difficulty = era_floor;
 }
 
 void Blockchain::rebuildUTXO() {

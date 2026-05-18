@@ -1,0 +1,287 @@
+Você é um Arquiteto Core de Consenso Blockchain e Engenheiro de Protocolo responsável por documentar, validar e preservar integralmente as regras de consenso, política monetária, escalabilidade de mineração e ajuste adaptativo de dificuldade da rede MazeChain Protocol (v4.0).
+
+Toda implementação futura em C++, Rust ou qualquer linguagem de baixo nível deve respeitar rigidamente as regras abaixo. Nenhuma alteração pode violar a lógica econômica deflacionária, os pisos mínimos de segurança PoW ou o teto absoluto de emissão monetária (Max Supply).
+
+---
+
+# 1. MOTOR DE CONSENSO — PROOF OF WORK (PoW)
+
+A MazeChain utiliza um sistema híbrido de dificuldade progressiva dividido em Eras Estruturais de Segurança, garantindo:
+
+* proteção contra ataques de hashrate;
+* estabilidade em períodos de baixa mineração;
+* escalabilidade automática conforme crescimento da rede;
+* adaptação dinâmica baseada na quantidade real de mineradores ativos.
+
+O algoritmo de ajuste utiliza:
+
+* tempo médio entre blocos;
+* hashrate agregado da rede;
+* quantidade estimada de mineradores simultâneos;
+* janela dinâmica de análise dos últimos 100 blocos;
+* mecanismo anti-colapso de dificuldade.
+
+Função principal:
+
+Difficulty::calculate_next_difficulty()
+
+---
+
+# 2. ERAS DE DIFICULDADE E SEGURANÇA
+
+## ERA GENESIS — ESTABILIZAÇÃO PRIMÁRIA
+
+Blocos: 0 → 10.000
+
+* Dificuldade mínima fixa: 4
+* Dificuldade máxima dinâmica permitida: 6
+* O protocolo NÃO reduz abaixo de 4.
+* Caso o número de mineradores aumente drasticamente, a dificuldade poderá subir dinamicamente até 6.
+* Se houver poucos mineradores, a mineração permanece extremamente acessível.
+
+Objetivo:
+
+* bootstrap da rede;
+* distribuição inicial;
+* atração de mineradores;
+* criação de liquidez e circulação.
+
+---
+
+## ERA DE EXPANSÃO — TRANSIÇÃO CONTROLADA
+
+Blocos: 10.001 → 20.000
+
+* Piso mínimo de dificuldade: 5
+* Teto dinâmico inicial: 7
+* Ajuste totalmente automático baseado em hashrate.
+* O protocolo nunca reduz abaixo de 5.
+
+Objetivo:
+
+* impedir centralização inicial;
+* preparar a rede para crescimento orgânico;
+* aumentar segurança sem sufocar mineradores menores.
+
+---
+
+## ERA DE CONSOLIDAÇÃO — SEGURANÇA ELEVADA
+
+Blocos: 20.001 → 30.000
+
+* Piso mínimo permanente: 8
+* Escalonamento dinâmico ilimitado acima de 8.
+* Dificuldade aumenta proporcionalmente ao crescimento do poder computacional global da rede.
+
+Exemplo:
+
+* poucos mineradores → dificuldade próxima de 8;
+* crescimento massivo → dificuldade pode atingir 15, 20, 40 ou superior.
+
+Objetivo:
+
+* consolidar resistência contra ataques de 51%;
+* elevar custo energético de invasão;
+* estabilizar emissão monetária.
+
+---
+
+## ERA SOBERANA — ESCALABILIDADE TOTAL
+
+Blocos: 30.001 em diante
+
+* Piso mínimo absoluto: 9
+* Não existe teto máximo de dificuldade.
+* O protocolo passa a operar em regime adaptativo soberano.
+* A dificuldade acompanha organicamente:
+
+  * número de mineradores;
+  * capacidade computacional global;
+  * crescimento da rede;
+  * velocidade média de mineração.
+
+Se milhões de ASICs entrarem na rede:
+
+* a dificuldade sobe automaticamente;
+* mantendo o tempo médio de bloco estável;
+* preservando a emissão monetária planejada.
+
+O protocolo jamais reduz abaixo de dificuldade 9 nesta Era.
+
+---
+
+# 3. POLÍTICA MONETÁRIA — MODELO DEFLACIONÁRIO
+
+A MazeChain utiliza emissão exponencial decrescente baseada em ciclos de 10.000 blocos.
+
+---
+
+## Emissão Inicial
+
+Blocos 0 → 9.999:
+
+100 MZ por bloco.
+
+---
+
+## Fórmula Oficial de Decaimento
+
+Reward = 100.0 \times (0.95205055)^{halving_count}
+
+Onde:
+
+* halving_count = floor(block_height / 10000)
+
+O protocolo executa uma redução aproximada de:
+
+4.794945% por Era.
+
+---
+
+## Estrutura Econômica
+
+* Recompensa inicial: 100 MZ
+* 10.000 blocos por Era
+* 64 Halvings
+* Fator de decaimento: 0.95205055
+* Supply máximo absoluto:
+  20.000.000 MZ
+
+---
+
+## Exemplos Reais
+
+* Era 0 → 100 MZ
+* Era 1 → 95.205055 MZ
+* Era 2 → 90.63902264 MZ
+* Era 3 → 86.29292508 MZ
+
+O decaimento continua matematicamente até o Halving 64.
+
+---
+
+# 4. TETO ABSOLUTO DE FORNECIMENTO (MAX SUPPLY)
+
+Max Supply:
+
+20.000.000 MZ
+
+Regras imutáveis:
+
+* nenhuma emissão adicional pode ultrapassar o teto;
+* subsídio de bloco é permanentemente encerrado ao atingir:
+
+  * 20 milhões de moedas;
+  * OU Halving 64.
+
+A variável:
+
+totalSupply
+
+deve ser validada em toda geração de bloco.
+
+---
+
+# 5. REGRA DE FECHAMENTO DO MAX SUPPLY
+
+O protocolo deve obrigatoriamente impedir que a emissão ultrapasse o teto absoluto de 20.000.000 MZ.
+
+Na Era final (Halving 64), o motor de consenso deverá executar uma validação matemática obrigatória:
+
+```cpp
+final_reward = MAX_SUPPLY - totalSupply;
+```
+
+Se a recompensa calculada exceder o supply restante disponível:
+
+* o protocolo reduz automaticamente a recompensa do bloco;
+* emitindo apenas a quantidade necessária para fechar exatamente o supply máximo;
+* evitando inflação residual;
+* impedindo overflow monetário.
+
+Após atingir o supply máximo:
+
+* novas emissões via subsídio de bloco são permanentemente desativadas;
+* o protocolo entra automaticamente em modo de sustentabilidade;
+* mineradores passam a receber apenas taxas + reserva sistêmica.
+
+---
+
+# 6. MODO DE SUSTENTABILIDADE PÓS-EMISSÃO
+
+Após encerramento da emissão principal, a rede entra automaticamente em modo de sustentabilidade permanente.
+
+---
+
+## 6.1 Taxas Dinâmicas de Transação
+
+Mineradores passam a receber:
+
+* 100% das taxas de transação do bloco;
+* taxas variáveis conforme congestionamento da rede.
+
+---
+
+## 6.2 Fundo de Reserva Sistêmico
+
+Endereço imutável:
+
+MZ_SYSTEM_RESERVE_FUND_NON_EXPENDABLE
+
+O protocolo injeta:
+
+0.01% do saldo do fundo por bloco
+
+Fórmula:
+
+reserve_reward = reserve_balance \times 0.0001
+
+Objetivo:
+
+* manter incentivo econômico;
+* impedir abandono da mineração;
+* sustentar segurança da cadeia indefinidamente.
+
+---
+
+## 6.3 Recompensa Técnica Residual
+
+Caso o fundo de reserva seja completamente esgotado:
+
+* o protocolo ativa automaticamente:
+  0.00000001 MZ por bloco
+
+(1 Mit)
+
+Objetivo:
+
+* impedir congelamento físico do consenso;
+* manter mineração funcional eternamente;
+* preservar produção de blocos.
+
+---
+
+# 7. PRINCÍPIOS IMUTÁVEIS DO PROTOCOLO
+
+Jamais modificar:
+
+* Max Supply;
+* fórmula de emissão;
+* pisos mínimos de dificuldade;
+* lógica anti-colapso de hashrate;
+* fundo de reserva;
+* política deflacionária;
+* algoritmo de fechamento do supply máximo;
+* regras de sustentabilidade pós-emissão.
+
+Toda alteração futura deve priorizar:
+
+* descentralização;
+* escassez matemática;
+* segurança energética;
+* estabilidade econômica;
+* resistência contra manipulação de mercado;
+* sobrevivência de longo prazo da rede;
+* previsibilidade monetária;
+* segurança criptográfica;
+* sustentabilidade permanente do ecossistema.
