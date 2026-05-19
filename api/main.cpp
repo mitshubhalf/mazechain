@@ -14,6 +14,30 @@
 #include "mempool_expiry.h"
 #include "db_integrity.h"
 
+// ── Novos módulos (~150 features) ───────────────────────────────────────────
+#include "script_vm.h"
+#include "locktime.h"
+#include "bech32.h"
+#include "fee_estimation.h"
+#include "orphan_pool.h"
+#include "ban_score.h"
+#include "dos_protection.h"
+#include "wallet_features.h"
+#include "merkle_proof.h"
+#include "schnorr.h"
+#include "logging_system.h"
+#include "metrics.h"
+#include "config_file.h"
+#include "version_bits.h"
+#include "inventory.h"
+#include "regtest.h"
+#include "bloom_filter.h"
+#include "stratum.h"
+#include "extra_nonce.h"
+#include "rpc_auth.h"
+#include "ec_recovery.h"
+#include "peer_eviction.h"
+
 #include <vector>
 #include <string>
 #include <cstdlib>
@@ -1335,6 +1359,1026 @@ int main(int argc, char* argv[]) {
         tmpl["coinbase"] = std::move(cb);
 
         return crow::response(tmpl.dump());
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOVOS ENDPOINTS — ~150 Features
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // ── Metrics (Prometheus-compatible) ────────────────────────────────────────
+    // GET /metrics — Prometheus text format
+    CROW_ROUTE(app, "/metrics")
+    ([&bc]{
+        Metrics::incApiRequest();
+        Metrics::setSupply(bc.getTotalSupply());
+        Metrics::setDifficulty(bc.getDifficulty());
+        Metrics::blocks_mined.store(bc.getHeight());
+        auto res = crow::response(200, Metrics::prometheus());
+        res.set_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+        return res;
+    });
+
+    // GET /metrics/json — JSON format for dashboard
+    CROW_ROUTE(app, "/metrics/json")
+    ([&bc]{
+        Metrics::incApiRequest();
+        Metrics::setSupply(bc.getTotalSupply());
+        Metrics::setDifficulty(bc.getDifficulty());
+        Metrics::blocks_mined.store(bc.getHeight());
+        auto res = crow::response(200, Metrics::toJSON());
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+    // ── Script VM ──────────────────────────────────────────────────────────────
+    // POST /script/decode — decode a hex script to ASM + type
+    CROW_ROUTE(app, "/script/decode").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("hex")) {
+            crow::json::wvalue e; e["error"] = "Campo 'hex' obrigatório";
+            return crow::response(400, e.dump());
+        }
+        std::string hexScript = (std::string)j["hex"].s();
+        try {
+            Script::ByteVec script = Script::fromHex(hexScript);
+            Script::ScriptType t   = Script::classify(script);
+            std::string asm_str    = Script::decode(hexScript);
+            crow::json::wvalue x;
+            x["hex"]  = hexScript;
+            x["type"] = Script::scriptTypeName(t);
+            x["asm"]  = asm_str;
+            x["size"] = (int)script.size();
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // POST /script/eval — evaluate scriptSig + scriptPubKey
+    CROW_ROUTE(app, "/script/eval").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("scriptsig") || !j.has("scriptpubkey")) {
+            crow::json::wvalue e; e["error"] = "Campos: scriptsig, scriptpubkey";
+            return crow::response(400, e.dump());
+        }
+        try {
+            auto sig = Script::fromHex((std::string)j["scriptsig"].s());
+            auto pub = Script::fromHex((std::string)j["scriptpubkey"].s());
+            bool doTrace = j.has("trace") && j["trace"].b();
+            auto result  = Script::evaluate(sig, pub, "", doTrace);
+            crow::json::wvalue x;
+            x["success"] = result.success;
+            x["error"]   = result.error;
+            crow::json::wvalue::list tl;
+            for (const auto& t : result.trace) tl.push_back(t);
+            x["trace"] = std::move(tl);
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // POST /script/build — build a standard script
+    CROW_ROUTE(app, "/script/build").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("type")) {
+            crow::json::wvalue e; e["error"] = "Campo 'type' obrigatório (p2pkh|p2sh|p2wpkh|p2wsh|p2tr|op_return)";
+            return crow::response(400, e.dump());
+        }
+        std::string type = (std::string)j["type"].s();
+        std::string data = j.has("data") ? (std::string)j["data"].s() : "";
+        try {
+            Script::ByteVec script;
+            if (type == "p2pkh" || type == "P2PKH") {
+                script = Script::buildP2PKH(Script::fromHex(data));
+            } else if (type == "p2sh" || type == "P2SH") {
+                script = Script::buildP2SH(Script::fromHex(data));
+            } else if (type == "p2wpkh" || type == "P2WPKH") {
+                script = Script::buildP2WPKH(Script::fromHex(data));
+            } else if (type == "p2wsh" || type == "P2WSH") {
+                script = Script::buildP2WSH(Script::fromHex(data));
+            } else if (type == "p2tr" || type == "P2TR") {
+                script = Script::buildP2TR(Script::fromHex(data));
+            } else if (type == "op_return" || type == "OP_RETURN") {
+                script = Script::buildOpReturn(Script::fromHex(data));
+            } else {
+                crow::json::wvalue e; e["error"] = "Tipo desconhecido: " + type;
+                return crow::response(400, e.dump());
+            }
+            crow::json::wvalue x;
+            x["hex"]  = Script::toHex(script);
+            x["type"] = type;
+            x["size"] = (int)script.size();
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // ── Bech32 Encoding ────────────────────────────────────────────────────────
+    // GET /bech32/encode?type=p2wpkh&data=<hex>&testnet=0
+    CROW_ROUTE(app, "/bech32/encode")
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        std::string type    = req.url_params.get("type")    ? req.url_params.get("type")    : "p2wpkh";
+        std::string data    = req.url_params.get("data")    ? req.url_params.get("data")    : "";
+        bool testnet        = req.url_params.get("testnet") && std::string(req.url_params.get("testnet")) == "1";
+        if (data.empty()) {
+            crow::json::wvalue e; e["error"] = "Parâmetro 'data' obrigatório (hex)";
+            return crow::response(400, e.dump());
+        }
+        try {
+            auto bytes = Bech32::decode(data).witprog.size() > 0
+                ? Bech32::decode(data).witprog
+                : std::vector<uint8_t>();
+            // data is raw hex
+            auto raw = Script::fromHex(data);
+            std::string addr;
+            if (type == "p2wpkh") addr = Bech32::encodeP2WPKH(raw, testnet);
+            else if (type == "p2wsh") addr = Bech32::encodeP2WSH(raw, testnet);
+            else if (type == "p2tr")  addr = Bech32::encodeP2TR(raw, testnet);
+            else addr = Bech32::encode(testnet ? "tmaze" : "maze", 0, raw);
+            crow::json::wvalue x;
+            x["address"]  = addr;
+            x["type"]     = type;
+            x["testnet"]  = testnet;
+            x["valid"]    = !addr.empty();
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // GET /bech32/decode?addr=<bech32addr>
+    CROW_ROUTE(app, "/bech32/decode")
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        std::string addr = req.url_params.get("addr") ? req.url_params.get("addr") : "";
+        if (addr.empty()) {
+            crow::json::wvalue e; e["error"] = "Parâmetro 'addr' obrigatório";
+            return crow::response(400, e.dump());
+        }
+        auto result = Bech32::decode(addr);
+        crow::json::wvalue x;
+        x["valid"]   = result.valid;
+        x["error"]   = result.error;
+        x["witver"]  = result.witver;
+        if (result.valid) {
+            x["program"] = Script::toHex(result.witprog);
+            x["length"]  = (int)result.witprog.size();
+            x["encoding"]= (result.witver == 0) ? "bech32" : "bech32m";
+        }
+        return crow::response(x.dump());
+    });
+
+    // ── Fee Estimation ─────────────────────────────────────────────────────────
+    // GET /fee/estimate?target=3&inputs=2&outputs=2&segwit=0
+    CROW_ROUTE(app, "/fee/estimate")
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        int target  = req.url_params.get("target")  ? std::stoi(req.url_params.get("target"))  : 3;
+        int inputs  = req.url_params.get("inputs")  ? std::stoi(req.url_params.get("inputs"))  : 1;
+        int outputs = req.url_params.get("outputs") ? std::stoi(req.url_params.get("outputs")) : 2;
+        bool segwit = req.url_params.get("segwit")  && std::string(req.url_params.get("segwit")) == "1";
+        auto rates  = FeeEstimation::estimate(target);
+        int  txSize = FeeEstimation::estimateTxSize(inputs, outputs, segwit);
+        crow::json::wvalue x;
+        x["target_blocks"]  = target;
+        x["tx_size_bytes"]  = txSize;
+        x["segwit"]         = segwit;
+        x["fee_fast"]       = FeeEstimation::calcFee(txSize, rates.fast);
+        x["fee_normal"]     = FeeEstimation::calcFee(txSize, rates.normal);
+        x["fee_economy"]    = FeeEstimation::calcFee(txSize, rates.economy);
+        x["fee_minimum"]    = FeeEstimation::calcFee(txSize, rates.minimum);
+        x["rate_fast"]      = rates.fast;
+        x["rate_normal"]    = rates.normal;
+        x["rate_economy"]   = rates.economy;
+        x["rate_minimum"]   = rates.minimum;
+        return crow::response(x.dump());
+    });
+
+    // ── Merkle Proofs ──────────────────────────────────────────────────────────
+    // GET /merkle/root?txids=hash1,hash2,...
+    CROW_ROUTE(app, "/merkle/root")
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        std::string txidsParam = req.url_params.get("txids") ? req.url_params.get("txids") : "";
+        if (txidsParam.empty()) {
+            crow::json::wvalue e; e["error"] = "Parâmetro 'txids' obrigatório (comma-separated)";
+            return crow::response(400, e.dump());
+        }
+        std::vector<std::string> txids;
+        std::istringstream ss(txidsParam);
+        std::string t;
+        while (std::getline(ss, t, ',')) if (!t.empty()) txids.push_back(t);
+        crow::json::wvalue x;
+        x["merkle_root"] = Merkle::calcMerkleRoot(txids);
+        x["tx_count"]    = (int)txids.size();
+        return crow::response(x.dump());
+    });
+
+    // POST /merkle/proof — generate merkle proof for a tx
+    CROW_ROUTE(app, "/merkle/proof").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("txids") || !j.has("index")) {
+            crow::json::wvalue e; e["error"] = "Campos: txids (array), index (int)";
+            return crow::response(400, e.dump());
+        }
+        try {
+            std::vector<std::string> txids;
+            for (int i = 0; i < (int)j["txids"].size(); i++)
+                txids.push_back((std::string)j["txids"][i].s());
+            int idx = (int)j["index"].i();
+            auto proof = Merkle::generateProof(txids, idx);
+            crow::json::wvalue x;
+            x["txid"]        = proof.txid;
+            x["merkle_root"] = proof.merkleRoot;
+            x["tx_index"]    = proof.txIndex;
+            x["valid"]       = proof.isValid();
+            crow::json::wvalue::list pathList;
+            for (const auto& n : proof.path) {
+                crow::json::wvalue pv;
+                pv["hash"]    = n.hash;
+                pv["position"]= n.isRight ? "right" : "left";
+                pathList.push_back(std::move(pv));
+            }
+            x["proof_path"] = std::move(pathList);
+            x["serialized"] = proof.serialize();
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // POST /merkle/verify — verify a merkle proof (SPV)
+    CROW_ROUTE(app, "/merkle/verify").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("txid") || !j.has("merkle_root") || !j.has("proof")) {
+            crow::json::wvalue e; e["error"] = "Campos: txid, merkle_root, proof (array of {hash, position})";
+            return crow::response(400, e.dump());
+        }
+        try {
+            std::vector<Merkle::ProofNode> path;
+            for (int i = 0; i < (int)j["proof"].size(); i++) {
+                Merkle::ProofNode n;
+                n.hash    = (std::string)j["proof"][i]["hash"].s();
+                n.isRight = (std::string)j["proof"][i]["position"].s() == "right";
+                path.push_back(n);
+            }
+            bool valid = Merkle::spvVerify(
+                (std::string)j["txid"].s(),
+                (std::string)j["merkle_root"].s(),
+                path
+            );
+            crow::json::wvalue x;
+            x["valid"] = valid;
+            x["txid"]  = (std::string)j["txid"].s();
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // ── Schnorr Signatures ─────────────────────────────────────────────────────
+    // POST /schnorr/sign — sign 32-byte message with private key
+    CROW_ROUTE(app, "/schnorr/sign").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("privkey") || !j.has("message")) {
+            crow::json::wvalue e; e["error"] = "Campos: privkey (32-byte hex), message (32-byte hex)";
+            return crow::response(400, e.dump());
+        }
+        try {
+            auto priv = Schnorr::fromHex((std::string)j["privkey"].s());
+            auto msg  = Schnorr::fromHex((std::string)j["message"].s());
+            if (priv.size() != 32) throw std::invalid_argument("privkey deve ser 32 bytes (64 hex)");
+            if (msg.size()  != 32) throw std::invalid_argument("message deve ser 32 bytes (64 hex) — use SHA256 do conteúdo");
+            auto kp  = Schnorr::makeKeyPair(priv);
+            auto sig = Schnorr::sign(priv, msg);
+            crow::json::wvalue x;
+            x["signature"] = Schnorr::toHex(sig);
+            x["pubkey"]    = Schnorr::toHex(kp.pubkey);
+            x["message"]   = Schnorr::toHex(msg);
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // POST /schnorr/verify — verify Schnorr signature
+    CROW_ROUTE(app, "/schnorr/verify").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("pubkey") || !j.has("message") || !j.has("signature")) {
+            crow::json::wvalue e; e["error"] = "Campos: pubkey, message, signature (todos hex 32/32/64 bytes)";
+            return crow::response(400, e.dump());
+        }
+        try {
+            auto pub = Schnorr::fromHex((std::string)j["pubkey"].s());
+            auto msg = Schnorr::fromHex((std::string)j["message"].s());
+            auto sig = Schnorr::fromHex((std::string)j["signature"].s());
+            bool ok  = Schnorr::verify(pub, msg, sig);
+            crow::json::wvalue x;
+            x["valid"]     = ok;
+            x["pubkey"]    = Schnorr::toHex(pub);
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // POST /taproot/tweak — compute Taproot output key
+    CROW_ROUTE(app, "/taproot/tweak").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("internal_key")) {
+            crow::json::wvalue e; e["error"] = "Campo: internal_key (32-byte hex x-only pubkey)";
+            return crow::response(400, e.dump());
+        }
+        try {
+            auto internalKey  = Schnorr::fromHex((std::string)j["internal_key"].s());
+            std::string merkleHex = j.has("merkle_root") ? (std::string)j["merkle_root"].s() : std::string(64,'0');
+            auto merkleRoot   = Schnorr::fromHex(merkleHex);
+            auto outputKey    = Schnorr::taprootTweak(internalKey, merkleRoot);
+            auto p2trAddr     = Bech32::encodeP2TR(outputKey, false);
+            crow::json::wvalue x;
+            x["internal_key"] = Schnorr::toHex(internalKey);
+            x["merkle_root"]  = merkleHex;
+            x["output_key"]   = Schnorr::toHex(outputKey);
+            x["p2tr_address"] = p2trAddr;
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // ── Version Bits / Soft Forks ──────────────────────────────────────────────
+    // GET /softforks — list all soft fork deployments and status
+    CROW_ROUTE(app, "/softforks")
+    ([]{
+        Metrics::incApiRequest();
+        auto res = crow::response(200, VersionBits::toJSON());
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+    // GET /softforks/<name> — status of a specific deployment
+    CROW_ROUTE(app, "/softforks/<string>")
+    ([](std::string name){
+        Metrics::incApiRequest();
+        auto it = VersionBits::g_deployments.find(name);
+        if (it == VersionBits::g_deployments.end()) {
+            crow::json::wvalue e; e["error"] = "Deployment não encontrado: " + name;
+            return crow::response(404, e.dump());
+        }
+        crow::json::wvalue x;
+        x["name"]      = name;
+        x["bit"]       = (int)it->second.bit;
+        x["state"]     = VersionBits::stateName(it->second.state);
+        x["active"]    = (it->second.state == VersionBits::State::ACTIVE);
+        x["signaling"] = it->second.signalingCount;
+        x["threshold"] = it->second.threshold;
+        x["period"]    = it->second.period;
+        return crow::response(x.dump());
+    });
+
+    // ── Orphan Pool ────────────────────────────────────────────────────────────
+    // GET /orphans — orphan transactions and blocks
+    CROW_ROUTE(app, "/orphans")
+    ([]{
+        Metrics::incApiRequest();
+        crow::json::wvalue x;
+        x["orphan_txs"]    = OrphanPool::orphanTxCount();
+        x["orphan_blocks"] = OrphanPool::orphanBlockCount();
+        return crow::response(x.dump());
+    });
+
+    // POST /orphans/purge — purge expired orphans
+    CROW_ROUTE(app, "/orphans/purge").methods(crow::HTTPMethod::POST)
+    ([]{
+        Metrics::incApiRequest();
+        int txRemoved  = OrphanPool::purgeExpiredTxs();
+        int blkRemoved = OrphanPool::purgeExpiredBlocks();
+        crow::json::wvalue x;
+        x["txs_removed"]    = txRemoved;
+        x["blocks_removed"] = blkRemoved;
+        x["status"]         = "ok";
+        return crow::response(x.dump());
+    });
+
+    // ── Ban Score / Peer Security ──────────────────────────────────────────────
+    // GET /banned — list of banned peers
+    CROW_ROUTE(app, "/banned")
+    ([]{
+        Metrics::incApiRequest();
+        auto list = BanScore::getBannedList();
+        crow::json::wvalue::list jlist;
+        int64_t now = (int64_t)std::time(nullptr);
+        for (const auto& kv : list) {
+            crow::json::wvalue pv;
+            pv["ip"]         = kv.first;
+            pv["banned_until"]= kv.second;
+            pv["remaining_s"] = kv.second - now;
+            jlist.push_back(std::move(pv));
+        }
+        crow::json::wvalue x;
+        x["banned"] = std::move(jlist);
+        x["count"]  = (int)list.size();
+        return crow::response(x.dump());
+    });
+
+    // POST /ban — manually ban a peer IP
+    CROW_ROUTE(app, "/ban").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("ip")) {
+            crow::json::wvalue e; e["error"] = "Campo: ip"; return crow::response(400, e.dump());
+        }
+        std::string ip  = (std::string)j["ip"].s();
+        int64_t dur     = j.has("duration") ? (int64_t)j["duration"].i() : BanScore::BAN_DURATION_SEC;
+        BanScore::ban(ip, dur);
+        crow::json::wvalue x;
+        x["status"]   = "banned";
+        x["ip"]       = ip;
+        x["duration"] = dur;
+        return crow::response(x.dump());
+    });
+
+    // POST /unban — remove ban from peer
+    CROW_ROUTE(app, "/unban").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("ip")) {
+            crow::json::wvalue e; e["error"] = "Campo: ip"; return crow::response(400, e.dump());
+        }
+        std::string ip = (std::string)j["ip"].s();
+        BanScore::unban(ip);
+        crow::json::wvalue x;
+        x["status"] = "unbanned";
+        x["ip"]     = ip;
+        return crow::response(x.dump());
+    });
+
+    // ── Regtest / Network Modes ────────────────────────────────────────────────
+    // GET /regtest/info — regtest mode info and parameters
+    CROW_ROUTE(app, "/regtest/info")
+    ([]{
+        Metrics::incApiRequest();
+        auto params = Regtest::getParams();
+        crow::json::wvalue x;
+        x["mode"]             = params.name;
+        x["address_prefix"]   = params.addressPrefix;
+        x["magic"]            = params.magic;
+        x["min_difficulty"]   = params.minDifficulty;
+        x["halving_interval"] = params.halvingInterval;
+        x["initial_reward"]   = params.initialReward;
+        x["instant_mine"]     = params.instantMine;
+        x["is_regtest"]       = Regtest::isRegtest();
+        x["is_testnet"]       = Regtest::isTestnet();
+        x["is_mainnet"]       = Regtest::isMainnet();
+        return crow::response(x.dump());
+    });
+
+    // GET /regtest/generate/<n>/<address> — mine N blocks instantly (regtest only)
+    CROW_ROUTE(app, "/regtest/generate/<int>/<string>")
+    ([&bc, &p2p](int n, std::string addr){
+        Metrics::incApiRequest();
+        if (!Regtest::isRegtest() && !Regtest::isTestnet()) {
+            crow::json::wvalue e;
+            e["error"] = "Apenas disponível em regtest ou testnet";
+            return crow::response(403, e.dump());
+        }
+        if (n < 1 || n > 1000) {
+            crow::json::wvalue e; e["error"] = "n deve estar entre 1 e 1000";
+            return crow::response(400, e.dump());
+        }
+        crow::json::wvalue::list hashes;
+        for (int i = 0; i < n; i++) {
+            async_mine(bc, p2p, addr);
+            hashes.push_back(bc.getLastBlock().hash);
+        }
+        crow::json::wvalue x;
+        x["generated"] = n;
+        x["address"]   = addr;
+        x["blocks"]    = std::move(hashes);
+        x["height"]    = bc.getHeight();
+        return crow::response(x.dump());
+    });
+
+    // GET /upgrades — network upgrades status
+    CROW_ROUTE(app, "/upgrades")
+    ([&bc]{
+        Metrics::incApiRequest();
+        auto upgrades = Regtest::getUpgrades(bc.getHeight());
+        crow::json::wvalue::list ul;
+        for (const auto& u : upgrades) {
+            crow::json::wvalue uv;
+            uv["name"]              = u.name;
+            uv["activation_height"] = u.activationHeight;
+            uv["active"]            = u.active;
+            ul.push_back(std::move(uv));
+        }
+        crow::json::wvalue x;
+        x["upgrades"] = std::move(ul);
+        x["height"]   = bc.getHeight();
+        return crow::response(x.dump());
+    });
+
+    // ── Config ─────────────────────────────────────────────────────────────────
+    // GET /config — current node configuration (non-sensitive fields)
+    CROW_ROUTE(app, "/config")
+    ([]{
+        Metrics::incApiRequest();
+        const auto& cfg = Config::get();
+        crow::json::wvalue x;
+        x["port"]            = cfg.port;
+        x["maxpeers"]        = cfg.maxPeers;
+        x["testnet"]         = cfg.testnet;
+        x["regtest"]         = cfg.regtest;
+        x["mainnet"]         = cfg.mainnet;
+        x["mine"]            = cfg.mine;
+        x["datadir"]         = cfg.datadir;
+        x["prune"]           = cfg.prune;
+        x["prune_target_mb"] = cfg.pruneTarget;
+        x["txindex"]         = cfg.txindex;
+        x["addrindex"]       = cfg.addrindex;
+        x["max_mempool_mb"]  = cfg.maxMempoolMB;
+        x["min_relay_fee"]   = cfg.minRelayFee;
+        x["allow_rbf"]       = cfg.allowRBF;
+        x["rpc_enabled"]     = cfg.rpcEnabled;
+        x["rpc_port"]        = cfg.rpcPort;
+        x["log_level"]       = cfg.logLevel;
+        x["segwit"]          = cfg.segwit;
+        x["taproot"]         = cfg.taproot;
+        x["db_cache_mb"]     = cfg.dbCache;
+        x["confirm_target"]  = cfg.confirmTarget;
+        return crow::response(x.dump());
+    });
+
+    // ── Wallet Features ────────────────────────────────────────────────────────
+    // GET /wallet/labels — all address labels
+    CROW_ROUTE(app, "/wallet/labels")
+    ([]{
+        Metrics::incApiRequest();
+        auto labels = WalletFeatures::getAllLabels();
+        crow::json::wvalue::list jl;
+        for (const auto& l : labels) {
+            crow::json::wvalue lv;
+            lv["address"]    = l.address;
+            lv["label"]      = l.label;
+            lv["watch_only"] = l.watchOnly;
+            lv["created_at"] = l.createdAt;
+            jl.push_back(std::move(lv));
+        }
+        crow::json::wvalue x;
+        x["labels"] = std::move(jl);
+        x["count"]  = (int)labels.size();
+        return crow::response(x.dump());
+    });
+
+    // POST /wallet/label — set address label
+    CROW_ROUTE(app, "/wallet/label").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("address") || !j.has("label")) {
+            crow::json::wvalue e; e["error"] = "Campos: address, label"; return crow::response(400, e.dump());
+        }
+        std::string addr  = (std::string)j["address"].s();
+        std::string label = (std::string)j["label"].s();
+        bool watchOnly    = j.has("watch_only") && j["watch_only"].b();
+        WalletFeatures::setLabel(addr, label, watchOnly);
+        WalletFeatures::saveLabels("data/labels.dat");
+        crow::json::wvalue x;
+        x["status"]     = "saved";
+        x["address"]    = addr;
+        x["label"]      = label;
+        x["watch_only"] = watchOnly;
+        return crow::response(x.dump());
+    });
+
+    // GET /wallet/history/<address> — transaction history for address
+    CROW_ROUTE(app, "/wallet/history/<string>")
+    ([&bc](std::string addr){
+        Metrics::incApiRequest();
+        auto history = WalletFeatures::getTxHistory(addr);
+        // Also scan blockchain
+        auto chain = bc.getChain();
+        for (const auto& blk : chain) {
+            for (const auto& tx : blk.transactions) {
+                bool relevant = false;
+                WalletFeatures::TxRecord rec;
+                rec.txid        = tx.id.empty() ? tx.hash : tx.id;
+                rec.blockHeight = blk.index;
+                rec.timestamp   = blk.timestamp;
+                rec.fee         = 0;
+                for (const auto& vout : tx.vout) {
+                    if (vout.address == addr) {
+                        rec.incoming = true;
+                        rec.amount   = vout.amount;
+                        rec.to       = addr;
+                        relevant     = true;
+                    }
+                }
+                if (relevant) history.push_back(rec);
+            }
+        }
+        crow::json::wvalue::list jl;
+        for (const auto& t : history) {
+            crow::json::wvalue tv;
+            tv["txid"]        = t.txid;
+            tv["amount"]      = t.amount;
+            tv["incoming"]    = t.incoming;
+            tv["block_height"]= t.blockHeight;
+            tv["timestamp"]   = t.timestamp;
+            tv["label"]       = t.label;
+            jl.push_back(std::move(tv));
+        }
+        crow::json::wvalue x;
+        x["address"] = addr;
+        x["history"] = std::move(jl);
+        x["count"]   = (int)jl.size();
+        return crow::response(x.dump());
+    });
+
+    // GET /wallet/accounts — list multi-account wallets
+    CROW_ROUTE(app, "/wallet/accounts")
+    ([]{
+        Metrics::incApiRequest();
+        auto accounts = WalletFeatures::getAccounts();
+        crow::json::wvalue::list jl;
+        for (const auto& a : accounts) {
+            crow::json::wvalue av;
+            av["index"]      = a.index;
+            av["name"]       = a.name;
+            av["root_addr"]  = a.rootAddress;
+            av["watch_only"] = a.watchOnly;
+            av["created_at"] = a.createdAt;
+            jl.push_back(std::move(av));
+        }
+        crow::json::wvalue x;
+        x["accounts"] = std::move(jl);
+        x["active"]   = WalletFeatures::getActiveAccount();
+        return crow::response(x.dump());
+    });
+
+    // POST /psbt/create — create PSBT structure
+    CROW_ROUTE(app, "/psbt/create").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("inputs") || !j.has("outputs")) {
+            crow::json::wvalue e; e["error"] = "Campos: inputs (array), outputs (array)";
+            return crow::response(400, e.dump());
+        }
+        WalletFeatures::PSBT psbt;
+        for (int i = 0; i < (int)j["inputs"].size(); i++) {
+            WalletFeatures::PSBTInput inp;
+            inp.txid   = (std::string)j["inputs"][i]["txid"].s();
+            inp.vout   = (int)j["inputs"][i]["vout"].i();
+            psbt.inputs.push_back(inp);
+        }
+        for (int i = 0; i < (int)j["outputs"].size(); i++) {
+            WalletFeatures::PSBTOutput out;
+            out.address = (std::string)j["outputs"][i]["address"].s();
+            out.amount  = j["outputs"][i]["amount"].d();
+            psbt.outputs.push_back(out);
+        }
+        crow::json::wvalue x;
+        x["psbt"]      = psbt.serialize();
+        x["inputs"]    = (int)psbt.inputs.size();
+        x["outputs"]   = (int)psbt.outputs.size();
+        x["finalized"] = psbt.finalized;
+        x["complete"]  = psbt.isComplete();
+        return crow::response(x.dump());
+    });
+
+    // ── Crypto Utilities ───────────────────────────────────────────────────────
+    // POST /crypto/hash160 — hash160(data) = RIPEMD160(SHA256(data))
+    CROW_ROUTE(app, "/crypto/hash160").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("hex")) {
+            crow::json::wvalue e; e["error"] = "Campo: hex"; return crow::response(400, e.dump());
+        }
+        try {
+            auto data = ECRecovery::fromHex((std::string)j["hex"].s());
+            auto h    = ECRecovery::hash160(data);
+            crow::json::wvalue x;
+            x["hash160"]  = ECRecovery::toHex(h);
+            x["ripemd160"]= ECRecovery::toHex(ECRecovery::ripemd160(data));
+            x["sha256d"]  = ECRecovery::toHex(ECRecovery::sha256d(data));
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // POST /crypto/recover — recover pubkey from ECDSA signature
+    CROW_ROUTE(app, "/crypto/recover").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("sig") || !j.has("hash")) {
+            crow::json::wvalue e; e["error"] = "Campos: sig (DER hex), hash (32-byte hex)";
+            return crow::response(400, e.dump());
+        }
+        try {
+            auto sig  = ECRecovery::fromHex((std::string)j["sig"].s());
+            auto hash = ECRecovery::fromHex((std::string)j["hash"].s());
+            int  rid  = j.has("recovery_id") ? (int)j["recovery_id"].i() : 0;
+            std::string pubkey = ECRecovery::recoverPubkey(sig, hash, rid);
+            crow::json::wvalue x;
+            x["pubkey"]      = pubkey;
+            x["recovered"]   = !pubkey.empty();
+            x["recovery_id"] = rid;
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // POST /crypto/verify — verify ECDSA signature
+    CROW_ROUTE(app, "/crypto/verify").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("pubkey") || !j.has("hash") || !j.has("sig")) {
+            crow::json::wvalue e; e["error"] = "Campos: pubkey, hash, sig (todos hex)";
+            return crow::response(400, e.dump());
+        }
+        bool ok = ECRecovery::verifySig(
+            (std::string)j["pubkey"].s(),
+            (std::string)j["hash"].s(),
+            (std::string)j["sig"].s()
+        );
+        crow::json::wvalue x;
+        x["valid"] = ok;
+        return crow::response(x.dump());
+    });
+
+    // ── Bloom Filter (SPV) ─────────────────────────────────────────────────────
+    // POST /bloom/create — create a bloom filter
+    CROW_ROUTE(app, "/bloom/create").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        int   n   = j.has("elements")  ? (int)j["elements"].i()    : 100;
+        double fp = j.has("fp_rate")   ? j["fp_rate"].d()          : 0.001;
+        int   tweak = j.has("tweak")   ? (int)j["tweak"].i()       : 0;
+        BloomFilter::Filter f(n, fp, (uint32_t)tweak);
+        if (j.has("items")) {
+            for (int i = 0; i < (int)j["items"].size(); i++)
+                f.insert((std::string)j["items"][i].s());
+        }
+        crow::json::wvalue x;
+        x["hex"]          = f.toHex();
+        x["size_bytes"]   = (int)f.sizeBytes();
+        x["hash_funcs"]   = (int)f.nHashFuncs;
+        x["tweak"]        = (int)f.nTweak;
+        x["fp_rate_est"]  = f.falsePositiveRate();
+        return crow::response(x.dump());
+    });
+
+    // POST /bloom/test — test item membership in bloom filter
+    CROW_ROUTE(app, "/bloom/test").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("filter") || !j.has("item")) {
+            crow::json::wvalue e; e["error"] = "Campos: filter (hex), item (string), hash_funcs, tweak";
+            return crow::response(400, e.dump());
+        }
+        try {
+            BloomFilter::Filter f;
+            std::string hexFilter = (std::string)j["filter"].s();
+            for (size_t i = 0; i+1 < hexFilter.size(); i+=2)
+                f.data.push_back((uint8_t)std::stoi(hexFilter.substr(i,2), nullptr, 16));
+            f.nHashFuncs = j.has("hash_funcs") ? (uint32_t)j["hash_funcs"].i() : 11;
+            f.nTweak     = j.has("tweak")      ? (uint32_t)j["tweak"].i()      : 0;
+            std::string item = (std::string)j["item"].s();
+            crow::json::wvalue x;
+            x["contains"] = f.contains(item);
+            x["item"]     = item;
+            return crow::response(x.dump());
+        } catch (const std::exception& e) {
+            crow::json::wvalue err; err["error"] = std::string(e.what());
+            return crow::response(400, err.dump());
+        }
+    });
+
+    // ── Mining / Stratum ───────────────────────────────────────────────────────
+    // GET /stratum/stats — pool stats
+    CROW_ROUTE(app, "/stratum/stats")
+    ([]{
+        Metrics::incApiRequest();
+        auto res = crow::response(200, Stratum::statsJSON());
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+    // GET /mining/template/<address> — enhanced block template with ExtraNonce
+    CROW_ROUTE(app, "/mining/template/<string>")
+    ([&bc](std::string miner_addr){
+        Metrics::incApiRequest();
+        bc.adjustDifficulty();
+        int    height   = bc.getHeight();
+        auto   prevHash = bc.getLastBlock().hash;
+        int    diff     = bc.getDifficulty();
+        double reward   = bc.getBlockReward(height);
+        double remaining= 20000000.0 - bc.getTotalSupply();
+        if (reward > remaining) reward = (remaining > 0 ? remaining : 0);
+
+        ExtraNonce::nextExtraNonce1();
+        std::string en1 = ExtraNonce::extraNonce1Hex();
+        std::string en2 = ExtraNonce::extraNonce2Hex();
+        std::string coinbaseTxId = ExtraNonce::buildCoinbaseTxId(height, miner_addr, reward,
+            ExtraNonce::g_extraNonce1.load(), ExtraNonce::g_extraNonce2.load());
+
+        crow::json::wvalue x;
+        x["height"]       = height;
+        x["prev_hash"]    = prevHash;
+        x["difficulty"]   = diff;
+        x["target"]       = std::string(diff, '0');
+        x["reward"]       = reward;
+        x["miner"]        = miner_addr;
+        x["extra_nonce1"] = en1;
+        x["extra_nonce2"] = en2;
+        x["coinbase_txid"]= coinbaseTxId;
+        x["timestamp"]    = (long long)std::time(nullptr);
+        x["version"]      = VersionBits::buildVersion((int64_t)std::time(nullptr));
+        return crow::response(x.dump());
+    });
+
+    // ── RPC Endpoint (JSON-RPC 2.0) ────────────────────────────────────────────
+    // POST /rpc — authenticated JSON-RPC
+    CROW_ROUTE(app, "/rpc").methods(crow::HTTPMethod::POST)
+    ([&bc](const crow::request& req){
+        Metrics::incApiRequest();
+        // Check auth
+        std::string auth = req.get_header_value("Authorization");
+        if (!auth.empty() && !RPC::authenticate(auth)) {
+            return crow::response(401, "{\"error\":\"Unauthorized\"}");
+        }
+        // Register methods if not already done
+        if (RPC::g_methods.empty()) {
+            RPC::registerMethod("getblockcount", [&bc](const RPC::RPCRequest& r) {
+                return RPC::RPCResponse{r.id, std::to_string(bc.getHeight()), "", false};
+            });
+            RPC::registerMethod("getbestblockhash", [&bc](const RPC::RPCRequest& r) {
+                return RPC::RPCResponse{r.id, "\"" + bc.getLastBlock().hash + "\"", "", false};
+            });
+            RPC::registerMethod("getdifficulty", [&bc](const RPC::RPCRequest& r) {
+                return RPC::RPCResponse{r.id, std::to_string(bc.getDifficulty()), "", false};
+            });
+            RPC::registerMethod("getsupply", [&bc](const RPC::RPCRequest& r) {
+                return RPC::RPCResponse{r.id, std::to_string(bc.getTotalSupply()), "", false};
+            });
+            RPC::registerMethod("getbalance", [&bc](const RPC::RPCRequest& r) {
+                if (r.params.empty()) return RPC::RPCResponse{r.id, "", "address required", true};
+                return RPC::RPCResponse{r.id, std::to_string(bc.getBalance(r.params[0])), "", false};
+            });
+            RPC::registerMethod("getblocktemplate", [&bc](const RPC::RPCRequest& r) {
+                int h = bc.getHeight();
+                std::ostringstream ss;
+                ss << "{\"height\":" << h
+                   << ",\"prevhash\":\"" << bc.getLastBlock().hash << "\""
+                   << ",\"difficulty\":" << bc.getDifficulty()
+                   << ",\"reward\":" << bc.getBlockReward(h) << "}";
+                return RPC::RPCResponse{r.id, ss.str(), "", false};
+            });
+            RPC::registerMethod("stop", [](const RPC::RPCRequest& r) {
+                return RPC::RPCResponse{r.id, "\"MazeChain stopping...\"", "", false};
+            });
+            RPC::registerMethod("uptime", [](const RPC::RPCRequest& r) {
+                return RPC::RPCResponse{r.id, Metrics::toJSON(), "", false};
+            });
+        }
+        std::string resp = RPC::handleRequest(req.body);
+        auto res = crow::response(200, resp);
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+    // ── Locktime / Transaction Info ────────────────────────────────────────────
+    // GET /locktime/info — locktime constants and thresholds
+    CROW_ROUTE(app, "/locktime/info")
+    ([]{
+        Metrics::incApiRequest();
+        crow::json::wvalue x;
+        x["locktime_threshold"]     = (int)Locktime::LOCKTIME_THRESHOLD;
+        x["coinbase_maturity"]      = Locktime::COINBASE_MATURITY;
+        x["dust_relay_fee_rate"]    = Locktime::DUST_RELAY_FEE_RATE;
+        x["p2pkh_input_size"]       = Locktime::P2PKH_INPUT_SIZE;
+        x["sequence_final"]         = (long long)Locktime::SEQUENCE_FINAL;
+        x["sequence_rbf_max"]       = (long long)Locktime::SEQUENCE_RBF_MAX;
+        return crow::response(x.dump());
+    });
+
+    // POST /locktime/check — check if a tx is final
+    CROW_ROUTE(app, "/locktime/check").methods(crow::HTTPMethod::POST)
+    ([&bc](const crow::request& req){
+        Metrics::incApiRequest();
+        auto j = crow::json::load(req.body);
+        if (!j || !j.has("nLockTime")) {
+            crow::json::wvalue e; e["error"] = "Campo: nLockTime (uint32)";
+            return crow::response(400, e.dump());
+        }
+        uint32_t nLockTime = (uint32_t)j["nLockTime"].i();
+        uint32_t nSeq      = j.has("nSequence") ? (uint32_t)j["nSequence"].i() : 0xffffffff;
+        int height         = bc.getHeight();
+        int64_t time       = (int64_t)std::time(nullptr);
+        bool final_        = Locktime::isFinal(nLockTime, nSeq, height, time);
+        bool rbf           = Locktime::signalsRBF(nSeq);
+        bool dust          = j.has("amount") && Locktime::isDust(j["amount"].d());
+        crow::json::wvalue x;
+        x["final"]           = final_;
+        x["signals_rbf"]     = rbf;
+        x["is_dust"]         = dust;
+        x["current_height"]  = height;
+        x["current_time"]    = time;
+        x["nLockTime"]       = (int)nLockTime;
+        x["nSequence"]       = (long long)nSeq;
+        return crow::response(x.dump());
+    });
+
+    // ── Peer Eviction ──────────────────────────────────────────────────────────
+    // GET /peers/detail — detailed peer info
+    CROW_ROUTE(app, "/peers/detail")
+    ([]{
+        Metrics::incApiRequest();
+        auto res = crow::response(200, PeerEviction::peersJSON());
+        res.set_header("Content-Type", "application/json");
+        return res;
+    });
+
+    // ── IBD Status ─────────────────────────────────────────────────────────────
+    // GET /ibd — initial block download status
+    CROW_ROUTE(app, "/ibd")
+    ([]{
+        Metrics::incApiRequest();
+        const auto& ibd = Inventory::ibdState();
+        crow::json::wvalue x;
+        x["active"]          = ibd.active;
+        x["start_height"]    = ibd.startHeight;
+        x["target_height"]   = ibd.targetHeight;
+        x["current_height"]  = ibd.currentHeight;
+        x["progress_pct"]    = ibd.progress * 100.0;
+        x["blocks_per_sec"]  = ibd.rate();
+        x["best_peer"]       = ibd.bestPeer;
+        x["status"]          = ibd.status();
+        return crow::response(x.dump());
+    });
+
+    // ── Admin Console ──────────────────────────────────────────────────────────
+    // GET /admin/status — comprehensive node status for admin
+    CROW_ROUTE(app, "/admin/status")
+    ([&bc]{
+        Metrics::incApiRequest();
+        Metrics::setSupply(bc.getTotalSupply());
+        Metrics::setDifficulty(bc.getDifficulty());
+        crow::json::wvalue x;
+        x["version"]         = "4.0.0";
+        x["height"]          = bc.getHeight();
+        x["best_hash"]       = bc.getLastBlock().hash;
+        x["difficulty"]      = bc.getDifficulty();
+        x["supply"]          = bc.getTotalSupply();
+        x["reward"]          = bc.getBlockReward(bc.getHeight());
+        x["metrics"]         = crow::json::load(Metrics::toJSON());
+        x["softforks"]       = crow::json::load(VersionBits::toJSON());
+        x["network"]         = Regtest::getParams().name;
+        x["orphan_txs"]      = OrphanPool::orphanTxCount();
+        x["orphan_blocks"]   = OrphanPool::orphanBlockCount();
+        x["banned_peers"]    = (int)BanScore::getBannedList().size();
+        x["uptime_s"]        = (long long)(std::time(nullptr) - Metrics::g_startTime);
+        return crow::response(x.dump());
     });
 
     int port = 10000;

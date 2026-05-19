@@ -1,0 +1,184 @@
+Consenso / Blockchain
+SegWit
+Taproot
+Schnorr signatures
+Checkpoints
+Chain reorg avançado
+Median Time Past (MTP)
+Difficulty retarget estilo Bitcoin real
+Compact blocks
+Headers-first sync
+SPV support
+Pruning
+AssumeUTXO / AssumeValid
+Version bits (soft fork activation)
+Coinbase maturity
+Locktime (nLockTime)
+Sequence / RBF
+CSV / CLTV
+Mempool policy rules completas
+Fee prioritization
+Dynamic block weight
+Block weight / witness size
+Orphan block handling
+Orphan transaction pool
+Dust rules
+Coin selection inteligente
+UTXO cache otimizado
+Parallel script validation
+Scripts / Linguagem
+Bitcoin Script completo
+Script VM
+OP_CHECKSIG
+OP_CHECKMULTISIG real
+OP_HASH160
+OP_EQUALVERIFY
+OP_RETURN
+OP_IF / OP_ELSE
+P2PK
+P2PKH
+P2SH
+P2WPKH
+P2WSH
+Taproot scripts
+Miniscript
+Segurança
+Anti-double-spend avançado
+Ban score para peers maliciosos
+DoS protection
+Sybil resistance parcial
+Spam protection avançada
+Rate limiting
+Peer reputation
+Checksum em mensagens P2P
+Replay protection
+Transaction malleability fix
+Fork handling seguro
+Secure key storage
+Encrypted wallet.dat
+Wallet passphrase
+Hardware wallet support
+Seed encryption
+Watch-only wallets
+Rede P2P
+Protocolo binário próprio
+Handshake tipo Bitcoin
+Inventory (inv/getdata)
+Headers messages
+Addr relay
+NAT traversal
+UPnP
+DNS seeds
+Peer discovery automática
+Tor support
+IPv6 support
+Bloom filters
+Compact relay
+Peer eviction
+Net groups
+Message compression
+Bandwidth control
+Initial block download otimizado
+Mineração
+Coinbase transaction real
+Mining reward maturity
+Mining pool protocol
+Stratum support
+ASIC-friendly hashing
+Merge mining
+ExtraNonce
+Template caching
+Timestamp rolling
+Wallet
+wallet.dat real
+Change addresses
+Address gap limit
+XPUB / XPRIV
+Bech32
+QR code support
+PSBT
+Offline signing
+Cold wallet support
+Address labels
+Transaction history indexada
+Fee estimation
+Automatic fee selection
+Replace-by-fee
+CPFP
+Multi-account wallets
+Banco de Dados / Performance
+LevelDB/RocksDB
+Indexed UTXO database
+Chainstate separado
+Fast startup cache
+Snapshot sync
+Parallel verification
+Multi-threaded validation
+Memory pool indexing
+Block indexing
+Transaction indexing
+Address indexing
+API / Infra
+RPC estilo Bitcoin Core
+JSON-RPC auth
+WebSocket support
+Event subscriptions
+Explorer integrado
+Metrics endpoint
+Prometheus support
+Admin console
+CLI wallet
+Daemon mode
+Config file avançado
+Logging system avançado
+Economia / Taxas
+Fee market
+Dynamic fees
+Dust fee policy
+Priority transactions
+Burn support
+Treasury system
+Governance (se quiser)
+Smart Features Modernas
+Lightning Network support
+Atomic swaps
+Sidechains
+Cross-chain bridges
+State channels
+Payment channels
+DLCs
+Covenants
+Vaults
+Compatibilidade / Ecossistema
+BIP compliance
+Testnet
+Regtest
+Devnet
+Seed nodes públicas
+Explorer público
+Faucet
+SDKs
+Mobile wallet
+Desktop wallet
+Browser wallet
+Docker support
+Kubernetes deployment
+CI/CD
+Unit tests
+Integration tests
+Fuzz testing
+Benchmark suite
+Formal verification parcial
+Criptografia
+RIPEMD160
+SHA256d completo estilo Bitcoin
+Schnorr/Taproot math
+Deterministic signatures RFC6979
+EC key recovery
+Merkle proofs completas
+Governance / Operação
+Soft fork mechanism
+Hard fork mechanism
+Network upgrade signaling
+Emergency checkpoints
+Node version negotiation
