@@ -35,6 +35,7 @@
 #include "mempool_audit.h" 
 #include "mempool_expiry.h"
 #include "crypto/sha256.h"
+#include "testnet.h"
 
 namespace fs = std::filesystem;
 
@@ -79,16 +80,17 @@ Blockchain::Blockchain() {
         std::vector<Transaction> genesisTxs;
         Transaction coinbase;
 
-        coinbase.id = "coinbase_genesis_1714158289"; 
+        auto netCfg = NetworkConfig::getConfig();
+        coinbase.id = "coinbase_genesis_" + std::to_string(netCfg.genesis_timestamp);
         coinbase.vout.push_back({"MZ_GENESIS_ADDRESS", 100.0}); // Protocol v4.0: Era Genesis = 100 MZ
         coinbase.signature = "coinbase";
-        coinbase.publicKey = "MAZE_GENESIS_MESSAGE: The Times 21/Apr/2026 MazeChain reborn.";
+        coinbase.publicKey = netCfg.genesis_message;
         genesisTxs.push_back(coinbase);
 
         std::string zeroHash(64, '0');
 
         Block genesis(0, zeroHash, genesisTxs, "GENESIS_BLOCK", 0);
-        genesis.timestamp = 1714158289; 
+        genesis.timestamp = netCfg.genesis_timestamp;
 
         genesis.hash = Blockchain::calculateProofOfWork(genesis.toHashString());
 

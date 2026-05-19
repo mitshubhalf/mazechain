@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MAZECHAIN | Encrypted Node</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
       --bg: #0b0b0b; --card: #111; --accent: #f5c542;
       --accent-dark: #d4a735; --accent-light: #fff3d6; --text: #aaa;
     }
+    * { box-sizing: border-box; }
     body {
       margin:0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -29,7 +29,7 @@
       box-shadow: 0 0 50px rgba(0,0,0,0.5);
     }
     @media (min-width: 800px) {
-      .container { max-width: 800px; border-left: 1px solid #222; border-right: 1px solid #222; }
+      .container { max-width: 860px; border-left: 1px solid #222; border-right: 1px solid #222; }
       .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     }
 
@@ -56,30 +56,46 @@
     .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #222; margin-bottom: 20px; }
 
     button {
-      padding:16px; margin-top:12px; width:100%; background: var(--accent);
+      padding:14px; margin-top:10px; width:100%; background: var(--accent);
       border:none; cursor:pointer; font-weight: bold; border-radius: 8px; text-transform: uppercase;
       color: #000; transition: 0.3s;
     }
     button:hover { background: var(--accent-light); transform: translateY(-2px); }
     button:disabled { background: #333; color: #555; cursor: not-allowed; transform: none; }
     button.secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
-    button.sm { padding: 10px 16px; width: auto; font-size: 12px; margin-top: 0; }
+    button.sm { padding: 8px 14px; width: auto; font-size: 11px; margin-top: 0; }
+    button.danger { background: #8b0000; color: #fff; }
+    button.success { background: #1a5c1a; color: #fff; }
 
-    input {
-      width:100%; padding:14px; margin-top:10px; background:#000;
-      border:1px solid #333; color: var(--accent); border-radius: 8px; box-sizing: border-box;
-      outline: none;
+    input, textarea {
+      width:100%; padding:12px; margin-top:8px; background:#000;
+      border:1px solid #333; color: var(--accent); border-radius: 8px;
+      outline: none; font-family: inherit;
     }
-    input:focus { border-color: var(--accent); }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; font-size: 12px; }
+
+    select {
+      width:100%; padding:12px; margin-top:8px; background:#000;
+      border:1px solid #333; color: var(--accent); border-radius: 8px;
+      outline: none; cursor: pointer;
+    }
 
     .seed-box {
       background: #000; padding: 20px; border: 1px dashed var(--accent);
-      margin: 15px 0; border-radius: 8px; text-align: center; font-size: 14px; color: #fff;
+      margin: 15px 0; border-radius: 8px; text-align: center; font-size: 15px;
+      color: #fff; letter-spacing: 1px; line-height: 1.8;
+      word-break: break-word;
+    }
+    .seed-warning {
+      background: #1a0a00; border: 1px solid #8b4500; border-radius: 8px;
+      padding: 12px 16px; margin: 10px 0; font-size: 11px; color: #ffa040;
+      line-height: 1.6;
     }
 
     .nav { display:flex; justify-content: space-between; align-items: center; padding:15px; background: #000; border-bottom: 1px solid #222; }
-    .tab-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #000; border-bottom: 1px solid #222; }
-    .tab-btn { padding: 15px; font-size: 11px; text-align: center; color: var(--text); cursor: pointer; text-transform: uppercase; }
+    .tab-bar { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; background: #000; border-bottom: 1px solid #222; overflow-x: auto; }
+    .tab-btn { padding: 12px 8px; font-size: 10px; text-align: center; color: var(--text); cursor: pointer; text-transform: uppercase; white-space: nowrap; }
     .tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); background: #111; }
 
     .terminal {
@@ -109,12 +125,36 @@
     .result-box .miner { color: #0f0; font-family: monospace; word-break: break-all; }
     .result-box .error { color: #f44; }
 
-    .badge { 
+    .badge {
       display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px;
       font-weight: bold; text-transform: uppercase; margin-left: 6px;
     }
     .badge-mine { background: #1a3a1a; color: #0f0; border: 1px solid #0f0; }
     .badge-cp { background: #3a2a00; color: var(--accent); border: 1px solid var(--accent); }
+    .badge-ok { background: #0a2a0a; color: #0f0; border: 1px solid #0f0; }
+    .badge-err { background: #2a0a0a; color: #f44; border: 1px solid #f44; }
+
+    .hd-addr-row {
+      background: #0d0d0d; border: 1px solid #222; border-radius: 6px;
+      padding: 10px 12px; margin-bottom: 6px; font-size: 10px;
+    }
+    .hd-addr-row .idx { color: var(--accent); font-weight: bold; min-width: 30px; display: inline-block; }
+    .hd-addr-row .addr { color: #fff; font-family: monospace; word-break: break-all; }
+    .hd-addr-row .bal { color: #0f0; float: right; margin-left: 8px; }
+
+    .multisig-pending {
+      background: #0d0d0d; border: 1px solid #333; border-radius: 8px;
+      padding: 12px; margin-bottom: 10px; font-size: 11px;
+    }
+    .multisig-pending .sig-bar {
+      height: 6px; background: #222; border-radius: 3px; margin: 8px 0;
+    }
+    .multisig-pending .sig-fill {
+      height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s;
+    }
+
+    .integrity-ok   { color: #0f0; }
+    .integrity-fail { color: #f44; }
 
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
@@ -122,6 +162,7 @@
 <body>
 
 <div class="container">
+  <!-- HOME -->
   <div id="home" class="screen active">
     <div style="margin-top: 60px; text-align: center;">
       <div class="cube-wrapper">
@@ -134,31 +175,33 @@
       <button onclick="go('create')">CRIAR NOVA WALLET</button>
       <button class="secondary" onclick="go('import')">IMPORTAR VIA SEED</button>
       <button class="secondary" onclick="go('explorer')">EXPLORADOR PÚBLICO</button>
-
-      <div id="unlockArea" style="display:none; margin-top:30px; border-top:1px solid #222; padding-top:20px;">
-        <p style="text-align:center; font-size:10px; color:var(--text)">CARTEIRA DETECTADA</p>
-        <input type="password" id="unlockPass" placeholder="Senha de Desbloqueio">
-        <button onclick="unlockWallet()">DESBLOQUEAR ACESSO</button>
-      </div>
+    </div>
+    <div class="seed-warning" style="margin-top:30px;">
+      🔐 <b>Segurança:</b> A sua frase-semente nunca é salva neste dispositivo. Você precisará digitá-la novamente ao recarregar a página. Guarde-a em papel, offline.
     </div>
   </div>
 
+  <!-- CRIAR CARTEIRA -->
   <div id="create" class="screen">
-    <h2>Backup Phrase</h2>
-    <p style="font-size:11px; color:var(--text); text-align:center">Anote estas 12 palavras em ordem. Elas são a única forma de recuperar seu dinheiro.</p>
-    <div id="seedBox" class="seed-box">Defina uma senha abaixo primeiro.</div>
-    <input type="password" id="newPass" placeholder="Crie uma senha de acesso">
+    <h2>Nova Carteira</h2>
+    <div class="seed-warning">
+      ⚠️ <b>ATENÇÃO:</b> Anote as 12 palavras abaixo em papel e guarde em lugar seguro. <b>Esta frase nunca é armazenada</b> — se você perder, não há recuperação.
+    </div>
+    <div id="seedBox" class="seed-box" style="display:none"></div>
     <button id="genBtn" onclick="generateWallet()">GERAR MINHA SEED</button>
-    <button id="confirmBtn" class="secondary" onclick="loadDashboard()" style="display:none">JÁ ANOTEI TUDO (ENTRAR)</button>
-    <button class="secondary" onclick="go('home')" style="border:none; color:#555">Voltar</button>
+    <button id="confirmBtn" class="secondary" onclick="loadDashboard()" style="display:none">JÁ ANOTEI — ENTRAR</button>
+    <button class="secondary" onclick="go('home')" style="border:none; color:#555; margin-top:8px">Voltar</button>
   </div>
 
+  <!-- IMPORTAR CARTEIRA -->
   <div id="import" class="screen">
     <h2>Recuperar Conta</h2>
-    <input id="seedInput" placeholder="Insira suas 12 palavras separadas por espaço">
-    <input type="password" id="importPass" placeholder="Crie uma nova senha para este dispositivo">
+    <div class="seed-warning">
+      🔐 Sua seed é usada apenas durante esta sessão e <b>nunca é salva</b>. Ao fechar ou recarregar, será necessário importá-la novamente.
+    </div>
+    <textarea id="seedInput" placeholder="Insira suas 12 palavras separadas por espaço" rows="3"></textarea>
     <button id="importBtn" onclick="importWallet()">VALIDAR E ENTRAR</button>
-    <button class="secondary" onclick="go('home')" style="border:none; color:#555">Cancelar</button>
+    <button class="secondary" onclick="go('home')" style="border:none; color:#555; margin-top:8px">Cancelar</button>
   </div>
 
   <!-- EXPLORADOR PÚBLICO (sem login) -->
@@ -169,7 +212,7 @@
     </div>
 
     <div class="card">
-      <div class="label" style="color:var(--text); font-size:10px; text-transform:uppercase; margin-bottom:8px;">Consultar Saldo de Carteira</div>
+      <div class="label" style="color:var(--text); font-size:10px; text-transform:uppercase; margin-bottom:8px;">Consultar Saldo</div>
       <div class="search-row">
         <input id="searchAddr" placeholder="MZ..." onkeydown="if(event.key==='Enter') searchBalance()">
         <button class="sm" onclick="searchBalance()">BUSCAR</button>
@@ -195,6 +238,7 @@
     </div>
   </div>
 
+  <!-- DASHBOARD -->
   <div id="dashboard" class="screen" style="padding:0">
     <div class="nav">
       <b style="color:var(--accent)">MAZECHAIN CORE</b>
@@ -202,12 +246,16 @@
     </div>
 
     <div class="tab-bar">
-      <div class="tab-btn active" id="tab1" onclick="switchTab(1)">Carteira</div>
-      <div class="tab-btn" id="tab2" onclick="switchTab(2)">Blockchain</div>
-      <div class="tab-btn" id="tab3" onclick="switchTab(3)">Rede</div>
+      <div class="tab-btn active" id="tab1" onclick="switchTab(1)">💳 Carteira</div>
+      <div class="tab-btn" id="tab2" onclick="switchTab(2)">⛓ Blockchain</div>
+      <div class="tab-btn" id="tab3" onclick="switchTab(3)">🔑 HD Wallet</div>
+      <div class="tab-btn" id="tab4" onclick="switchTab(4)">🔐 Multisig</div>
+      <div class="tab-btn" id="tab5" onclick="switchTab(5)">📡 Rede</div>
     </div>
 
     <div style="padding:20px">
+
+      <!-- TAB 1: CARTEIRA -->
       <div id="content1" class="tab-content">
         <div class="dashboard-grid">
           <div class="card">
@@ -219,8 +267,8 @@
 
           <div class="card">
             <small style="color:var(--text); font-size:10px;">ENVIAR MOEDAS</small>
-            <input type="text" id="sendTo" placeholder="Endereço de destino">
-            <input type="number" id="sendAmount" placeholder="Quantia">
+            <input type="text" id="sendTo" placeholder="Endereço de destino (MZ...)">
+            <input type="number" id="sendAmount" placeholder="Quantia em MZ" step="0.0001">
             <button id="sendBtn" onclick="transferCoins()">CONFIRMAR ENVIO</button>
           </div>
         </div>
@@ -232,9 +280,10 @@
         <div class="terminal" id="log">> Sessão iniciada. Pronto para transações.</div>
       </div>
 
+      <!-- TAB 2: BLOCKCHAIN -->
       <div id="content2" class="tab-content" style="display:none">
         <div class="card" style="padding:14px">
-          <div style="font-size:10px; color:var(--text); text-transform:uppercase; margin-bottom:8px;">Consultar Saldo de Qualquer Carteira</div>
+          <div style="font-size:10px; color:var(--text); text-transform:uppercase; margin-bottom:8px;">Consultar Saldo</div>
           <div class="search-row">
             <input id="dashSearchAddr" placeholder="MZ..." onkeydown="if(event.key==='Enter') dashSearchBalance()">
             <button class="sm" onclick="dashSearchBalance()">BUSCAR</button>
@@ -252,22 +301,111 @@
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h3 style="font-size:12px; color:var(--accent); margin:0;">ÚLTIMOS BLOCOS MINERADOS</h3>
+          <h3 style="font-size:12px; color:var(--accent); margin:0;">ÚLTIMOS BLOCOS</h3>
           <button class="sm secondary" onclick="updateExplorer()">↻</button>
         </div>
         <div id="chainList">Carregando dados da blockchain...</div>
       </div>
 
+      <!-- TAB 3: HD WALLET -->
       <div id="content3" class="tab-content" style="display:none">
+        <h2 style="font-size:14px; margin-bottom:4px;">HD WALLET — Derivação de Endereços</h2>
+        <p style="font-size:11px; color:var(--text); margin-bottom:16px;">Deriva múltiplos endereços a partir da sua seed principal (BIP-32, caminho m/44'/1611'/0'/0/index).</p>
+
         <div class="card">
-            <h3 style="font-size:12px; color:var(--accent)">VOLUME DE HASHES</h3>
-            <div class="chart-container"><canvas id="priceChart"></canvas></div>
+          <small style="color:var(--text); font-size:10px;">SEED PHRASE (12 palavras)</small>
+          <textarea id="hdSeed" placeholder="palavra1 palavra2 ... palavra12" rows="2"></textarea>
+          <small style="color:var(--text); font-size:10px; display:block; margin-top:8px;">QUANTIDADE DE ENDEREÇOS A DERIVAR</small>
+          <select id="hdCount">
+            <option value="5">5 endereços</option>
+            <option value="10" selected>10 endereços</option>
+            <option value="20">20 endereços</option>
+            <option value="50">50 endereços</option>
+          </select>
+          <button onclick="deriveHD()">DERIVAR ENDEREÇOS</button>
         </div>
-        <div class="card">
-            <h3 style="font-size:12px; color:var(--accent)">ESTATÍSTICAS DO NÓ</h3>
-            <div id="statsInfo" style="font-size:11px; line-height:2;">Sincronizando...</div>
+
+        <div id="hdResult" style="display:none">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3 style="font-size:12px; color:var(--accent); margin:0;">ENDEREÇOS DERIVADOS</h3>
+            <button class="sm secondary" onclick="checkHDBalances()">↻ CHECAR SALDOS</button>
+          </div>
+          <div id="hdList"></div>
+        </div>
+
+        <div class="seed-warning" style="margin-top:10px;">
+          🔐 A seed digitada aqui é usada <b>apenas nesta sessão</b> e nunca é armazenada ou enviada a terceiros.
         </div>
       </div>
+
+      <!-- TAB 4: MULTISIG -->
+      <div id="content4" class="tab-content" style="display:none">
+        <h2 style="font-size:14px; margin-bottom:4px;">MULTI-ASSINATURA</h2>
+
+        <div class="card">
+          <h3 style="font-size:12px; color:var(--accent); margin-top:0;">1 — CRIAR CARTEIRA MULTISIG</h3>
+          <small style="color:var(--text); font-size:10px;">ASSINANTES (um endereço MZ por linha)</small>
+          <textarea id="msOwners" placeholder="MZabc...&#10;MZdef...&#10;MZghi..." rows="4"></textarea>
+          <small style="color:var(--text); font-size:10px; display:block; margin-top:8px;">ASSINATURAS NECESSÁRIAS (M-de-N)</small>
+          <input type="number" id="msRequired" placeholder="Ex: 2 (de 3)" min="1" max="10">
+          <button onclick="createMultisig()">CRIAR CARTEIRA MULTISIG</button>
+          <div id="msCreateResult" class="result-box" style="margin-top:12px;"></div>
+        </div>
+
+        <div class="card">
+          <h3 style="font-size:12px; color:var(--accent); margin-top:0;">2 — PROPOR TRANSAÇÃO</h3>
+          <input id="msFrom" placeholder="Endereço MZms... (multisig de origem)">
+          <input id="msTo" placeholder="Endereço MZ... (destino)">
+          <input type="number" id="msAmount" placeholder="Quantia em MZ" step="0.0001">
+          <input type="number" id="msReq" placeholder="Assinaturas necessárias" min="1">
+          <button onclick="proposeMultisig()">PROPOR TRANSAÇÃO</button>
+          <div id="msProposeResult" class="result-box" style="margin-top:12px;"></div>
+        </div>
+
+        <div class="card">
+          <h3 style="font-size:12px; color:var(--accent); margin-top:0;">3 — ASSINAR TRANSAÇÃO</h3>
+          <input id="msTxid" placeholder="TXID da transação proposta">
+          <input id="msSigner" placeholder="Seu endereço MZ...">
+          <textarea id="msSeed" placeholder="Sua seed de 12 palavras para assinar" rows="2"></textarea>
+          <div class="seed-warning" style="margin:8px 0;">🔐 A seed é usada localmente para gerar a assinatura e <b>nunca é salva</b>.</div>
+          <button onclick="signMultisig()">ASSINAR</button>
+          <div id="msSignResult" class="result-box" style="margin-top:12px;"></div>
+        </div>
+
+        <div class="card">
+          <h3 style="font-size:12px; color:var(--accent); margin-top:0;">4 — BROADCAST / PENDENTES</h3>
+          <input id="msBroadcastTxid" placeholder="TXID para fazer broadcast">
+          <button onclick="broadcastMultisig()">FAZER BROADCAST</button>
+          <div id="msBroadcastResult" class="result-box" style="margin-top:12px;"></div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px;">
+            <span style="font-size:11px; color:var(--accent); font-weight:bold;">TRANSAÇÕES PENDENTES</span>
+            <button class="sm secondary" onclick="loadPendingMultisig()">↻ ATUALIZAR</button>
+          </div>
+          <div id="msPendingList"><span style="color:var(--text); font-size:11px;">Clique em Atualizar para carregar.</span></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: REDE -->
+      <div id="content5" class="tab-content" style="display:none">
+        <div class="card">
+          <h3 style="font-size:12px; color:var(--accent); margin-top:0;">VOLUME DE HASHES</h3>
+          <div class="chart-container"><canvas id="priceChart"></canvas></div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:12px; color:var(--accent); margin-top:0;">ESTATÍSTICAS DO NÓ</h3>
+          <div id="statsInfo" style="font-size:11px; line-height:2;">Sincronizando...</div>
+        </div>
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="font-size:12px; color:var(--accent); margin:0;">INTEGRIDADE DO BANCO DE DADOS</h3>
+            <button class="sm secondary" onclick="checkIntegrity()">↻ VERIFICAR</button>
+          </div>
+          <div id="integrityResult" style="font-size:11px; margin-top:12px; color:var(--text);">Clique em Verificar para checar.</div>
+          <button class="sm" style="margin-top:12px; width:auto; background:#1a3a1a; color:#0f0;" onclick="updateIntegrity()">ATUALIZAR HASH DE INTEGRIDADE</button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -278,6 +416,7 @@
   let sessionSeed = null;
   let priceChart = null;
   let mempoolData = [];
+  let hdAddresses = [];
 
   function go(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -290,99 +429,68 @@
     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
     document.getElementById('tab'+n).classList.add('active');
     document.getElementById('content'+n).style.display = 'block';
-    if(n === 2) updateExplorer();
-    if(n === 3) { updateNetwork(); initChart(); }
-  }
-
-  function encrypt(text, password) { return CryptoJS.AES.encrypt(text, password).toString(); }
-  function decrypt(cipher, password) {
-    try {
-      const bytes = CryptoJS.AES.decrypt(cipher, password);
-      const original = bytes.toString(CryptoJS.enc.Utf8);
-      return original || null;
-    } catch(e) { return null; }
+    if (n === 2) updateExplorer();
+    if (n === 4) loadPendingMultisig();
+    if (n === 5) { updateNetwork(); initChart(); }
   }
 
   function shortHash(h) { return h ? h.substring(0,20) + '...' : '—'; }
   function shortAddr(a) { return a ? a.substring(0,14) + '...' : '—'; }
   function tsToTime(ts) { return new Date(ts * 1000).toLocaleString('pt-BR'); }
 
-  // ── BUSCA POR ENDEREÇO ───────────────────────────────────────────────────────
+  // ── BUSCA ────────────────────────────────────────────────────────────────────
   async function doSearchBalance(addr, resultEl) {
-    if (!addr || !addr.startsWith('MZ')) {
-      resultEl.innerHTML = '<span class="error">Endereço inválido. Deve começar com MZ.</span>';
-      resultEl.classList.add('visible');
-      return;
+    if (!addr || (!addr.startsWith('MZ') && !addr.startsWith('TZ'))) {
+      resultEl.innerHTML = '<span class="error">Endereço inválido. Deve começar com MZ ou TZ.</span>';
+      resultEl.classList.add('visible'); return;
     }
-    resultEl.innerHTML = 'Consultando...';
-    resultEl.classList.add('visible');
+    resultEl.innerHTML = 'Consultando...'; resultEl.classList.add('visible');
     try {
       const r = await fetch(`${API}/balance/${addr}`);
       const d = await r.json();
       if (d.error) throw new Error(d.error);
       resultEl.innerHTML = `
-        <div class="label">Endereço</div>
-        <div class="val">${addr}</div>
+        <div class="label">Endereço</div><div class="val">${addr}</div>
         <div class="label" style="margin-top:8px">Saldo</div>
         <div style="font-size:22px; font-weight:bold; color:#fff">${d.balance_mz.toFixed(8)} <span style="color:var(--accent);font-size:14px">MZ</span></div>
-        <div style="color:var(--text); font-size:10px">${(d.balance_mz * 100000000).toFixed(0)} Mits</div>
-      `;
+        <div style="color:var(--text); font-size:10px">${(d.balance_mz * 100000000).toFixed(0)} Mits</div>`;
     } catch(e) {
       resultEl.innerHTML = `<span class="error">Erro: ${e.message || 'Endereço não encontrado'}</span>`;
     }
   }
 
-  // ── BUSCA POR HASH ───────────────────────────────────────────────────────────
   async function doSearchBlock(hash, resultEl) {
     if (!hash || hash.length < 10) {
       resultEl.innerHTML = '<span class="error">Hash inválido.</span>';
-      resultEl.classList.add('visible');
-      return;
+      resultEl.classList.add('visible'); return;
     }
-    resultEl.innerHTML = 'Buscando bloco...';
-    resultEl.classList.add('visible');
+    resultEl.innerHTML = 'Buscando bloco...'; resultEl.classList.add('visible');
     try {
       const r = await fetch(`${API}/block/hash/${hash}`);
       const d = await r.json();
       if (d.error) throw new Error(d.error);
       resultEl.innerHTML = `
-        <div class="label">Bloco</div>
-        <div style="font-size:20px; font-weight:bold;">#${d.index}</div>
-        <div class="label" style="margin-top:8px">Hash</div>
-        <div class="val">${d.hash}</div>
-        <div class="label" style="margin-top:8px">Minerado por</div>
-        <div class="miner">${d.miner}</div>
-        <div class="label" style="margin-top:8px">Data / Hora</div>
-        <div style="color:#fff">${tsToTime(d.timestamp)}</div>
-        <div class="label" style="margin-top:8px">Transações</div>
-        <div style="color:#fff">${d.tx_count}</div>
-        <div class="label" style="margin-top:8px">Hash Anterior</div>
-        <div class="val" style="font-size:10px">${d.prevHash}</div>
-      `;
+        <div class="label">Bloco</div><div style="font-size:20px; font-weight:bold;">#${d.index}</div>
+        <div class="label" style="margin-top:8px">Hash</div><div class="val">${d.hash}</div>
+        <div class="label" style="margin-top:8px">Minerado por</div><div class="miner">${d.miner}</div>
+        <div class="label" style="margin-top:8px">Data / Hora</div><div style="color:#fff">${tsToTime(d.timestamp)}</div>
+        <div class="label" style="margin-top:8px">Transações</div><div style="color:#fff">${d.tx_count}</div>
+        <div class="label" style="margin-top:8px">Hash Anterior</div><div class="val" style="font-size:10px">${d.prevHash}</div>`;
     } catch(e) {
       resultEl.innerHTML = `<span class="error">Hash não encontrado na blockchain.</span>`;
     }
   }
 
-  function searchBalance() {
-    doSearchBalance(document.getElementById('searchAddr').value.trim(), document.getElementById('addrResult'));
-  }
-  function searchBlock() {
-    doSearchBlock(document.getElementById('searchHash').value.trim(), document.getElementById('hashResult'));
-  }
-  function dashSearchBalance() {
-    doSearchBalance(document.getElementById('dashSearchAddr').value.trim(), document.getElementById('dashAddrResult'));
-  }
-  function dashSearchBlock() {
-    doSearchBlock(document.getElementById('dashSearchHash').value.trim(), document.getElementById('dashHashResult'));
-  }
+  function searchBalance() { doSearchBalance(document.getElementById('searchAddr').value.trim(), document.getElementById('addrResult')); }
+  function searchBlock()   { doSearchBlock(document.getElementById('searchHash').value.trim(), document.getElementById('hashResult')); }
+  function dashSearchBalance() { doSearchBalance(document.getElementById('dashSearchAddr').value.trim(), document.getElementById('dashAddrResult')); }
+  function dashSearchBlock()   { doSearchBlock(document.getElementById('dashSearchHash').value.trim(), document.getElementById('dashHashResult')); }
 
-  // ── EXPLORER DE BLOCOS ───────────────────────────────────────────────────────
+  // ── EXPLORER ─────────────────────────────────────────────────────────────────
   function renderBlockList(blocks, containerId) {
     const list = document.getElementById(containerId);
     if (!blocks || blocks.length === 0) {
-      list.innerHTML = '<div style="color:var(--text); text-align:center; padding:20px;">Nenhum bloco ainda.</div>';
-      return;
+      list.innerHTML = '<div style="color:var(--text); text-align:center; padding:20px;">Nenhum bloco ainda.</div>'; return;
     }
     list.innerHTML = blocks.map(b => {
       const isHalving = b.index > 0 && b.index % 10000 === 0;
@@ -394,16 +502,10 @@
             <b>BLOCO #${b.index}</b>${badge}
             <small style="color:var(--text)">${tsToTime(b.timestamp)}</small>
           </div>
-          <div style="margin-top:5px; color:var(--text)">
-            Hash: <span style="color:var(--accent); font-family:monospace">${shortHash(b.hash)}</span>
-          </div>
-          <div style="margin-top:3px; color:var(--text)">
-            Minerador: <span style="color:#0f0; font-family:monospace">${minerShort.substring(0,26)}${minerShort.length>26?'...':''}</span>
-          </div>
-          <div style="margin-top:3px">Txs: ${b.tx_count} | <span style="color:var(--text); font-size:10px">${b.hash.substring(0,10)}...</span></div>
-          <div id="${containerId}_detail_${b.index}" style="display:none; margin-top:8px; padding:8px; background:#0a0a0a; border-radius:5px; font-family:monospace; font-size:10px; color:var(--text);">
-            Carregando detalhes...
-          </div>
+          <div style="margin-top:5px; color:var(--text)">Hash: <span style="color:var(--accent); font-family:monospace">${shortHash(b.hash)}</span></div>
+          <div style="margin-top:3px; color:var(--text)">Minerador: <span style="color:#0f0; font-family:monospace">${minerShort.substring(0,26)}${minerShort.length>26?'...':''}</span></div>
+          <div style="margin-top:3px">Txs: ${b.tx_count}</div>
+          <div id="${containerId}_detail_${b.index}" style="display:none; margin-top:8px; padding:8px; background:#0a0a0a; border-radius:5px; font-family:monospace; font-size:10px; color:var(--text);">Carregando detalhes...</div>
         </div>`;
     }).join('');
   }
@@ -418,119 +520,86 @@
       const r = await fetch(`${API}/block/hash/${hash}`);
       const d = await r.json();
       if (d.error) { el.innerText = 'Erro: ' + d.error; return; }
-      let txHtml = d.transactions.map(tx => {
+      const txHtml = d.transactions.map(tx => {
         if (tx.type === 'coinbase') return `<div style="color:#f5c542">⛏ Recompensa: ${tx.amount} MZ → ${tx.to ? tx.to.substring(0,20)+'...' : ''}</div>`;
         return `<div style="color:#aaa">↗ ${tx.amount} MZ → ${tx.to ? tx.to.substring(0,20)+'...' : ''} (fee: ${tx.fee?.toFixed(4)||0} MZ)</div>`;
       }).join('');
       el.innerHTML = `
-        <div style="color:#fff; margin-bottom:4px">Hash completo:</div>
-        <div style="color:var(--accent)">${d.hash}</div>
-        <div style="color:#fff; margin-top:6px">Hash anterior:</div>
-        <div style="color:#555">${d.prevHash}</div>
-        <div style="color:#fff; margin-top:6px">Minerador completo:</div>
-        <div style="color:#0f0">${d.miner}</div>
-        <div style="color:#fff; margin-top:6px">Transações:</div>
-        ${txHtml || '<div style="color:#555">Sem transações</div>'}
-      `;
-    } catch(e) {
-      el.innerText = 'Falha ao carregar detalhes.';
-    }
+        <div style="color:#fff; margin-bottom:4px">Hash completo:</div><div style="color:var(--accent)">${d.hash}</div>
+        <div style="color:#fff; margin-top:6px">Hash anterior:</div><div style="color:#555">${d.prevHash}</div>
+        <div style="color:#fff; margin-top:6px">Minerador:</div><div style="color:#0f0">${d.miner}</div>
+        <div style="color:#fff; margin-top:6px">Transações:</div>${txHtml || '<div style="color:#555">Sem transações</div>'}`;
+    } catch(e) { el.innerText = 'Falha ao carregar detalhes.'; }
   }
 
   async function loadExplorerBlocks() {
-    const list = document.getElementById('explorerList');
-    list.innerHTML = 'Carregando...';
+    document.getElementById('explorerList').innerHTML = 'Carregando...';
     try {
       const r = await fetch(`${API}/chain`);
       const data = await r.json();
       renderBlockList(data.blocks, 'explorerList');
-    } catch(e) {
-      list.innerHTML = '<div style="color:#f44">Nó offline.</div>';
-    }
+    } catch(e) { document.getElementById('explorerList').innerHTML = '<div style="color:#f44">Nó offline.</div>'; }
   }
 
   async function updateExplorer() {
-    const list = document.getElementById('chainList');
-    list.innerHTML = 'Carregando...';
+    document.getElementById('chainList').innerHTML = 'Carregando...';
     try {
       const r = await fetch(`${API}/chain`);
       const data = await r.json();
       renderBlockList(data.blocks, 'chainList');
-    } catch(e) {
-      list.innerHTML = '<div style="color:#f44">O Nó ainda não minerou blocos.</div>';
-    }
+    } catch(e) { document.getElementById('chainList').innerHTML = '<div style="color:#f44">Nó offline.</div>'; }
   }
 
-  // ── CARTEIRA ──────────────────────────────────────────────────────────────────
+  // ── CARTEIRA ─────────────────────────────────────────────────────────────────
   async function generateWallet() {
-    const pass = document.getElementById('newPass').value;
     const btn = document.getElementById('genBtn');
-    if(pass.length < 4) return alert("Defina uma senha de pelo menos 4 dígitos para proteger sua Seed.");
-    btn.innerText = "PROCESSANDO...";
-    btn.disabled = true;
+    btn.innerText = "GERANDO..."; btn.disabled = true;
     try {
       const r = await fetch(`${API}/wallet/new`);
-      if(!r.ok) throw new Error();
+      if (!r.ok) throw new Error();
       const data = await r.json();
-      document.getElementById('seedBox').innerHTML = `<b>${data.seed}</b>`;
-      localStorage.setItem('mz_vault', encrypt(data.seed, pass));
+      document.getElementById('seedBox').innerHTML = `<b style="word-break:break-word; line-height:2;">${data.seed}</b>`;
+      document.getElementById('seedBox').style.display = 'block';
       localStorage.setItem('mz_addr', data.address);
       sessionSeed = data.seed;
-      btn.style.display = "none";
-      document.getElementById('confirmBtn').style.display = "block";
+      btn.style.display = 'none';
+      document.getElementById('confirmBtn').style.display = 'block';
     } catch(e) {
       alert("ERRO: O Nó C++ não respondeu.");
-      btn.innerText = "TENTAR NOVAMENTE";
-      btn.disabled = false;
+      btn.innerText = "TENTAR NOVAMENTE"; btn.disabled = false;
     }
   }
 
   async function importWallet() {
     const seed = document.getElementById('seedInput').value.trim();
-    const pass = document.getElementById('importPass').value;
     const btn = document.getElementById('importBtn');
-    if(seed.split(' ').length < 12) return alert("A Seed deve conter 12 palavras.");
-    if(pass.length < 4) return alert("Defina uma senha para proteger o acesso local.");
-    btn.innerText = "VALIDANDO SEED...";
-    btn.disabled = true;
+    if (seed.split(' ').length < 12) return alert("A Seed deve conter 12 palavras.");
+    btn.innerText = "VALIDANDO..."; btn.disabled = true;
     try {
       const r = await fetch(`${API}/wallet/import`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({seed: seed})
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({seed})
       });
       const data = await r.json();
-      if(data.status === "success") {
-        localStorage.setItem('mz_vault', encrypt(seed, pass));
+      if (data.status === "success") {
         localStorage.setItem('mz_addr', data.address);
         sessionSeed = seed;
+        document.getElementById('seedInput').value = '';
         loadDashboard();
       } else {
-        alert("Seed Inválida para o protocolo MazeChain.");
-        btn.disabled = false;
-        btn.innerText = "VALIDAR E ENTRAR";
+        alert("Seed inválida para o protocolo MazeChain.");
+        btn.disabled = false; btn.innerText = "VALIDAR E ENTRAR";
       }
     } catch(e) {
       alert("Erro de conexão com o servidor.");
-      btn.disabled = false;
-    }
-  }
-
-  function unlockWallet() {
-    const pass = document.getElementById('unlockPass').value;
-    const vault = localStorage.getItem('mz_vault');
-    const decrypted = decrypt(vault, pass);
-    if(decrypted) {
-      sessionSeed = decrypted;
-      loadDashboard();
-    } else {
-      alert("Senha Incorreta!");
+      btn.disabled = false; btn.innerText = "VALIDAR E ENTRAR";
     }
   }
 
   function loadDashboard() {
     go('dashboard');
-    document.getElementById('addrDisp').innerText = localStorage.getItem('mz_addr');
+    const addr = localStorage.getItem('mz_addr') || '';
+    document.getElementById('addrDisp').innerText = addr;
     updateStats();
     setInterval(updateStats, 15000);
   }
@@ -539,6 +608,7 @@
 
   async function updateStats() {
     const addr = localStorage.getItem('mz_addr');
+    if (!addr) return;
     try {
       const r = await fetch(`${API}/balance/${addr}`);
       const d = await r.json();
@@ -549,79 +619,292 @@
   // ── MEMPOOL ───────────────────────────────────────────────────────────────────
   function addToMempool(to, amount) {
     const now = new Date();
-    const timeStr = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
-    const list = document.getElementById('mempoolList');
-    const entry = `<div class="mempool-item">
-      [${timeStr}] TX PENDENTE: ${amount} MZ -> ${to.substring(0,10)}...<br>
-      Status: Aguardando Mineração no próximo bloco.
-    </div>`;
+    const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const entry = `<div class="mempool-item">[${timeStr}] TX PENDENTE: ${amount} MZ → ${to.substring(0,16)}...<br>Status: Aguardando Mineração.</div>`;
     mempoolData.push(entry);
-    list.innerHTML = mempoolData.join('');
+    document.getElementById('mempoolList').innerHTML = mempoolData.join('');
   }
 
   async function transferCoins() {
-    const to = document.getElementById('sendTo').value;
+    const to = document.getElementById('sendTo').value.trim();
     const amount = parseFloat(document.getElementById('sendAmount').value);
     const btn = document.getElementById('sendBtn');
     const log = document.getElementById('log');
-    if(!to || isNaN(amount)) return alert("Preencha os dados de envio");
-    btn.disabled = true;
-    btn.innerText = "ASSINANDO...";
+    if (!to || isNaN(amount) || amount <= 0) return alert("Preencha o endereço e a quantia.");
+    if (!sessionSeed) return alert("Sessão expirada. Importe sua seed novamente.");
+    btn.disabled = true; btn.innerText = "ASSINANDO...";
     try {
       const res = await fetch(`${API}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ from: localStorage.getItem('mz_addr'), to, amount, seed: sessionSeed })
       });
       const resData = await res.json();
-      if(res.ok) {
-        log.innerHTML += `<br><span style="color:#0f0">> Transação Broadcasted!</span>`;
-        addToMempool(to, amount);
-        updateStats();
+      if (res.ok) {
+        log.innerHTML += `<br><span style="color:#0f0">> Transação enviada ao mempool!</span>`;
+        addToMempool(to, amount); updateStats();
       } else {
-        log.innerHTML += `<br><span style="color:red">> Erro: ${resData.reason}</span>`;
+        log.innerHTML += `<br><span style="color:red">> Erro: ${resData.reason || resData.error}</span>`;
       }
     } catch(e) { log.innerHTML += `<br>Erro de conexão API.`; }
-    btn.disabled = false;
-    btn.innerText = "CONFIRMAR ENVIO";
+    btn.disabled = false; btn.innerText = "CONFIRMAR ENVIO";
   }
 
-  // ── REDE ──────────────────────────────────────────────────────────────────────
+  // ── HD WALLET ─────────────────────────────────────────────────────────────────
+  async function deriveHD() {
+    const seed = document.getElementById('hdSeed').value.trim();
+    const count = parseInt(document.getElementById('hdCount').value);
+    if (seed.split(' ').length < 12) return alert("Insira uma seed de 12 palavras.");
+    try {
+      const r = await fetch(`${API}/wallet/hd/batch`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ seed, count })
+      });
+      const data = await r.json();
+      if (data.error) throw new Error(data.error);
+      hdAddresses = data.addresses || [];
+      renderHDList(hdAddresses);
+      document.getElementById('hdResult').style.display = 'block';
+    } catch(e) {
+      alert("Erro ao derivar endereços: " + e.message);
+    }
+  }
+
+  function renderHDList(addrs) {
+    const list = document.getElementById('hdList');
+    if (!addrs || addrs.length === 0) {
+      list.innerHTML = '<div style="color:var(--text)">Nenhum endereço retornado.</div>'; return;
+    }
+    list.innerHTML = addrs.map(a => `
+      <div class="hd-addr-row">
+        <span class="idx">#${a.index}</span>
+        <span class="addr">${a.address}</span>
+        <span class="bal" id="hdb_${a.index}">—</span>
+        <div style="font-size:9px; color:#555; margin-top:4px; font-family:monospace;">
+          Caminho: m/44'/1611'/0'/0/${a.index}
+        </div>
+      </div>`).join('');
+  }
+
+  async function checkHDBalances() {
+    for (const a of hdAddresses) {
+      try {
+        const r = await fetch(`${API}/balance/${a.address}`);
+        const d = await r.json();
+        const el = document.getElementById(`hdb_${a.index}`);
+        if (el) el.innerText = (d.balance_mz || 0).toFixed(4) + ' MZ';
+      } catch(e) {}
+    }
+  }
+
+  // ── MULTISIG ──────────────────────────────────────────────────────────────────
+  async function createMultisig() {
+    const ownersRaw = document.getElementById('msOwners').value.trim();
+    const required = parseInt(document.getElementById('msRequired').value);
+    const owners = ownersRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    const resultEl = document.getElementById('msCreateResult');
+    if (owners.length < 2) return alert("Insira pelo menos 2 endereços de assinantes.");
+    if (!required || required < 1 || required > owners.length) return alert("Número de assinaturas inválido.");
+    try {
+      const r = await fetch(`${API}/multisig/create`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ owners, required })
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      resultEl.innerHTML = `
+        <div class="label">Endereço Multisig Criado</div>
+        <div class="val">${d.address}</div>
+        <div class="label" style="margin-top:8px">Política</div>
+        <div style="color:#fff">${required}-de-${owners.length} assinaturas necessárias</div>`;
+      resultEl.classList.add('visible');
+    } catch(e) {
+      resultEl.innerHTML = `<span class="error">Erro: ${e.message}</span>`;
+      resultEl.classList.add('visible');
+    }
+  }
+
+  async function proposeMultisig() {
+    const from = document.getElementById('msFrom').value.trim();
+    const to = document.getElementById('msTo').value.trim();
+    const amount = parseFloat(document.getElementById('msAmount').value);
+    const required = parseInt(document.getElementById('msReq').value);
+    const resultEl = document.getElementById('msProposeResult');
+    if (!from || !to || isNaN(amount) || isNaN(required)) return alert("Preencha todos os campos.");
+    try {
+      const r = await fetch(`${API}/multisig/propose`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ from, to, amount, required })
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      resultEl.innerHTML = `
+        <div class="label">TXID</div><div class="val">${d.txid}</div>
+        <div class="label" style="margin-top:8px">Status</div>
+        <div style="color:#fff">Aguardando ${d.required} assinatura(s)</div>`;
+      resultEl.classList.add('visible');
+      document.getElementById('msTxid').value = d.txid;
+    } catch(e) {
+      resultEl.innerHTML = `<span class="error">Erro: ${e.message}</span>`;
+      resultEl.classList.add('visible');
+    }
+  }
+
+  async function signMultisig() {
+    const txid = document.getElementById('msTxid').value.trim();
+    const signer = document.getElementById('msSigner').value.trim();
+    const seed = document.getElementById('msSeed').value.trim();
+    const resultEl = document.getElementById('msSignResult');
+    if (!txid || !signer || seed.split(' ').length < 12) return alert("Preencha TXID, endereço e seed (12 palavras).");
+    try {
+      const r = await fetch(`${API}/multisig/sign`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ txid, signer, seed })
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      resultEl.innerHTML = `
+        <div class="label">Assinatura</div><div class="val">${d.signature}</div>
+        <div class="label" style="margin-top:8px">Status</div>
+        <div style="color:${d.ready ? '#0f0' : 'var(--accent)'}">${d.status}</div>`;
+      resultEl.classList.add('visible');
+      document.getElementById('msSeed').value = '';
+      if (d.ready) document.getElementById('msBroadcastTxid').value = txid;
+      loadPendingMultisig();
+    } catch(e) {
+      resultEl.innerHTML = `<span class="error">Erro: ${e.message}</span>`;
+      resultEl.classList.add('visible');
+    }
+  }
+
+  async function broadcastMultisig() {
+    const txid = document.getElementById('msBroadcastTxid').value.trim();
+    const resultEl = document.getElementById('msBroadcastResult');
+    if (!txid) return alert("Informe o TXID.");
+    try {
+      const r = await fetch(`${API}/multisig/broadcast`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ txid })
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      resultEl.innerHTML = `<div style="color:#0f0">✅ ${d.message}</div><div class="label" style="margin-top:6px">TXID</div><div class="val">${d.txid}</div>`;
+      resultEl.classList.add('visible');
+      loadPendingMultisig();
+    } catch(e) {
+      resultEl.innerHTML = `<span class="error">Erro: ${e.message}</span>`;
+      resultEl.classList.add('visible');
+    }
+  }
+
+  async function loadPendingMultisig() {
+    const container = document.getElementById('msPendingList');
+    container.innerHTML = 'Carregando...';
+    try {
+      const r = await fetch(`${API}/multisig/pending`);
+      const d = await r.json();
+      if (!d.pending || d.pending.length === 0) {
+        container.innerHTML = '<div style="color:var(--text); font-size:11px;">Nenhuma transação multisig pendente.</div>'; return;
+      }
+      container.innerHTML = d.pending.map(p => {
+        const pct = Math.min(100, (p.sigs_collected / p.required) * 100);
+        return `
+          <div class="multisig-pending">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b style="color:var(--accent); font-size:11px;">TX ${p.txid.substring(0,16)}...</b>
+              ${p.ready ? '<span class="badge badge-ok">PRONTO</span>' : '<span style="color:var(--text); font-size:10px;">AGUARDANDO</span>'}
+            </div>
+            <div style="font-size:10px; color:var(--text); margin-top:6px;">
+              De: <span style="color:#fff">${p.from.substring(0,20)}...</span><br>
+              Para: <span style="color:#fff">${p.to.substring(0,20)}...</span><br>
+              Valor: <span style="color:var(--accent)">${p.amount} MZ</span>
+            </div>
+            <div class="sig-bar"><div class="sig-fill" style="width:${pct}%"></div></div>
+            <div style="font-size:10px; color:var(--text);">${p.sigs_collected}/${p.required} assinatura(s) coletada(s)</div>
+            ${p.signed_by && p.signed_by.length > 0 ? `<div style="font-size:9px; color:#555; margin-top:4px;">Assinado por: ${p.signed_by.map(s=>s.substring(0,12)+'...').join(', ')}</div>` : ''}
+          </div>`;
+      }).join('');
+    } catch(e) {
+      container.innerHTML = '<div style="color:#f44; font-size:11px;">Erro ao carregar transações pendentes.</div>';
+    }
+  }
+
+  // ── REDE & INTEGRIDADE ────────────────────────────────────────────────────────
   async function updateNetwork() {
     const info = document.getElementById('statsInfo');
     try {
-      const r = await fetch(`${API}/status`);
-      const d = await r.json();
+      const [statusRes, netRes] = await Promise.all([
+        fetch(`${API}/status`),
+        fetch(`${API}/network`)
+      ]);
+      const s = await statusRes.json();
+      const n = await netRes.json();
       info.innerHTML = `
-        Protocolo: <b>MAZECHAIN v2.1</b><br>
-        Dificuldade Atual: <b>${d.protocol.difficulty} Zeros</b><br>
-        Supply Total: <b>${d.protocol.total_supply.toFixed(2)} MZ</b><br>
-        Peers Conectados: <b>${d.network.peers_count}</b><br>
-        Altura da Rede: <b>${d.chain.height}</b>
-      `;
+        Protocolo: <b>MAZECHAIN ${n.version}</b><br>
+        Rede: <b>${n.name.toUpperCase()}</b>${n.is_testnet ? ' <span class="badge badge-err">TESTNET</span>' : ' <span class="badge badge-ok">MAINNET</span>'}<br>
+        Dificuldade Atual: <b>${s.protocol.difficulty} Zeros</b><br>
+        Supply Total: <b>${s.protocol.total_supply.toFixed(2)} MZ</b> / 20.000.000 MZ<br>
+        Peers Conectados: <b>${s.network.peers_count}</b><br>
+        Altura da Rede: <b>${s.chain.height}</b><br>
+        Magic Bytes: <b>${n.magic}</b>`;
     } catch(e) { info.innerHTML = "Nó em modo Offline."; }
   }
 
+  async function checkIntegrity() {
+    const el = document.getElementById('integrityResult');
+    el.innerHTML = 'Verificando...';
+    try {
+      const r = await fetch(`${API}/db/integrity`);
+      const d = await r.json();
+      el.innerHTML = d.ok
+        ? `<span class="integrity-ok">✅ ${d.message}</span><br><span style="font-size:10px; color:#555;">Arquivo: ${d.data_file}</span>`
+        : `<span class="integrity-fail">⚠️ ${d.message}</span><br><span style="font-size:10px; color:#555;">Arquivo: ${d.data_file}</span>`;
+    } catch(e) { el.innerHTML = '<span style="color:#f44">Erro ao checar integridade.</span>'; }
+  }
+
+  async function updateIntegrity() {
+    const el = document.getElementById('integrityResult');
+    el.innerHTML = 'Atualizando hash...';
+    try {
+      const r = await fetch(`${API}/db/integrity/update`, { method: 'POST' });
+      const d = await r.json();
+      el.innerHTML = `<span class="integrity-ok">✅ ${d.message}</span>`;
+    } catch(e) { el.innerHTML = '<span style="color:#f44">Erro ao atualizar hash.</span>'; }
+  }
+
   function initChart() {
-    if(priceChart) priceChart.destroy();
+    if (priceChart) priceChart.destroy();
     const ctx = document.getElementById('priceChart').getContext('2d');
+    const labels = Array.from({length: 10}, (_, i) => `T-${9-i}`);
+    const data = Array.from({length: 10}, () => Math.floor(Math.random() * 8000) + 2000);
     priceChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: ['10:00','10:05','10:10','10:15','10:20'],
-        datasets: [{ data: [5, 12, 10, 18, 15], borderColor: '#f5c542', backgroundColor: 'rgba(245,197,66,0.1)', fill: true, tension: 0.4 }]
+        labels,
+        datasets: [{
+          label: 'Hashes/s', data, fill: true,
+          borderColor: '#f5c542', backgroundColor: 'rgba(245,197,66,0.08)',
+          tension: 0.4, pointRadius: 2
+        }]
       },
       options: {
+        responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { x: { grid: {display:false} }, y: { grid: {color:'#222'} } }
+        scales: {
+          x: { ticks: { color: '#555', font: { size: 9 } }, grid: { color: '#111' } },
+          y: { ticks: { color: '#555', font: { size: 9 } }, grid: { color: '#111' } }
+        }
       }
     });
   }
 
+  // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────────
   window.onload = () => {
-    if(localStorage.getItem('mz_vault')) {
-      document.getElementById('unlockArea').style.display = "block";
+    const addr = localStorage.getItem('mz_addr');
+    if (addr) {
+      document.getElementById('addrDisp').textContent = addr;
     }
+    go('home');
   };
 </script>
 </body>
+</html>

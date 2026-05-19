@@ -12,6 +12,7 @@
 #include "multisig.h"
 #include "testnet.h"
 #include "mempool_expiry.h"
+#include "db_integrity.h"
 
 #include <vector>
 #include <string>
@@ -316,6 +317,11 @@ int main(int argc, char* argv[]) {
         }
 
         if (cmd == "mempool") {
+            if (argc >= 3 && std::string(argv[2]) == "purge") {
+                int removed = MempoolExpiry::purgeExpired(MEMPOOL_PATH);
+                std::cout << "✅ " << removed << " transação(ões) expirada(s) removida(s) do mempool." << std::endl;
+                return 0;
+            }
             auto pending = Storage::loadMempool(MEMPOOL_PATH);
             std::cout << "\n📦 Mempool Atual: " << pending.size() << " transações pendentes." << std::endl;
             if (pending.empty()) {
@@ -391,6 +397,7 @@ int main(int argc, char* argv[]) {
             std::cout << "  chain                          : Lista todos os blocos minerados" << std::endl;
             std::cout << "  verify                         : Valida a integridade dos dados" << std::endl;
             std::cout << "  mempool                        : Exibe transações pendentes" << std::endl;
+            std::cout << "  mempool purge                  : Remove transações expiradas (>24h) do mempool" << std::endl;
             std::cout << "  checkpoints                    : Lista todos os pontos seguros registrados" << std::endl;
             return 0;
         }
@@ -1253,6 +1260,33 @@ int main(int argc, char* argv[]) {
         x["is_testnet"]      = NetworkConfig::isTestnet();
         x["height"]          = bc.getHeight();
         return x;
+    });
+
+    // ─── DB Integrity ─────────────────────────────────────────────────────────
+    // GET /db/integrity — verifica se o arquivo de blockchain foi alterado fora do protocolo
+    CROW_ROUTE(app, "/db/integrity")
+    ([]{
+        const std::string _db   = "data/blocks/blk00000.dat";
+        const std::string _hash = "data/blockchain.hash";
+        bool ok = DBIntegrity::VerifyIntegrity(_db, _hash);
+        crow::json::wvalue x;
+        x["status"]    = ok ? "ok" : "corrupted";
+        x["ok"]        = ok;
+        x["data_file"] = _db;
+        x["message"]   = ok ? "Arquivo de blockchain integro." : "ALERTA: Arquivo modificado fora do protocolo!";
+        return crow::response(x.dump());
+    });
+
+    // POST /db/integrity/update — recalcula e salva o hash de integridade
+    CROW_ROUTE(app, "/db/integrity/update").methods(crow::HTTPMethod::POST)
+    ([]{
+        const std::string _db   = "data/blocks/blk00000.dat";
+        const std::string _hash = "data/blockchain.hash";
+        DBIntegrity::UpdateHash(_db, _hash);
+        crow::json::wvalue x;
+        x["status"]  = "updated";
+        x["message"] = "Hash de integridade atualizado com sucesso.";
+        return crow::response(x.dump());
     });
 
     // ─── External Miner: block template ──────────────────────────────────────
