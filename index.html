@@ -9,23 +9,17 @@
     :root {
       --bg: #0b0b0b; --card: #111; --accent: #f5c542;
       --accent-dark: #d4a735; --accent-light: #fff3d6; --text: #aaa;
+      --green: #0f0; --red: #f44; --blue: #4af;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin:0; padding:0; }
     body {
-      margin:0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: var(--bg);
-      color:#fff;
-      display: flex;
-      justify-content: center;
-      overflow-x: hidden;
+      background: var(--bg); color:#fff;
+      display: flex; justify-content: center; overflow-x: hidden;
     }
     .container {
-      width: 100%;
-      max-width: 500px;
-      min-height: 100vh;
-      position: relative;
-      background: #000;
+      width: 100%; max-width: 500px; min-height: 100vh;
+      position: relative; background: #000;
       box-shadow: 0 0 50px rgba(0,0,0,0.5);
     }
     @media (min-width: 800px) {
@@ -36,20 +30,71 @@
     .screen { display:none; padding:25px; box-sizing: border-box; min-height: 100vh; width: 100%; }
     .active { display:block !important; animation: fadeIn 0.4s; }
 
+    /* ─── LIVE STATUS BAR ─────────────────────────────────────────── */
+    #liveBar {
+      display: none; position: sticky; top: 0; z-index: 100;
+      background: #0a0a0a; border-bottom: 1px solid #1a1a1a;
+      padding: 6px 14px; font-size: 10px; color: var(--text);
+      display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; overflow: hidden;
+    }
+    #liveBar .lb-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #333; flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    #liveBar .lb-dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    #liveBar .lb-dot.mine  { background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 0.8s infinite; }
+    #liveBar .lb-dot.err   { background: var(--red); }
+    #liveBar .lb-label { font-weight: bold; color: #fff; white-space: nowrap; }
+    #liveBar .lb-sep { color: #333; }
+    #liveBar .lb-scroll {
+      flex: 1; overflow: hidden; white-space: nowrap; min-width: 0;
+    }
+    #liveBar .lb-scroll-inner {
+      display: inline-flex; gap: 20px;
+      animation: scrollTicker 20s linear infinite;
+    }
+    #liveBar .lb-scroll-inner:hover { animation-play-state: paused; }
+    @keyframes scrollTicker {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    /* ─── LIVE BLOCK FEED ─────────────────────────────────────────── */
+    #blockFeed {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 860px;
+      pointer-events: none; z-index: 200;
+      padding: 0 10px 8px;
+    }
+    .feed-item {
+      background: rgba(10,10,10,0.95); border: 1px solid var(--accent);
+      border-radius: 8px; padding: 8px 14px; font-size: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 4px; pointer-events: all;
+      animation: slideUp 0.4s ease-out, fadeOut 0.4s ease-in 4.6s forwards;
+    }
+    @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
+    .feed-item .fi-block { color: var(--accent); font-weight: bold; }
+    .feed-item .fi-hash  { color: var(--text); font-family: monospace; }
+    .feed-item .fi-node  { color: var(--blue); }
+    .feed-item .fi-mine  { color: var(--green); font-weight: bold; }
+
+    /* ─── CUBE ────────────────────────────────────────────────────── */
     .cube-wrapper { width: 60px; height: 60px; margin: 0 auto 20px; perspective: 1000px; position: relative; }
     .cube {
       width: 30px; height: 30px; position: absolute; top:15px; left:15px;
-      transform-style: preserve-3d;
-      animation: rotateCube 10s infinite linear;
+      transform-style: preserve-3d; animation: rotateCube 10s infinite linear;
     }
     @keyframes rotateCube {
       from { transform: rotateX(-20deg) rotateY(0deg); }
-      to { transform: rotateX(-20deg) rotateY(360deg); }
+      to   { transform: rotateX(-20deg) rotateY(360deg); }
     }
     .face { position: absolute; width: 30px; height: 30px; border: 1px solid rgba(255,255,255,0.1); }
-    .top { background: var(--accent-light); transform: rotateX(90deg) translateZ(15px); }
-    .right { background: var(--accent-dark); transform: rotateY(90deg) translateZ(15px); }
-    .front { background: var(--accent); transform: translateZ(15px); }
+    .top   { background: var(--accent-light); transform: rotateX(90deg) translateZ(15px); }
+    .right { background: var(--accent-dark);  transform: rotateY(90deg) translateZ(15px); }
+    .front { background: var(--accent);       transform: translateZ(15px); }
 
     h1 { text-align: center; letter-spacing: 4px; font-size: 22px; margin: 10px 0; text-transform: uppercase; font-weight: 900; }
     h2 { color: var(--accent); text-align: center; font-size: 18px; margin-bottom: 20px; text-transform: uppercase; }
@@ -64,7 +109,7 @@
     button:disabled { background: #333; color: #555; cursor: not-allowed; transform: none; }
     button.secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
     button.sm { padding: 8px 14px; width: auto; font-size: 11px; margin-top: 0; }
-    button.danger { background: #8b0000; color: #fff; }
+    button.danger  { background: #8b0000; color: #fff; }
     button.success { background: #1a5c1a; color: #fff; }
 
     input, textarea {
@@ -84,16 +129,19 @@
     .seed-box {
       background: #000; padding: 20px; border: 1px dashed var(--accent);
       margin: 15px 0; border-radius: 8px; text-align: center; font-size: 15px;
-      color: #fff; letter-spacing: 1px; line-height: 1.8;
-      word-break: break-word;
+      color: #fff; letter-spacing: 1px; line-height: 1.8; word-break: break-word;
     }
     .seed-warning {
       background: #1a0a00; border: 1px solid #8b4500; border-radius: 8px;
-      padding: 12px 16px; margin: 10px 0; font-size: 11px; color: #ffa040;
-      line-height: 1.6;
+      padding: 12px 16px; margin: 10px 0; font-size: 11px; color: #ffa040; line-height: 1.6;
     }
 
     .nav { display:flex; justify-content: space-between; align-items: center; padding:15px; background: #000; border-bottom: 1px solid #222; }
+    .nav-live { display: flex; align-items: center; gap: 8px; }
+    .nav-live .dot { width:8px; height:8px; border-radius:50%; background:#333; }
+    .nav-live .dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .nav-live .dot.mining { background: var(--accent); animation: pulse 0.8s infinite; }
+
     .tab-bar { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; background: #000; border-bottom: 1px solid #222; overflow-x: auto; }
     .tab-btn { padding: 12px 8px; font-size: 10px; text-align: center; color: var(--text); cursor: pointer; text-transform: uppercase; white-space: nowrap; }
     .tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); background: #111; }
@@ -107,6 +155,11 @@
       background: #1a1a1a; padding: 12px; border-radius: 5px; margin-bottom: 10px;
       font-size: 11px; border-left: 3px solid var(--accent);
     }
+    .list-item.new-block { animation: flashNew 0.5s ease-out; }
+    @keyframes flashNew {
+      0%   { border-left-color: var(--green); background: #001a00; }
+      100% { border-left-color: var(--accent); background: #1a1a1a; }
+    }
     .mempool-item { border-left-color: #555; background: #080808; margin-top: 5px; padding: 8px; font-size: 10px; }
 
     .chart-container { width: 100%; height: 180px; }
@@ -116,52 +169,92 @@
 
     .result-box {
       background: #0a0a0a; border: 1px solid #333; border-radius: 8px;
-      padding: 14px; margin-bottom: 14px; font-size: 11px; line-height: 1.9;
-      display: none;
+      padding: 14px; margin-bottom: 14px; font-size: 11px; line-height: 1.9; display: none;
     }
     .result-box.visible { display: block; animation: fadeIn 0.3s; }
     .result-box .label { color: var(--text); font-size: 10px; text-transform: uppercase; }
-    .result-box .val { color: var(--accent); font-family: monospace; word-break: break-all; }
+    .result-box .val   { color: var(--accent); font-family: monospace; word-break: break-all; }
     .result-box .miner { color: #0f0; font-family: monospace; word-break: break-all; }
     .result-box .error { color: #f44; }
 
-    .badge {
-      display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px;
-      font-weight: bold; text-transform: uppercase; margin-left: 6px;
-    }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; text-transform: uppercase; margin-left: 6px; }
     .badge-mine { background: #1a3a1a; color: #0f0; border: 1px solid #0f0; }
-    .badge-cp { background: #3a2a00; color: var(--accent); border: 1px solid var(--accent); }
-    .badge-ok { background: #0a2a0a; color: #0f0; border: 1px solid #0f0; }
-    .badge-err { background: #2a0a0a; color: #f44; border: 1px solid #f44; }
+    .badge-cp   { background: #3a2a00; color: var(--accent); border: 1px solid var(--accent); }
+    .badge-ok   { background: #0a2a0a; color: #0f0; border: 1px solid #0f0; }
+    .badge-err  { background: #2a0a0a; color: #f44; border: 1px solid #f44; }
+    .badge-live { background: #001a00; color: var(--green); border: 1px solid var(--green); animation: pulse 1.5s infinite; }
+
+    .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .stat-box {
+      background: #0a0a0a; border: 1px solid #222; border-radius: 8px;
+      padding: 10px 14px; text-align: center;
+    }
+    .stat-box .sv { font-size: 22px; font-weight: bold; color: #fff; }
+    .stat-box .sl { font-size: 9px; color: var(--text); text-transform: uppercase; margin-top: 4px; }
+    .stat-box.accent .sv { color: var(--accent); }
+    .stat-box.green  .sv { color: var(--green); }
 
     .hd-addr-row {
       background: #0d0d0d; border: 1px solid #222; border-radius: 6px;
       padding: 10px 12px; margin-bottom: 6px; font-size: 10px;
     }
-    .hd-addr-row .idx { color: var(--accent); font-weight: bold; min-width: 30px; display: inline-block; }
+    .hd-addr-row .idx  { color: var(--accent); font-weight: bold; min-width: 30px; display: inline-block; }
     .hd-addr-row .addr { color: #fff; font-family: monospace; word-break: break-all; }
-    .hd-addr-row .bal { color: #0f0; float: right; margin-left: 8px; }
+    .hd-addr-row .bal  { color: #0f0; float: right; margin-left: 8px; }
 
     .multisig-pending {
       background: #0d0d0d; border: 1px solid #333; border-radius: 8px;
       padding: 12px; margin-bottom: 10px; font-size: 11px;
     }
-    .multisig-pending .sig-bar {
-      height: 6px; background: #222; border-radius: 3px; margin: 8px 0;
-    }
-    .multisig-pending .sig-fill {
-      height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s;
-    }
+    .multisig-pending .sig-bar  { height: 6px; background: #222; border-radius: 3px; margin: 8px 0; }
+    .multisig-pending .sig-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
 
     .integrity-ok   { color: #0f0; }
     .integrity-fail { color: #f44; }
+
+    /* peer list */
+    .peer-row {
+      background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 6px;
+      padding: 8px 12px; margin-bottom: 6px; font-size: 10px; font-family: monospace;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .peer-row .ps { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+    /* mining activity log */
+    .mine-log {
+      background: #000; color: #f5c542; padding: 10px; font-size: 10px; height: 100px;
+      overflow-y: auto; border: 1px solid #1a1a00; border-radius: 6px; font-family: monospace; margin-top: 8px;
+    }
 
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
 </head>
 <body>
 
+<!-- LIVE BLOCK FEED (bottom-of-screen toasts) -->
+<div id="blockFeed"></div>
+
 <div class="container">
+
+  <!-- LIVE STATUS BAR (shown when logged in) -->
+  <div id="liveBar" style="display:none">
+    <div class="lb-dot" id="lbDot"></div>
+    <span class="lb-label" id="lbLabel">CONECTANDO</span>
+    <span class="lb-sep">|</span>
+    <span id="lbHeight" style="color:var(--accent); font-weight:bold">—</span>
+    <span style="color:var(--text)">blocos</span>
+    <span class="lb-sep">|</span>
+    <span id="lbPeers" style="color:var(--blue)">0</span>
+    <span style="color:var(--text)">nós</span>
+    <span class="lb-sep">|</span>
+    <div class="lb-scroll">
+      <div class="lb-scroll-inner" id="lbTicker">
+        <span style="color:var(--text)">Aguardando eventos da rede...</span>
+        <span style="color:var(--text)">Aguardando eventos da rede...</span>
+      </div>
+    </div>
+  </div>
+
   <!-- HOME -->
   <div id="home" class="screen active">
     <div style="margin-top: 60px; text-align: center;">
@@ -171,13 +264,13 @@
       <h1>MAZECHAIN</h1>
       <p style="color:var(--text); font-size: 12px;">Secure Wallet & Explorer</p>
     </div>
-    <div style="margin-top: 40px;">
+    <div style="margin-top: 40px; padding:0 10px;">
       <button onclick="go('create')">CRIAR NOVA WALLET</button>
-      <button class="secondary" onclick="go('import')">IMPORTAR VIA SEED</button>
-      <button class="secondary" onclick="go('explorer')">EXPLORADOR PÚBLICO</button>
+      <button class="secondary" style="margin-top:10px" onclick="go('import')">IMPORTAR VIA SEED</button>
+      <button class="secondary" style="margin-top:10px" onclick="go('explorer')">EXPLORADOR PÚBLICO</button>
     </div>
     <div class="seed-warning" style="margin-top:30px;">
-      🔐 <b>Segurança:</b> A sua frase-semente nunca é salva neste dispositivo. Você precisará digitá-la novamente ao recarregar a página. Guarde-a em papel, offline.
+      🔐 <b>Segurança:</b> Sua frase-semente nunca é salva neste dispositivo. Guarde-a em papel, offline.
     </div>
   </div>
 
@@ -197,18 +290,24 @@
   <div id="import" class="screen">
     <h2>Recuperar Conta</h2>
     <div class="seed-warning">
-      🔐 Sua seed é usada apenas durante esta sessão e <b>nunca é salva</b>. Ao fechar ou recarregar, será necessário importá-la novamente.
+      🔐 Sua seed é usada apenas durante esta sessão e <b>nunca é salva</b>.
     </div>
     <textarea id="seedInput" placeholder="Insira suas 12 palavras separadas por espaço" rows="3"></textarea>
     <button id="importBtn" onclick="importWallet()">VALIDAR E ENTRAR</button>
     <button class="secondary" onclick="go('home')" style="border:none; color:#555; margin-top:8px">Cancelar</button>
   </div>
 
-  <!-- EXPLORADOR PÚBLICO (sem login) -->
+  <!-- EXPLORADOR PÚBLICO -->
   <div id="explorer" class="screen">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
       <span onclick="go('home')" style="cursor:pointer; color:var(--accent); font-size:20px;">&#8592;</span>
       <h2 style="margin:0">EXPLORADOR</h2>
+      <span id="expLiveBadge" style="display:none" class="badge badge-live">LIVE</span>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-box accent"><div class="sv" id="expHeight">—</div><div class="sl">Blocos</div></div>
+      <div class="stat-box green"><div class="sv" id="expPeers">—</div><div class="sl">Nós P2P</div></div>
     </div>
 
     <div class="card">
@@ -232,7 +331,7 @@
     <div class="card" style="padding:14px">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <span style="font-size:11px; color:var(--accent); font-weight:bold;">ÚLTIMOS BLOCOS</span>
-        <button class="sm secondary" onclick="loadExplorerBlocks()">↻ ATUALIZAR</button>
+        <button class="sm secondary" onclick="loadExplorerBlocks()">↻</button>
       </div>
       <div id="explorerList" style="font-size:11px;">Carregando...</div>
     </div>
@@ -241,15 +340,22 @@
   <!-- DASHBOARD -->
   <div id="dashboard" class="screen" style="padding:0">
     <div class="nav">
-      <b style="color:var(--accent)">MAZECHAIN CORE</b>
-      <span onclick="logout()" style="cursor:pointer; font-size:11px; color:var(--text)">[SAIR]</span>
+      <div class="nav-live">
+        <div class="dot" id="navDot"></div>
+        <b style="color:var(--accent); font-size:13px;">MAZECHAIN</b>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span id="navHeight" style="font-size:11px; color:var(--accent); font-weight:bold;">—</span>
+        <span style="font-size:10px; color:var(--text)">blocos</span>
+        <span onclick="logout()" style="cursor:pointer; font-size:11px; color:var(--text)">[SAIR]</span>
+      </div>
     </div>
 
     <div class="tab-bar">
       <div class="tab-btn active" id="tab1" onclick="switchTab(1)">💳 Carteira</div>
-      <div class="tab-btn" id="tab2" onclick="switchTab(2)">⛓ Blockchain</div>
-      <div class="tab-btn" id="tab3" onclick="switchTab(3)">🔑 HD Wallet</div>
-      <div class="tab-btn" id="tab4" onclick="switchTab(4)">🔐 Multisig</div>
+      <div class="tab-btn" id="tab2" onclick="switchTab(2)">⛓ Chain</div>
+      <div class="tab-btn" id="tab3" onclick="switchTab(3)">🔑 HD</div>
+      <div class="tab-btn" id="tab4" onclick="switchTab(4)">🔐 Multi</div>
       <div class="tab-btn" id="tab5" onclick="switchTab(5)">📡 Rede</div>
     </div>
 
@@ -257,31 +363,48 @@
 
       <!-- TAB 1: CARTEIRA -->
       <div id="content1" class="tab-content">
-        <div class="dashboard-grid">
-          <div class="card">
-            <small style="color:var(--text); font-size:10px;">ENDEREÇO MZ</small>
-            <p id="addrDisp" style="font-size:11px; color:var(--accent); word-break:break-all; font-family:monospace; background: #000; padding: 10px; border-radius: 5px;"></p>
-            <small style="color:var(--text); font-size:10px;">SALDO DISPONÍVEL</small>
-            <p id="balDisp" style="font-size:28px; font-weight:bold;">0.00 MZ</p>
+        <div class="stat-row">
+          <div class="stat-box accent">
+            <div class="sv" id="balDisp">0.00</div>
+            <div class="sl">Saldo MZ</div>
           </div>
-
-          <div class="card">
-            <small style="color:var(--text); font-size:10px;">ENVIAR MOEDAS</small>
-            <input type="text" id="sendTo" placeholder="Endereço de destino (MZ...)">
-            <input type="number" id="sendAmount" placeholder="Quantia em MZ" step="0.0001">
-            <button id="sendBtn" onclick="transferCoins()">CONFIRMAR ENVIO</button>
+          <div class="stat-box">
+            <div class="sv" id="dashHeight">—</div>
+            <div class="sl">Altura</div>
           </div>
         </div>
 
-        <h3 style="font-size:12px; color:var(--accent); margin-top:20px;">HISTÓRICO / MEMPOOL</h3>
-        <div id="mempoolList" class="terminal" style="height: 150px;">
-          > Nenhuma transação pendente na Mempool.
+        <div class="card" style="padding:14px">
+          <small style="color:var(--text); font-size:10px;">ENDEREÇO MZ</small>
+          <p id="addrDisp" style="font-size:10px; color:var(--accent); word-break:break-all; font-family:monospace; background: #000; padding: 10px; border-radius: 5px; margin:6px 0 0;"></p>
         </div>
-        <div class="terminal" id="log">> Sessão iniciada. Pronto para transações.</div>
+
+        <div class="card">
+          <small style="color:var(--text); font-size:10px;">ENVIAR MOEDAS</small>
+          <input type="text" id="sendTo" placeholder="Endereço de destino (MZ...)">
+          <input type="number" id="sendAmount" placeholder="Quantia em MZ" step="0.0001">
+          <button id="sendBtn" onclick="transferCoins()">CONFIRMAR ENVIO</button>
+        </div>
+
+        <h3 style="font-size:12px; color:var(--accent); margin: 8px 0 4px;">MEMPOOL / TRANSAÇÕES</h3>
+        <div id="mempoolList" class="terminal" style="height: 120px;">
+          > Nenhuma transação pendente.
+        </div>
+
+        <h3 style="font-size:12px; color:var(--accent); margin: 12px 0 4px;">ATIVIDADE DE MINERAÇÃO</h3>
+        <div id="mineLog" class="mine-log">
+          > Aguardando blocos...
+        </div>
+        <div class="terminal" id="log" style="margin-top:8px;">> Sessão iniciada. Pronto para transações.</div>
       </div>
 
       <!-- TAB 2: BLOCKCHAIN -->
       <div id="content2" class="tab-content" style="display:none">
+        <div class="stat-row">
+          <div class="stat-box accent"><div class="sv" id="chainHeight">—</div><div class="sl">Blocos</div></div>
+          <div class="stat-box"><div class="sv" id="chainDiff">—</div><div class="sl">Dificuldade</div></div>
+        </div>
+
         <div class="card" style="padding:14px">
           <div style="font-size:10px; color:var(--text); text-transform:uppercase; margin-bottom:8px;">Consultar Saldo</div>
           <div class="search-row">
@@ -301,7 +424,7 @@
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h3 style="font-size:12px; color:var(--accent); margin:0;">ÚLTIMOS BLOCOS</h3>
+          <h3 style="font-size:12px; color:var(--accent); margin:0;">ÚLTIMOS BLOCOS <span id="chainLiveBadge" class="badge badge-live" style="display:none">LIVE</span></h3>
           <button class="sm secondary" onclick="updateExplorer()">↻</button>
         </div>
         <div id="chainList">Carregando dados da blockchain...</div>
@@ -309,13 +432,13 @@
 
       <!-- TAB 3: HD WALLET -->
       <div id="content3" class="tab-content" style="display:none">
-        <h2 style="font-size:14px; margin-bottom:4px;">HD WALLET — Derivação de Endereços</h2>
-        <p style="font-size:11px; color:var(--text); margin-bottom:16px;">Deriva múltiplos endereços a partir da sua seed principal (BIP-32, caminho m/44'/1611'/0'/0/index).</p>
+        <h2 style="font-size:14px; margin-bottom:4px;">HD WALLET</h2>
+        <p style="font-size:11px; color:var(--text); margin-bottom:16px;">Deriva múltiplos endereços (BIP-32, m/44'/1611'/0'/0/index)</p>
 
         <div class="card">
           <small style="color:var(--text); font-size:10px;">SEED PHRASE (12 palavras)</small>
           <textarea id="hdSeed" placeholder="palavra1 palavra2 ... palavra12" rows="2"></textarea>
-          <small style="color:var(--text); font-size:10px; display:block; margin-top:8px;">QUANTIDADE DE ENDEREÇOS A DERIVAR</small>
+          <small style="color:var(--text); font-size:10px; display:block; margin-top:8px;">QUANTIDADE DE ENDEREÇOS</small>
           <select id="hdCount">
             <option value="5">5 endereços</option>
             <option value="10" selected>10 endereços</option>
@@ -334,7 +457,7 @@
         </div>
 
         <div class="seed-warning" style="margin-top:10px;">
-          🔐 A seed digitada aqui é usada <b>apenas nesta sessão</b> e nunca é armazenada ou enviada a terceiros.
+          🔐 A seed é usada <b>apenas nesta sessão</b> e nunca é armazenada.
         </div>
       </div>
 
@@ -367,7 +490,7 @@
           <input id="msTxid" placeholder="TXID da transação proposta">
           <input id="msSigner" placeholder="Seu endereço MZ...">
           <textarea id="msSeed" placeholder="Sua seed de 12 palavras para assinar" rows="2"></textarea>
-          <div class="seed-warning" style="margin:8px 0;">🔐 A seed é usada localmente para gerar a assinatura e <b>nunca é salva</b>.</div>
+          <div class="seed-warning" style="margin:8px 0;">🔐 A seed é usada localmente para assinar e <b>nunca é salva</b>.</div>
           <button onclick="signMultisig()">ASSINAR</button>
           <div id="msSignResult" class="result-box" style="margin-top:12px;"></div>
         </div>
@@ -380,7 +503,7 @@
 
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px;">
             <span style="font-size:11px; color:var(--accent); font-weight:bold;">TRANSAÇÕES PENDENTES</span>
-            <button class="sm secondary" onclick="loadPendingMultisig()">↻ ATUALIZAR</button>
+            <button class="sm secondary" onclick="loadPendingMultisig()">↻</button>
           </div>
           <div id="msPendingList"><span style="color:var(--text); font-size:11px;">Clique em Atualizar para carregar.</span></div>
         </div>
@@ -388,40 +511,68 @@
 
       <!-- TAB 5: REDE -->
       <div id="content5" class="tab-content" style="display:none">
-        <div class="card">
-          <h3 style="font-size:12px; color:var(--accent); margin-top:0;">VOLUME DE HASHES</h3>
-          <div class="chart-container"><canvas id="priceChart"></canvas></div>
+
+        <div class="stat-row">
+          <div class="stat-box accent"><div class="sv" id="netHeight">—</div><div class="sl">Altura</div></div>
+          <div class="stat-box green"><div class="sv" id="netPeers">—</div><div class="sl">Peers P2P</div></div>
+          <div class="stat-box"><div class="sv" id="netSupply">—</div><div class="sl">Supply MZ</div></div>
+          <div class="stat-box"><div class="sv" id="netDiff">—</div><div class="sl">Dificuldade</div></div>
         </div>
+
         <div class="card">
           <h3 style="font-size:12px; color:var(--accent); margin-top:0;">ESTATÍSTICAS DO NÓ</h3>
           <div id="statsInfo" style="font-size:11px; line-height:2;">Sincronizando...</div>
         </div>
+
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3 style="font-size:12px; color:var(--accent); margin:0;">PEERS CONECTADOS</h3>
+            <button class="sm secondary" onclick="updateNetwork()">↻</button>
+          </div>
+          <div id="peerList" style="font-size:11px; color:var(--text);">Carregando...</div>
+        </div>
+
+        <div class="card">
+          <h3 style="font-size:12px; color:var(--accent); margin-top:0;">VOLUME DE HASHES (EST.)</h3>
+          <div class="chart-container"><canvas id="priceChart"></canvas></div>
+        </div>
+
         <div class="card">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="font-size:12px; color:var(--accent); margin:0;">INTEGRIDADE DO BANCO DE DADOS</h3>
+            <h3 style="font-size:12px; color:var(--accent); margin:0;">INTEGRIDADE DO BANCO</h3>
             <button class="sm secondary" onclick="checkIntegrity()">↻ VERIFICAR</button>
           </div>
           <div id="integrityResult" style="font-size:11px; margin-top:12px; color:var(--text);">Clique em Verificar para checar.</div>
-          <button class="sm" style="margin-top:12px; width:auto; background:#1a3a1a; color:#0f0;" onclick="updateIntegrity()">ATUALIZAR HASH DE INTEGRIDADE</button>
+          <button class="sm success" style="margin-top:12px; width:auto;" onclick="updateIntegrity()">ATUALIZAR HASH</button>
         </div>
       </div>
 
     </div>
-  </div>
-</div>
+  </div><!-- /dashboard -->
+
+</div><!-- /container -->
 
 <script>
   const API = "";
 
-  let sessionSeed = null;
-  let priceChart = null;
-  let mempoolData = [];
-  let hdAddresses = [];
+  let sessionSeed  = null;
+  let priceChart   = null;
+  let mempoolData  = [];
+  let hdAddresses  = [];
 
+  // ── SSE connection state ────────────────────────────────────────────────────
+  let sseConn      = null;   // current EventSource
+  let lastEventId  = 0;
+  let sseReconnectTimer = null;
+  let knownHeight  = 0;
+  const tickerMsgs = [];     // sliding ticker messages
+  const MAX_TICKER = 8;
+
+  // ─── Navigation ─────────────────────────────────────────────────────────────
   function go(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-    if (id === 'explorer') loadExplorerBlocks();
+    if (id === 'explorer') { loadExplorerBlocks(); startExplorerSSE(); }
   }
 
   function switchTab(n) {
@@ -434,11 +585,208 @@
     if (n === 5) { updateNetwork(); initChart(); }
   }
 
-  function shortHash(h) { return h ? h.substring(0,20) + '...' : '—'; }
-  function shortAddr(a) { return a ? a.substring(0,14) + '...' : '—'; }
+  function shortHash(h) { return h ? h.substring(0,20)+'...' : '—'; }
+  function shortAddr(a) { return a ? a.substring(0,14)+'...' : '—'; }
   function tsToTime(ts) { return new Date(ts * 1000).toLocaleString('pt-BR'); }
 
-  // ── BUSCA ────────────────────────────────────────────────────────────────────
+  // ── SSE ENGINE ──────────────────────────────────────────────────────────────
+  function connectSSE() {
+    if (sseConn) { sseConn.close(); sseConn = null; }
+
+    // Crow's long-polling SSE: browser reconnects automatically via EventSource
+    sseConn = new EventSource(`${API}/events${lastEventId ? '?since='+lastEventId : ''}`);
+
+    sseConn.addEventListener('block', e => {
+      try { handleBlockEvent(JSON.parse(e.data)); } catch(_) {}
+    });
+    sseConn.addEventListener('mining_start', e => {
+      try { handleMiningStart(JSON.parse(e.data)); } catch(_) {}
+    });
+    sseConn.addEventListener('mining_done', e => {
+      try { handleMiningDone(JSON.parse(e.data)); } catch(_) {}
+    });
+    sseConn.addEventListener('peer', e => {
+      try { handlePeerEvent(JSON.parse(e.data)); } catch(_) {}
+    });
+    sseConn.addEventListener('node_status', e => {
+      try { handleNodeStatus(JSON.parse(e.data)); } catch(_) {}
+    });
+
+    sseConn.onopen = () => {
+      setLiveStatus('live');
+      // fetch latest event ID so we don't replay old events
+      fetch(`${API}/events/latest`).then(r=>r.json()).then(d => {
+        lastEventId = d.latest_id || 0;
+        const h = d.height || 0;
+        if (h !== knownHeight) { knownHeight = h; setHeightAll(h); }
+      }).catch(()=>{});
+    };
+
+    sseConn.onerror = () => {
+      setLiveStatus('err');
+      sseConn.close();
+      sseConn = null;
+      // Reconnect after 3s (EventSource does this automatically,
+      // but we also do a manual reconnect to pass the since= param)
+      clearTimeout(sseReconnectTimer);
+      sseReconnectTimer = setTimeout(connectSSE, 3000);
+    };
+
+    // EventSource fires 'message' for events without a named type
+    sseConn.onmessage = e => {
+      if (!e.data || e.data.startsWith(':')) return; // keepalive comment
+    };
+  }
+
+  // ── SSE event handlers ──────────────────────────────────────────────────────
+  function handleBlockEvent(d) {
+    lastEventId = Math.max(lastEventId, d.ts || 0);
+    knownHeight = d.height;
+    setHeightAll(d.height);
+    setLiveStatus('live');
+
+    // Update mining dot back to live
+    const navDot = document.getElementById('navDot');
+    if (navDot) { navDot.className = 'dot on'; }
+
+    // Add to mining log
+    const shortH = d.hash ? d.hash.substring(0,16)+'...' : '—';
+    const shortM = d.miner ? d.miner.substring(0,18)+'...' : '—';
+    addMineLog(`✅ #${d.height} | Hash: ${shortH} | Minerador: ${shortM} | ${d.tx_count} txs`);
+
+    // Add ticker message
+    addTicker(`⛏ Bloco #${d.height} minerado — ${shortH}`);
+
+    // Show block toast
+    showBlockToast(d.height, d.hash, d.miner);
+
+    // If blockchain tab is visible, prepend the new block to the list
+    if (document.getElementById('content2').style.display !== 'none') {
+      prependBlockToList(d, 'chainList');
+    }
+    document.getElementById('expLiveBadge').style.display = '';
+    document.getElementById('chainLiveBadge').style.display = '';
+
+    // Update balance
+    updateStats();
+  }
+
+  function handleMiningStart(d) {
+    setLiveStatus('mine');
+    const navDot = document.getElementById('navDot');
+    if (navDot) navDot.className = 'dot mining';
+    addMineLog(`⛏️  Minerando bloco #${d.height}...`);
+  }
+
+  function handleMiningDone(d) {
+    if (d.success) {
+      addMineLog(`✅ Bloco #${d.height} em ${(d.ms/1000).toFixed(2)}s`);
+    } else {
+      addMineLog(`⚠️  Bloco #${d.height} rejeitado`);
+    }
+  }
+
+  function handlePeerEvent(d) {
+    addTicker(d.connected
+      ? `🌐 Peer conectado: ${d.ip}`
+      : `❌ Peer desconectado: ${d.ip}`);
+  }
+
+  function handleNodeStatus(d) {
+    setHeightAll(d.height);
+    setPeers(d.peers);
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  function setLiveStatus(state) {
+    const dot   = document.getElementById('lbDot');
+    const label = document.getElementById('lbLabel');
+    if (!dot) return;
+    dot.className = 'lb-dot ' + state;
+    if (state === 'live')  label.innerText = 'LIVE';
+    if (state === 'mine')  label.innerText = 'MINERANDO';
+    if (state === 'err')   label.innerText = 'OFFLINE';
+  }
+
+  function setHeightAll(h) {
+    ['lbHeight','dashHeight','chainHeight','navHeight','netHeight','expHeight'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && h > 0) el.innerText = h.toLocaleString('pt-BR');
+    });
+  }
+
+  function setPeers(n) {
+    ['lbPeers','netPeers','expPeers'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = n;
+    });
+  }
+
+  function addTicker(msg) {
+    tickerMsgs.push(msg);
+    if (tickerMsgs.length > MAX_TICKER) tickerMsgs.shift();
+    const inner = document.getElementById('lbTicker');
+    if (!inner) return;
+    const text = tickerMsgs.join('   ·   ');
+    inner.innerHTML = `<span>${text}</span><span>${text}</span>`;
+  }
+
+  function addMineLog(msg) {
+    const el = document.getElementById('mineLog');
+    if (!el) return;
+    const now = new Date();
+    const t = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    el.innerHTML += `\n[${t}] ${msg}`;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function showBlockToast(height, hash, miner) {
+    const feed = document.getElementById('blockFeed');
+    if (!feed) return;
+    const shortH  = hash  ? hash.substring(0,16)+'...'  : '';
+    const shortM  = miner ? miner.substring(0,18)+'...' : '';
+    const div = document.createElement('div');
+    div.className = 'feed-item';
+    div.innerHTML = `
+      <span><b class="fi-block">⛏ BLOCO #${height}</b>
+        <span class="fi-hash"> ${shortH}</span></span>
+      <span class="fi-mine">+RECOMPENSA</span>`;
+    feed.appendChild(div);
+    setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 5200);
+  }
+
+  function prependBlockToList(d, containerId) {
+    const list = document.getElementById(containerId);
+    if (!list) return;
+    const badge = (d.height > 0 && d.height % 10000 === 0)
+      ? '<span class="badge badge-cp">HALVING</span>' : '';
+    const shortM = d.miner ? (d.miner === 'GENESIS_BLOCK' ? 'GENESIS' : d.miner) : '—';
+    const now = new Date();
+    const el = document.createElement('div');
+    el.className = 'list-item new-block';
+    el.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center">
+        <b>BLOCO #${d.height}</b>${badge}<span class="badge badge-live">NOVO</span>
+        <small style="color:var(--text)">${now.toLocaleString('pt-BR')}</small>
+      </div>
+      <div style="margin-top:5px; color:var(--text)">Hash: <span style="color:var(--accent); font-family:monospace">${shortHash(d.hash)}</span></div>
+      <div style="margin-top:3px; color:var(--text)">Minerador: <span style="color:#0f0; font-family:monospace">${shortM.substring(0,26)}</span></div>
+      <div style="margin-top:3px">Txs: ${d.tx_count || 0}</div>`;
+    list.insertBefore(el, list.firstChild);
+  }
+
+  // ── EXPLORER SSE mode ───────────────────────────────────────────────────────
+  // In the public explorer (no login) we also want live block updates
+  let explorerSseActive = false;
+  function startExplorerSSE() {
+    if (explorerSseActive) return;
+    explorerSseActive = true;
+    // Re-use the same SSE connection if already open
+    if (!sseConn) connectSSE();
+    document.getElementById('expLiveBadge').style.display = '';
+  }
+
+  // ── SEARCH ──────────────────────────────────────────────────────────────────
   async function doSearchBalance(addr, resultEl) {
     if (!addr || (!addr.startsWith('MZ') && !addr.startsWith('TZ'))) {
       resultEl.innerHTML = '<span class="error">Endereço inválido. Deve começar com MZ ou TZ.</span>';
@@ -481,12 +829,12 @@
     }
   }
 
-  function searchBalance() { doSearchBalance(document.getElementById('searchAddr').value.trim(), document.getElementById('addrResult')); }
-  function searchBlock()   { doSearchBlock(document.getElementById('searchHash').value.trim(), document.getElementById('hashResult')); }
+  function searchBalance()     { doSearchBalance(document.getElementById('searchAddr').value.trim(), document.getElementById('addrResult')); }
+  function searchBlock()       { doSearchBlock(document.getElementById('searchHash').value.trim(), document.getElementById('hashResult')); }
   function dashSearchBalance() { doSearchBalance(document.getElementById('dashSearchAddr').value.trim(), document.getElementById('dashAddrResult')); }
   function dashSearchBlock()   { doSearchBlock(document.getElementById('dashSearchHash').value.trim(), document.getElementById('dashHashResult')); }
 
-  // ── EXPLORER ─────────────────────────────────────────────────────────────────
+  // ── EXPLORER ────────────────────────────────────────────────────────────────
   function renderBlockList(blocks, containerId) {
     const list = document.getElementById(containerId);
     if (!blocks || blocks.length === 0) {
@@ -494,10 +842,10 @@
     }
     list.innerHTML = blocks.map(b => {
       const isHalving = b.index > 0 && b.index % 10000 === 0;
-      const badge = isHalving ? '<span class="badge badge-cp">CHECKPOINT</span>' : '';
+      const badge = isHalving ? '<span class="badge badge-cp">HALVING</span>' : '';
       const minerShort = b.miner ? (b.miner === 'GENESIS_BLOCK' ? 'GENESIS' : b.miner) : '—';
       return `
-        <div class="list-item" onclick="expandBlock('${b.hash}', '${containerId}_detail_${b.index}')" style="cursor:pointer">
+        <div class="list-item" onclick="expandBlock('${b.hash}', '${containerId}_det_${b.index}')" style="cursor:pointer">
           <div style="display:flex; justify-content:space-between; align-items:center">
             <b>BLOCO #${b.index}</b>${badge}
             <small style="color:var(--text)">${tsToTime(b.timestamp)}</small>
@@ -505,7 +853,7 @@
           <div style="margin-top:5px; color:var(--text)">Hash: <span style="color:var(--accent); font-family:monospace">${shortHash(b.hash)}</span></div>
           <div style="margin-top:3px; color:var(--text)">Minerador: <span style="color:#0f0; font-family:monospace">${minerShort.substring(0,26)}${minerShort.length>26?'...':''}</span></div>
           <div style="margin-top:3px">Txs: ${b.tx_count}</div>
-          <div id="${containerId}_detail_${b.index}" style="display:none; margin-top:8px; padding:8px; background:#0a0a0a; border-radius:5px; font-family:monospace; font-size:10px; color:var(--text);">Carregando detalhes...</div>
+          <div id="${containerId}_det_${b.index}" style="display:none; margin-top:8px; padding:8px; background:#0a0a0a; border-radius:5px; font-family:monospace; font-size:10px; color:var(--text);">Carregando...</div>
         </div>`;
     }).join('');
   }
@@ -515,7 +863,7 @@
     if (!el) return;
     if (el.style.display === 'block') { el.style.display = 'none'; return; }
     el.style.display = 'block';
-    if (el.innerText.trim() !== 'Carregando detalhes...') return;
+    if (el.innerText.trim() !== 'Carregando...') return;
     try {
       const r = await fetch(`${API}/block/hash/${hash}`);
       const d = await r.json();
@@ -538,6 +886,11 @@
       const r = await fetch(`${API}/chain`);
       const data = await r.json();
       renderBlockList(data.blocks, 'explorerList');
+      // Update height in explorer
+      if (data.blocks && data.blocks.length > 0) {
+        const h = data.blocks.length;
+        setHeightAll(h);
+      }
     } catch(e) { document.getElementById('explorerList').innerHTML = '<div style="color:#f44">Nó offline.</div>'; }
   }
 
@@ -547,6 +900,7 @@
       const r = await fetch(`${API}/chain`);
       const data = await r.json();
       renderBlockList(data.blocks, 'chainList');
+      if (data.blocks) setHeightAll(data.blocks.length);
     } catch(e) { document.getElementById('chainList').innerHTML = '<div style="color:#f44">Nó offline.</div>'; }
   }
 
@@ -600,27 +954,63 @@
     go('dashboard');
     const addr = localStorage.getItem('mz_addr') || '';
     document.getElementById('addrDisp').innerText = addr;
+    // Show live status bar
+    document.getElementById('liveBar').style.display = 'flex';
+    // Connect SSE for real-time updates
+    connectSSE();
+    // Initial stats fetch
     updateStats();
-    setInterval(updateStats, 15000);
+    // Fallback poll every 30s in case SSE misses something
+    setInterval(updateStats, 30000);
   }
 
-  function logout() { sessionSeed = null; location.reload(); }
+  function logout() {
+    if (sseConn) { sseConn.close(); sseConn = null; }
+    document.getElementById('liveBar').style.display = 'none';
+    sessionSeed = null;
+    location.reload();
+  }
 
   async function updateStats() {
     const addr = localStorage.getItem('mz_addr');
     if (!addr) return;
     try {
-      const r = await fetch(`${API}/balance/${addr}`);
-      const d = await r.json();
-      document.getElementById('balDisp').innerText = d.balance_mz.toFixed(4) + " MZ";
+      const [balRes, statusRes] = await Promise.all([
+        fetch(`${API}/balance/${addr}`),
+        fetch(`${API}/status`)
+      ]);
+      const bal    = await balRes.json();
+      const status = await statusRes.json();
+
+      document.getElementById('balDisp').innerText = bal.balance_mz.toFixed(4);
+
+      const h = status.chain?.height || 0;
+      setHeightAll(h);
+      knownHeight = h;
+
+      const peers = status.network?.peers_count || 0;
+      setPeers(peers);
+
+      const diff = status.protocol?.difficulty || '—';
+      ['chainDiff','netDiff'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = diff;
+      });
+
+      const supply = status.protocol?.total_supply;
+      if (supply !== undefined) {
+        const el = document.getElementById('netSupply');
+        if (el) el.innerText = supply.toFixed(0);
+      }
+
     } catch(e) {}
   }
 
-  // ── MEMPOOL ───────────────────────────────────────────────────────────────────
+  // ── MEMPOOL ──────────────────────────────────────────────────────────────────
   function addToMempool(to, amount) {
     const now = new Date();
-    const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-    const entry = `<div class="mempool-item">[${timeStr}] TX PENDENTE: ${amount} MZ → ${to.substring(0,16)}...<br>Status: Aguardando Mineração.</div>`;
+    const t = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const entry = `<div class="mempool-item">[${t}] TX: ${amount} MZ → ${to.substring(0,16)}...<br>Status: Aguardando Mineração.</div>`;
     mempoolData.push(entry);
     document.getElementById('mempoolList').innerHTML = mempoolData.join('');
   }
@@ -651,7 +1041,7 @@
 
   // ── HD WALLET ─────────────────────────────────────────────────────────────────
   async function deriveHD() {
-    const seed = document.getElementById('hdSeed').value.trim();
+    const seed  = document.getElementById('hdSeed').value.trim();
     const count = parseInt(document.getElementById('hdCount').value);
     if (seed.split(' ').length < 12) return alert("Insira uma seed de 12 palavras.");
     try {
@@ -664,9 +1054,7 @@
       hdAddresses = data.addresses || [];
       renderHDList(hdAddresses);
       document.getElementById('hdResult').style.display = 'block';
-    } catch(e) {
-      alert("Erro ao derivar endereços: " + e.message);
-    }
+    } catch(e) { alert("Erro ao derivar endereços: " + e.message); }
   }
 
   function renderHDList(addrs) {
@@ -680,7 +1068,7 @@
         <span class="addr">${a.address}</span>
         <span class="bal" id="hdb_${a.index}">—</span>
         <div style="font-size:9px; color:#555; margin-top:4px; font-family:monospace;">
-          Caminho: m/44'/1611'/0'/0/${a.index}
+          m/44'/1611'/0'/0/${a.index}
         </div>
       </div>`).join('');
   }
@@ -698,10 +1086,10 @@
 
   // ── MULTISIG ──────────────────────────────────────────────────────────────────
   async function createMultisig() {
-    const ownersRaw = document.getElementById('msOwners').value.trim();
-    const required = parseInt(document.getElementById('msRequired').value);
-    const owners = ownersRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
-    const resultEl = document.getElementById('msCreateResult');
+    const ownersRaw  = document.getElementById('msOwners').value.trim();
+    const required   = parseInt(document.getElementById('msRequired').value);
+    const owners     = ownersRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    const resultEl   = document.getElementById('msCreateResult');
     if (owners.length < 2) return alert("Insira pelo menos 2 endereços de assinantes.");
     if (!required || required < 1 || required > owners.length) return alert("Número de assinaturas inválido.");
     try {
@@ -712,10 +1100,9 @@
       const d = await r.json();
       if (d.error) throw new Error(d.error);
       resultEl.innerHTML = `
-        <div class="label">Endereço Multisig Criado</div>
-        <div class="val">${d.address}</div>
+        <div class="label">Endereço Multisig</div><div class="val">${d.address}</div>
         <div class="label" style="margin-top:8px">Política</div>
-        <div style="color:#fff">${required}-de-${owners.length} assinaturas necessárias</div>`;
+        <div style="color:#fff">${required}-de-${owners.length} assinaturas</div>`;
       resultEl.classList.add('visible');
     } catch(e) {
       resultEl.innerHTML = `<span class="error">Erro: ${e.message}</span>`;
@@ -724,11 +1111,11 @@
   }
 
   async function proposeMultisig() {
-    const from = document.getElementById('msFrom').value.trim();
-    const to = document.getElementById('msTo').value.trim();
+    const from   = document.getElementById('msFrom').value.trim();
+    const to     = document.getElementById('msTo').value.trim();
     const amount = parseFloat(document.getElementById('msAmount').value);
     const required = parseInt(document.getElementById('msReq').value);
-    const resultEl = document.getElementById('msProposeResult');
+    const resultEl  = document.getElementById('msProposeResult');
     if (!from || !to || isNaN(amount) || isNaN(required)) return alert("Preencha todos os campos.");
     try {
       const r = await fetch(`${API}/multisig/propose`, {
@@ -750,9 +1137,9 @@
   }
 
   async function signMultisig() {
-    const txid = document.getElementById('msTxid').value.trim();
+    const txid   = document.getElementById('msTxid').value.trim();
     const signer = document.getElementById('msSigner').value.trim();
-    const seed = document.getElementById('msSeed').value.trim();
+    const seed   = document.getElementById('msSeed').value.trim();
     const resultEl = document.getElementById('msSignResult');
     if (!txid || !signer || seed.split(' ').length < 12) return alert("Preencha TXID, endereço e seed (12 palavras).");
     try {
@@ -765,7 +1152,7 @@
       resultEl.innerHTML = `
         <div class="label">Assinatura</div><div class="val">${d.signature}</div>
         <div class="label" style="margin-top:8px">Status</div>
-        <div style="color:${d.ready ? '#0f0' : 'var(--accent)'}">${d.status}</div>`;
+        <div style="color:${d.ready ? '#0f0' : 'var(--accent)'}">` + d.status + `</div>`;
       resultEl.classList.add('visible');
       document.getElementById('msSeed').value = '';
       if (d.ready) document.getElementById('msBroadcastTxid').value = txid;
@@ -819,8 +1206,7 @@
               Valor: <span style="color:var(--accent)">${p.amount} MZ</span>
             </div>
             <div class="sig-bar"><div class="sig-fill" style="width:${pct}%"></div></div>
-            <div style="font-size:10px; color:var(--text);">${p.sigs_collected}/${p.required} assinatura(s) coletada(s)</div>
-            ${p.signed_by && p.signed_by.length > 0 ? `<div style="font-size:9px; color:#555; margin-top:4px;">Assinado por: ${p.signed_by.map(s=>s.substring(0,12)+'...').join(', ')}</div>` : ''}
+            <div style="font-size:10px; color:var(--text);">${p.sigs_collected}/${p.required} assinatura(s)</div>
           </div>`;
       }).join('');
     } catch(e) {
@@ -828,9 +1214,10 @@
     }
   }
 
-  // ── REDE & INTEGRIDADE ────────────────────────────────────────────────────────
+  // ── REDE ──────────────────────────────────────────────────────────────────────
   async function updateNetwork() {
-    const info = document.getElementById('statsInfo');
+    const info    = document.getElementById('statsInfo');
+    const peerDiv = document.getElementById('peerList');
     try {
       const [statusRes, netRes] = await Promise.all([
         fetch(`${API}/status`),
@@ -838,15 +1225,50 @@
       ]);
       const s = await statusRes.json();
       const n = await netRes.json();
+
+      const h     = s.chain?.height || 0;
+      const peers = s.network?.peers_count || 0;
+      setHeightAll(h);
+      setPeers(peers);
+
+      // Supply
+      const supply = s.protocol?.total_supply || 0;
+      const el = document.getElementById('netSupply');
+      if (el) el.innerText = supply.toFixed(0);
+
+      // Difficulty
+      ['chainDiff','netDiff'].forEach(id => {
+        const e2 = document.getElementById(id);
+        if (e2) e2.innerText = s.protocol?.difficulty || '—';
+      });
+
       info.innerHTML = `
         Protocolo: <b>MAZECHAIN ${n.version}</b><br>
-        Rede: <b>${n.name.toUpperCase()}</b>${n.is_testnet ? ' <span class="badge badge-err">TESTNET</span>' : ' <span class="badge badge-ok">MAINNET</span>'}<br>
-        Dificuldade Atual: <b>${s.protocol.difficulty} Zeros</b><br>
-        Supply Total: <b>${s.protocol.total_supply.toFixed(2)} MZ</b> / 20.000.000 MZ<br>
-        Peers Conectados: <b>${s.network.peers_count}</b><br>
-        Altura da Rede: <b>${s.chain.height}</b><br>
+        Rede: <b>${n.name?.toUpperCase()}</b>${n.is_testnet
+          ? ' <span class="badge badge-err">TESTNET</span>'
+          : ' <span class="badge badge-ok">MAINNET</span>'}<br>
+        Dificuldade: <b>${s.protocol?.difficulty} Zeros</b><br>
+        Supply Total: <b>${supply.toFixed(2)} MZ</b> / 20.000.000 MZ<br>
+        Peers: <b>${peers}</b><br>
+        Altura: <b>${h}</b><br>
         Magic Bytes: <b>${n.magic}</b>`;
-    } catch(e) { info.innerHTML = "Nó em modo Offline."; }
+
+      // Peer list
+      if (n.peers && n.peers.length > 0) {
+        peerDiv.innerHTML = n.peers.map(p => `
+          <div class="peer-row">
+            <span><div class="ps"></div></span>
+            <span style="font-family:monospace; color:#fff; flex:1; margin: 0 8px;">${p}</span>
+            <span class="badge badge-ok">ATIVO</span>
+          </div>`).join('');
+      } else {
+        peerDiv.innerHTML = '<div style="color:var(--text); font-size:11px; text-align:center; padding:10px;">Nenhum peer conectado.<br><span style="font-size:10px;">Use scripts/run_cluster.sh para lançar múltiplos nós.</span></div>';
+      }
+
+    } catch(e) {
+      info.innerHTML = "Nó em modo Offline.";
+      peerDiv.innerHTML = '<div style="color:#f44; font-size:11px;">Sem conexão com o nó.</div>';
+    }
   }
 
   async function checkIntegrity() {
@@ -875,7 +1297,7 @@
     if (priceChart) priceChart.destroy();
     const ctx = document.getElementById('priceChart').getContext('2d');
     const labels = Array.from({length: 10}, (_, i) => `T-${9-i}`);
-    const data = Array.from({length: 10}, () => Math.floor(Math.random() * 8000) + 2000);
+    const data   = Array.from({length: 10}, () => Math.floor(Math.random() * 8000) + 2000);
     priceChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -900,9 +1322,7 @@
   // ── INICIALIZAÇÃO ─────────────────────────────────────────────────────────────
   window.onload = () => {
     const addr = localStorage.getItem('mz_addr');
-    if (addr) {
-      document.getElementById('addrDisp').textContent = addr;
-    }
+    if (addr) document.getElementById('addrDisp').textContent = addr;
     go('home');
   };
 </script>

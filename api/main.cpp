@@ -37,6 +37,7 @@
 #include "rpc_auth.h"
 #include "ec_recovery.h"
 #include "peer_eviction.h"
+#include "sse.h"
 
 #include <vector>
 #include <string>
@@ -70,10 +71,26 @@ std::atomic<bool> is_mining{false};
 std::atomic<bool> global_keep_running{true}; 
 extern std::mutex g_blockchain_mutex; // Usa o mutex definido no blockchain.cpp
 
-const std::string ABS_DATA_PATH = "data";
-const std::string ABS_WALLET_PATH = "data/wallet.dat";
-const std::string MEMPOOL_PATH = "data/mempool.dat";
-const std::string DB_PATH = "data/blockchain.dat"; // Caminho consistente para o banco de dados
+// ── Per-node paths (overridable via env vars for multi-node clusters) ─────────
+static std::string _resolveDataDir() {
+    const char* env = std::getenv("MAZE_DATADIR");
+    return env ? std::string(env) : "data";
+}
+static std::string _resolveWalletFile() {
+    const char* env = std::getenv("MAZE_WALLET_FILE");
+    if (env) return std::string(env);
+    return _resolveDataDir() + "/wallet.dat";
+}
+static std::string _resolvePeersFile() {
+    const char* env = std::getenv("MAZE_PEERS_FILE");
+    if (env) return std::string(env);
+    return _resolveDataDir() + "/peers.dat";
+}
+
+const std::string ABS_DATA_PATH   = _resolveDataDir();
+const std::string ABS_WALLET_PATH = _resolveWalletFile();
+const std::string MEMPOOL_PATH    = _resolveDataDir() + "/mempool.dat";
+const std::string DB_PATH         = _resolveDataDir() + "/blockchain.dat";
 
 // --- SIGNAL HANDLER ---
 void signal_handler(int signum) {
@@ -170,23 +187,43 @@ void async_mine(Blockchain& bc, P2P& p2p, std::string addr) {
 
     try {
         int altura_antes = (int)bc.getChain().size();
-        std::cout << "\n[MOTOR] ⛏️ Minerando Bloco #" << altura_antes 
-                  << " para o endereço: " << addr << std::endl;
+        std::cout << "\n[MOTOR] ⛏️  Minerando Bloco #" << altura_antes 
+                  << " para: " << addr << std::endl;
 
+        // Notify frontend: mining started
+        SSE::pushMiningStart(altura_antes, addr);
+
+        auto t_start = std::chrono::steady_clock::now();
         bc.mineBlock(addr);
+        auto t_end   = std::chrono::steady_clock::now();
+        double ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
 
         int altura_depois = (int)bc.getChain().size();
         if (altura_depois > altura_antes) {
-            std::cout << "[MOTOR] ✅ Bloco " << (altura_depois - 1) 
-                      << " Minerado com Sucesso!" << std::endl;
-
-            // Broadcast full block JSON to peers
             const auto& chain = bc.getChain();
-            if (!chain.empty()) {
-                std::string block_json = block_to_json_str(chain.back());
-                p2p.broadcast_block(block_json);
-            }
+            const Block& blk  = chain.back();
+
+            std::cout << "[MOTOR] ✅ Bloco " << (altura_depois - 1)
+                      << " | Hash: " << blk.hash.substr(0, 20) << "..."
+                      << " | Tempo: " << std::fixed << std::setprecision(1) << ms << "ms"
+                      << std::endl;
+
+            // SSE: mining done + new block event (frontend updates live)
+            SSE::pushMiningDone(altura_depois - 1, blk.hash, true, ms);
+
+            double reward = bc.getBlockReward(altura_depois - 1);
+            double supply = bc.getTotalSupply();
+            int    diff   = bc.getDifficulty();
+            int    txc    = (int)blk.transactions.size();
+            SSE::pushBlock(altura_depois - 1, blk.hash, blk.minerAddress,
+                           reward, txc, supply, diff);
+
+            // Broadcast block to peers
+            std::string block_json = block_to_json_str(blk);
+            p2p.broadcast_block(block_json);
+
         } else {
+            SSE::pushMiningDone(altura_antes, "", false, ms);
             std::cerr << "[AVISO] Bloco rejeitado ou já minerado por outra thread." << std::endl;
         }
 
@@ -454,8 +491,18 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::string local_miner_address = miner_wallet.getAddress(); 
-    std::cout << "💳 Endereço do Nó Ativo: " << local_miner_address << std::endl;
+    // MAZE_MINEADDR env var: lets each node mine to its own wallet
+    std::string local_miner_address;
+    {
+        const char* env_addr = std::getenv("MAZE_MINEADDR");
+        if (env_addr && std::strlen(env_addr) > 0) {
+            local_miner_address = std::string(env_addr);
+            std::cout << "🌐 Endereço de mineração (env): " << local_miner_address << std::endl;
+        } else {
+            local_miner_address = miner_wallet.getAddress();
+            std::cout << "💳 Endereço do Nó Ativo: " << local_miner_address << std::endl;
+        }
+    }
 
     NodeManager node_manager(bc, p2p);
 
@@ -464,11 +511,15 @@ int main(int argc, char* argv[]) {
         std::string genesis_hash = "";
         auto ch = bc.getChain();
         if (!ch.empty()) genesis_hash = ch[0].hash;
+        std::string peers_path = _resolvePeersFile();
 
-        std::thread([&bc, &p2p, genesis_hash](){
+        std::thread([&bc, &p2p, genesis_hash, peers_path](){
             std::this_thread::sleep_for(std::chrono::seconds(3));
-            p2p.bootstrap("data/peers.dat", genesis_hash);
+            p2p.bootstrap(peers_path, genesis_hash);
             if (!p2p.peers.empty()) {
+                SSE::pushNodeStatus((int)bc.getChain().size(),
+                    bc.getTotalSupply(), (int)p2p.peers.size(),
+                    0, bc.getDifficulty());
                 p2p.sync_with_peers(bc, DB_PATH);
             }
         }).detach();
@@ -508,6 +559,45 @@ int main(int argc, char* argv[]) {
         } catch (const std::exception& e) {
             return crow::response(500, e.what());
         }
+    });
+
+    // ── SSE: real-time event stream ────────────────────────────────────────────
+    // Frontend connects via EventSource("/events") and receives live updates.
+    // Uses long-polling: waits up to 25s for new events, then returns so the
+    // browser reconnects — this works perfectly with Crow's sync routing.
+    CROW_ROUTE(app, "/events")
+    ([&bc, &p2p](const crow::request& req) {
+        // Parse Last-Event-ID header (browser sends automatically on reconnect)
+        uint64_t afterId = 0;
+        std::string lei = req.get_header_value("Last-Event-ID");
+        if (!lei.empty()) {
+            try { afterId = (uint64_t)std::stoull(lei); } catch (...) {}
+        }
+        // Also accept ?since=<id> query param
+        auto since_param = req.url_params.get("since");
+        if (since_param) {
+            try { afterId = (uint64_t)std::stoull(since_param); } catch (...) {}
+        }
+
+        std::string body = SSE::waitForEvents(afterId, 25000);
+
+        crow::response res(200, body);
+        res.set_header("Content-Type",  "text/event-stream");
+        res.set_header("Cache-Control", "no-cache");
+        res.set_header("Connection",    "keep-alive");
+        res.set_header("X-Accel-Buffering", "no");
+        return res;
+    });
+
+    // ── SSE: latest event ID (for frontend to bootstrap) ──────────────────────
+    CROW_ROUTE(app, "/events/latest")
+    ([&bc, &p2p](){
+        crow::json::wvalue x;
+        x["latest_id"] = (uint64_t)SSE::latestId();
+        x["height"]    = (int)bc.getChain().size();
+        x["mining"]    = is_mining.load();
+        x["peers"]     = (int)p2p.peers.size();
+        return x;
     });
 
     CROW_ROUTE(app, "/minerar_agora/<string>")
@@ -1273,7 +1363,7 @@ int main(int argc, char* argv[]) {
 
     // ─── Testnet info ─────────────────────────────────────────────────────────
     CROW_ROUTE(app, "/network")
-    ([&bc]{
+    ([&bc, &p2p]{
         auto cfg = NetworkConfig::getConfig();
         crow::json::wvalue x;
         x["name"]            = cfg.name;
@@ -1283,6 +1373,12 @@ int main(int argc, char* argv[]) {
         x["min_difficulty"]  = cfg.min_difficulty;
         x["is_testnet"]      = NetworkConfig::isTestnet();
         x["height"]          = bc.getHeight();
+        x["peers_count"]     = (int)p2p.peers.size();
+        // Return peer URLs for the frontend peer list
+        std::vector<std::string> peer_list(p2p.peers.begin(), p2p.peers.end());
+        crow::json::wvalue arr = crow::json::wvalue::list();
+        for (int i = 0; i < (int)peer_list.size(); i++) arr[i] = peer_list[i];
+        x["peers"] = std::move(arr);
         return x;
     });
 
