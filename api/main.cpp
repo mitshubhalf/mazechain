@@ -579,12 +579,14 @@ int main(int argc, char* argv[]) {
             try { afterId = (uint64_t)std::stoull(since_param); } catch (...) {}
         }
 
-        std::string body = SSE::waitForEvents(afterId, 25000);
+        std::string body = SSE::waitForEvents(afterId, 5000);
+        // Tell browser to retry in 2s on disconnect
+        body = "retry: 2000\n" + body;
 
         crow::response res(200, body);
-        res.set_header("Content-Type",  "text/event-stream");
-        res.set_header("Cache-Control", "no-cache");
-        res.set_header("Connection",    "keep-alive");
+        res.set_header("Content-Type",      "text/event-stream");
+        res.set_header("Cache-Control",     "no-cache, no-store");
+        res.set_header("Connection",        "keep-alive");
         res.set_header("X-Accel-Buffering", "no");
         return res;
     });
@@ -2487,7 +2489,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "\n🚀 MAZECHAIN ONLINE | PORTA: " << port << std::endl;
 
-    app.port(port).multithreaded().run();
+    app.port(port).concurrency(16).run();
 
     return 0;
 }
